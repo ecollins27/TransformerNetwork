@@ -44,7 +44,9 @@ int main() {
 	double** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 10);
 	getData("C:\\Users\\Owner\\OneDrive\\Desktop\\mnist_train.csv", X, y, 60000);
 	NeuralNetwork dnn(Loss::CATEGORICAL_CROSS_ENTROPY, 784);
+	dnn.addLayer({ new DenseLayer(Activation::SELU, 500) });
 	dnn.addLayer({ new DenseLayer(Activation::SELU, 300) });
+	dnn.addLayer({ new DenseLayer(Activation::SELU, 100) });
 	dnn.addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
 	dnn.fit(60000, X, y, TrainingParams::DEFAULT->withMetrics(1, Loss::ACCURACY));
 }

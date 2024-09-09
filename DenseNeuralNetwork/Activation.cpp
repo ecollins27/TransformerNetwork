@@ -6,6 +6,7 @@ Activation* Activation::SIGMOID{ new Sigmoid() };
 Activation* Activation::RELU{ new Relu() };
 Activation* Activation::ELU{ new Elu(1) };
 Activation* Activation::SELU{ new Selu() };
+Activation* Activation::TANH{ new Tanh() };
 Activation* Activation::SOFTMAX{ new Softmax() };
 
 void None::operate(DenseLayer* layer) {
@@ -105,6 +106,26 @@ void Selu::differentiate(DenseLayer* layer) {
 }
 
 bool Selu::isDiagonal() {
+	return true;
+}
+
+void Tanh::operate(DenseLayer* layer) {
+	for (int i = 0; i < layer->size; i++) {
+		double& value = layer->neurons[i][0];
+		double eX = exp(value);
+		double eNegX = exp(-value);
+		value = (eX - eNegX) / (eX + eNegX);
+	}
+}
+
+void Tanh::differentiate(DenseLayer* layer) {
+	for (int i = 0; i < layer->size; i++) {
+		double& value = layer->neurons[i][0];
+		layer->activationGradient[i][i] = 1 - value * value;
+	}
+}
+
+bool Tanh::isDiagonal() {
 	return true;
 }
 

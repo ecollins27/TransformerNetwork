@@ -91,3 +91,7 @@ void NeuralNetwork::fit(int numData, double** X, double** y, TrainingParams* par
 		printf("\n");
 	}
 }
+
+void NeuralNetwork::setTrainable(bool trainable) {
+	inputLayer->setTrainable(trainable);
+}

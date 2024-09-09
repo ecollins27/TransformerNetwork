@@ -3,14 +3,13 @@
 #include <sstream>
 
 #include "DenseLayer.h"
-#include "NeuralNetwork.h"
+#include "GAN.h"
 
 void getData(string fileName, double** X, double** y, int num) {
 	string line;
 	ifstream file(fileName);
 	getline(file, line);
 	int i = 0;
-	int num2 = 0;
 	while (i < num && getline(file, line)) {
 		printf("\r%f", 100 * (double)i / (num));
 		istringstream ss(line);
@@ -23,9 +22,6 @@ void getData(string fileName, double** X, double** y, int num) {
 			int value = stoi(n);
 			if (j == 0) {
 				y[i][value] = 1;
-				if (value == 2) {
-					num2++;
-				}
 			}
 			else {
 				X[i][j - 1] = (double)value / 255.0;
@@ -34,19 +30,52 @@ void getData(string fileName, double** X, double** y, int num) {
 		}
 		i++;
 	}
-	printf("\n");
-	printf("%d\n", num2);
+	printf("\r100.0 \n");
 	file.close();
 }
 
 int main() {
+	double** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 2);
+	double** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 2);
+	for (int i = 0; i < 10000; i++) {
+		X[i][0] = (int)(2.0 * rand() / (RAND_MAX + 1));
+		X[i][1] = (int)(2.0 * rand() / (RAND_MAX + 1));
+		y[i][(int)(X[i][0] + X[i][1]) % 2] = 1;
+	}
+	NeuralNetwork dnn(Loss::BINARY_CROSS_ENTROPY, 2);
+	dnn.addLayer({ new DenseLayer(Activation::SIGMOID, 2) });
+	dnn.addLayer({ new DenseLayer(Activation::SOFTMAX, 2) });
+	dnn.fit(10000, X, y, TrainingParams::DEFAULT->withMetrics(1, Loss::ACCURACY));
+	printf("\n");
+	double** weight1 = ((DenseLayer*)(dnn.inputLayer->nextLayer))->weights;
+	double** weight2 = ((DenseLayer*)(dnn.outputLayer))->weights;
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 3; j++) {
+			printf("%f ", weight1[i][j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 3; j++) {
+			printf("%f ", weight2[i][j]);
+		}
+		printf("\n");
+	}
+	printf("\n");
+}
+
+int main2() {
 	double** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 784);
 	double** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 10);
 	getData("C:\\Users\\Owner\\OneDrive\\Desktop\\mnist_train.csv", X, y, 60000);
-	NeuralNetwork dnn(Loss::CATEGORICAL_CROSS_ENTROPY, 784);
-	dnn.addLayer({ new DenseLayer(Activation::SELU, 500) });
-	dnn.addLayer({ new DenseLayer(Activation::SELU, 300) });
-	dnn.addLayer({ new DenseLayer(Activation::SELU, 100) });
-	dnn.addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
-	dnn.fit(60000, X, y, TrainingParams::DEFAULT->withMetrics(1, Loss::ACCURACY));
+	NeuralNetwork* generator{ new NeuralNetwork(Loss::MEAN_SQUARED_ERROR, 10) };
+	generator->addLayer({ new DenseLayer(Activation::SELU, 300) });
+	generator->addLayer({ new DenseLayer(Activation::SIGMOID, 784) });
+	NeuralNetwork* discriminator{ new NeuralNetwork(Loss::BINARY_CROSS_ENTROPY, 784) };
+	discriminator->addLayer({ new DenseLayer(Activation::SELU, 300) });
+	discriminator->addLayer({ new DenseLayer(Activation::SIGMOID, 1) });
+	GAN gan(generator, discriminator);
+	gan.fit(60000, X, TrainingParams::DEFAULT);
+	return 0;
 }

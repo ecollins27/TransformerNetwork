@@ -18,5 +18,6 @@ public:
 	void fit(double* X, double* y, double* losses, TrainingParams* params);
 	void fit(int numData, double** X, double** y, TrainingParams* params);
 	void shuffle(int numData, double** X, double** y);
+	void setTrainable(bool trainable);
 };
 

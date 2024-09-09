@@ -9,6 +9,7 @@ class Activation {
 		static Activation* RELU;
 		static Activation* ELU;
 		static Activation* SELU;
+		static Activation* TANH;
 		static Activation* SOFTMAX;
 
 		virtual void operate(DenseLayer* layer) = 0;
@@ -52,6 +53,14 @@ public:
 };
 
 class Selu : public Activation {
+public:
+	void operate(DenseLayer* layer);
+	void differentiate(DenseLayer* layer);
+	bool isDiagonal();
+};
+
+class Tanh : public Activation {
+
 public:
 	void operate(DenseLayer* layer);
 	void differentiate(DenseLayer* layer);

@@ -50,7 +50,7 @@ void DenseLayer::backPropagate() {
 			int k = isDiagonal ? j : 0;
 			do {
 				prevNeuronGradient += dLdz * activationGradient[j][k] * weights[k][i];
-				weightGradient[j][i] += prevNeuron * neuronGradient[k][0] * activationGradient[k][j];
+				weightGradient[j][i] += trainable? (prevNeuron * neuronGradient[k][0] * activationGradient[k][j]):0;
 				k++;
 			} while (k < size && !isDiagonal);
 		}

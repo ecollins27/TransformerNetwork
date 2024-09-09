@@ -11,6 +11,7 @@ public:
 	int prevSize;
 	double** neurons;
 	double** neuronGradient;
+	bool trainable = true;
 
 	Layer* prevLayer;
 	Layer* nextLayer;
@@ -21,5 +22,6 @@ public:
 	virtual void setPrevLayer(Layer* prevLayer) = 0;
 	virtual void setNextLayer(Layer* nextLayer) = 0;
 	virtual void applyGradients(TrainingParams* params, int t) = 0;
+	void setTrainable(bool trainable);
 };
 

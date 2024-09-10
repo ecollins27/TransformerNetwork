@@ -4,6 +4,8 @@ Loss* Loss::MEAN_SQUARED_ERROR = { new MeanSquaredError() };
 Loss* Loss::BINARY_CROSS_ENTROPY = { new BinaryCrossEntropy() };
 Loss* Loss::CATEGORICAL_CROSS_ENTROPY = { new CategoricalCrossEntropy() };
 Loss* Loss::ACCURACY = { new Accuracy() };
+Loss* Loss::BINARY_ACCURACY = { new BinaryAccuracy() };
+Loss* Loss::ALL_LOSSES[3] = {MEAN_SQUARED_ERROR, BINARY_CROSS_ENTROPY, CATEGORICAL_CROSS_ENTROPY};
 
 double MeanSquaredError::loss(Layer* layer, double* yTrue) {
 	double sum = 0;
@@ -76,18 +78,28 @@ double Accuracy::loss(Layer* layer, double* yTrue) {
 }
 
 void Accuracy::differentiate(Layer* layer, double* yTrue) {
-	int trueMax = 0;
-	for (int i = 0; i < layer->size; i++) {
-		if (yTrue[i] > yTrue[trueMax]) {
-			trueMax = i;
-		}
-	}
-	for (int i = 0; i < layer->size; i++) {
-		layer->neuronGradient[i][0] = 0;
-	}
-	layer->neuronGradient[trueMax][0] = 1;
+	throw invalid_argument("Accuracy is a metric and cannot be used as a loss function");
 }
 
 string Accuracy::toString() {
 	return "Accuracy";
+}
+
+double BinaryAccuracy::loss(Layer* layer, double* yTrue) {
+	double sum = 0;
+	for (int i = 0; i < layer->size; i++) {
+		if ((layer->neurons[i][0] >= 0.5 && yTrue[i] >= 0.5) || (layer->neurons[i][0] < 0.5 && yTrue[i] < 0.5)) {
+			sum++;
+		}
+	}
+	return sum / layer->size;
+}
+
+void BinaryAccuracy::differentiate(Layer* layer, double* yTrue) {
+	throw invalid_argument("BinaryAccuracy is a metric and cannot be used as a loss function");
+}
+
+string BinaryAccuracy::toString() {
+	string toString = "BinaryAccuracy";
+	return toString;
 }

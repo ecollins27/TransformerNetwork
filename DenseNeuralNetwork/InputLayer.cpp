@@ -44,3 +44,10 @@ void InputLayer::applyGradients(TrainingParams* params, int t) {
 		nextLayer->applyGradients(params, t);
 	}
 }
+
+void InputLayer::save(ofstream& file) {
+	file << size << "\n";
+	if (nextLayer != NULL) {
+		nextLayer->save(file);
+	}
+}

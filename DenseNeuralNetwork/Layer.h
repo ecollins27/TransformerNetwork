@@ -1,6 +1,7 @@
 #pragma once
 #include "Matrix.h"
 #include "TrainingParams.h"
+#include <fstream>
 
 class Layer {
 
@@ -23,5 +24,7 @@ public:
 	virtual void setNextLayer(Layer* nextLayer) = 0;
 	virtual void applyGradients(TrainingParams* params, int t) = 0;
 	void setTrainable(bool trainable);
+
+	virtual void save(ofstream& file) = 0;
 };
 

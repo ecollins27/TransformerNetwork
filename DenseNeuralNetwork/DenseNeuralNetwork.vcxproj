@@ -21,7 +21,6 @@
   <ItemGroup>
     <ClCompile Include="Activation.cpp" />
     <ClCompile Include="DenseLayer.cpp" />
-    <ClCompile Include="GAN.cpp" />
     <ClCompile Include="InputLayer.cpp" />
     <ClCompile Include="Layer.cpp" />
     <ClCompile Include="Loss.cpp" />
@@ -34,7 +33,6 @@
   <ItemGroup>
     <ClInclude Include="Activation.h" />
     <ClInclude Include="DenseLayer.h" />
-    <ClInclude Include="GAN.h" />
     <ClInclude Include="InputLayer.h" />
     <ClInclude Include="Layer.h" />
     <ClInclude Include="Loss.h" />

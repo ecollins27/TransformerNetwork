@@ -11,6 +11,7 @@ class Activation {
 		static Activation* SELU;
 		static Activation* TANH;
 		static Activation* SOFTMAX;
+		static Activation* ALL_ACTIVATIONS[7];
 
 		virtual void operate(DenseLayer* layer) = 0;
 		virtual void differentiate(DenseLayer* layer) = 0;

@@ -19,7 +19,10 @@ public:
 	static void deallocateMatrix(double** A, int height, int width);
 	static void add(int m, int n, double** A, double** B, double** C, double scalar1, double scalar2);
 	static void scale(int m, int n, double** A, double scalar);
-	static void multiply(int m, int n, int p, double** A, double** B, double** C);
+	static void multiplyABC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void multiplyAtBC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void multiplyABCt(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void multiplyAtBtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
 	static void fill(FillFunction* fillFunction, int m, int n, double** A);
 
 	static virtual class FillFunction {

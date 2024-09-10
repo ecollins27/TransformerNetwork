@@ -38,12 +38,53 @@ void Matrix::scale(int m, int n, double** A, double scalar) {
 	}
 }
 
-void Matrix::multiply(int m, int n, int p, double** A, double** B, double** C) {
+void Matrix::multiplyABC(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
-			C[i][j] = 0;
+			if (overwrite) {
+				C[i][j] = 0;
+			}
 			for (int k = 0; k < n; k++) {
 				C[i][j] += A[i][k] * B[k][j];
+			}
+		}
+	}
+}
+
+void Matrix::multiplyAtBC(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[i][j] = 0;
+			}
+			for (int k = 0; k < n; k++) {
+				C[i][j] += A[k][i] * B[k][j];
+			}
+		}
+	}
+}
+
+void Matrix::multiplyABCt(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[j][i] = 0;
+			}
+			for (int k = 0; k < n; k++) {
+				C[j][i] += A[i][k] * B[k][j];
+			}
+		}
+	}
+}
+
+void Matrix::multiplyAtBtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[i][j] = 0;
+			}
+			for (int k = 0; k < n; k++) {
+				C[i][j] += A[k][i] * B[j][k];
 			}
 		}
 	}

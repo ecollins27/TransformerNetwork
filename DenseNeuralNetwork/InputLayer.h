@@ -17,5 +17,6 @@ public:
 	void forwardPropagate();
 	void backPropagate();
 	void applyGradients(TrainingParams* params, int t);
+	void save(ofstream& file);
 };
 

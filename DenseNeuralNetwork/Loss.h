@@ -7,6 +7,8 @@ public:
 	static Loss* BINARY_CROSS_ENTROPY;
 	static Loss* CATEGORICAL_CROSS_ENTROPY;
 	static Loss* ACCURACY;
+	static Loss* BINARY_ACCURACY;
+	static Loss* ALL_LOSSES[3];
 
 	virtual double loss(Layer* layer, double* yTrue) = 0;
 	virtual void differentiate(Layer* layer, double* yTrue) = 0;
@@ -39,6 +41,14 @@ public:
 };
 
 class Accuracy : public Loss {
+
+public:
+	double loss(Layer* layer, double* yTrue);
+	void differentiate(Layer* layer, double* yTrue);
+	string toString();
+};
+
+class BinaryAccuracy : public Loss {
 
 public:
 	double loss(Layer* layer, double* yTrue);

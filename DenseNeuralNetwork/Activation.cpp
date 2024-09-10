@@ -8,6 +8,7 @@ Activation* Activation::ELU{ new Elu(1) };
 Activation* Activation::SELU{ new Selu() };
 Activation* Activation::TANH{ new Tanh() };
 Activation* Activation::SOFTMAX{ new Softmax() };
+Activation* Activation::ALL_ACTIVATIONS[7] = { NONE, SIGMOID, RELU, ELU, SELU, TANH, SOFTMAX };
 
 void None::operate(DenseLayer* layer) {
 	return;

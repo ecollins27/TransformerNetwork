@@ -84,7 +84,7 @@ void DenseLayer::save(ofstream& file) {
 			index = i;
 		}
 	}
-	file << index << "," << size << "," << prevSize << "\n";
+	file << index << "," << size << "\n";
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights[i][j] << ",";

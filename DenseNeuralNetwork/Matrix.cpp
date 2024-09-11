@@ -64,6 +64,19 @@ void Matrix::multiplyAtBC(int m, int n, int p, double** A, double** B, double** 
 	}
 }
 
+void Matrix::multiplyABtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite){
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[i][j] = 0;
+			}
+			for (int k = 0; k < n; k++) {
+				C[i][j] += A[i][k] * B[j][k];
+			}
+		}
+	}
+}
+
 void Matrix::multiplyABCt(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
@@ -85,6 +98,32 @@ void Matrix::multiplyAtBtC(int m, int n, int p, double** A, double** B, double**
 			}
 			for (int k = 0; k < n; k++) {
 				C[i][j] += A[k][i] * B[j][k];
+			}
+		}
+	}
+}
+
+void Matrix::matrixTensorMultiply(int m, int n, int p, double** A, double*** B, double** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[i][j] = 0;
+			}
+			for (int k = 0; k < n; k++) {
+				C[i][j] += A[i][k] * B[i][k][j];
+			}
+		}
+	}
+}
+
+void Matrix::elementMultiply(int m, int n, double** A, double** B, double** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < n; j++) {
+			if (overwrite) {
+				C[i][j] = A[i][j] * B[i][j];
+			}
+			else {
+				C[i][j] += A[i][j] * B[i][j];
 			}
 		}
 	}

@@ -2,9 +2,6 @@
 
 InputLayer::InputLayer(int size) {
 	this->size = size;
-	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, 1);
-	neurons[size][0] = 1;
-	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, 1);
 
 	prevLayer = NULL;
 	nextLayer = NULL;
@@ -15,9 +12,11 @@ InputLayer::~InputLayer() {
 	Matrix::deallocateMatrix(neuronGradient, size + 1, 1);
 }
 
-void InputLayer::setInput(double* data) {
-	for (int i = 0; i < size; i++) {
-		neurons[i][0] = data[i];
+void InputLayer::setInput(double** data) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			neurons[i][j] = data[i][j];
+		}
 	}
 }
 
@@ -27,6 +26,18 @@ void InputLayer::setPrevLayer(Layer* layer) {
 
 void InputLayer::setNextLayer(Layer* layer) {
 	nextLayer = layer;
+}
+
+void InputLayer::setBatchSize(int batchSize) {
+	this->batchSize = batchSize;
+	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+	for (int i = 0; i < batchSize; i++) {
+		neurons[i][size] = 1;
+	}
+	if (nextLayer != NULL) {
+		nextLayer->setBatchSize(batchSize);
+	}
 }
 
 void InputLayer::forwardPropagate() {

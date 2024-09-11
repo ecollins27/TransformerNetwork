@@ -7,17 +7,21 @@ Loss* Loss::ACCURACY = { new Accuracy() };
 Loss* Loss::BINARY_ACCURACY = { new BinaryAccuracy() };
 Loss* Loss::ALL_LOSSES[3] = {MEAN_SQUARED_ERROR, BINARY_CROSS_ENTROPY, CATEGORICAL_CROSS_ENTROPY};
 
-double MeanSquaredError::loss(Layer* layer, double* yTrue) {
+double MeanSquaredError::loss(Layer* layer, double** yTrue) {
 	double sum = 0;
-	for (int i = 0; i < layer->size; i++) {
-		sum += (layer->neurons[i][0] - yTrue[i]) * (layer->neurons[i][0] - yTrue[i]);
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			sum += (layer->neurons[i][j] - yTrue[i][j]) * (layer->neurons[i][j] - yTrue[i][j]);
+		}
 	}
 	return sum / layer->size;
 }
 
-void MeanSquaredError::differentiate(Layer* layer, double* yTrue) {
-	for (int i = 0; i < layer->size; i++) {
-		layer->neuronGradient[i][0] = 2 * (layer->neurons[i][0] - yTrue[i]) / layer->size;
+void MeanSquaredError::differentiate(Layer* layer, double** yTrue) {
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			layer->neuronGradient[i][j] = 2 * (layer->neurons[i][j] - yTrue[i][j]) / layer->size;
+		}
 	}
 }
 
@@ -26,17 +30,21 @@ string MeanSquaredError::toString() {
 	return toString;
 }
 
-double BinaryCrossEntropy::loss(Layer* layer, double* yTrue) {
+double BinaryCrossEntropy::loss(Layer* layer, double** yTrue) {
 	double sum = 0;
-	for (int i = 0; i < layer->size; i++) {
-		sum += yTrue[i] * log(layer->neurons[i][0]) + (1 - yTrue[i]) * log(1 - layer->neurons[i][0]);
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			sum += yTrue[i][j] * log(layer->neurons[i][j]) + (1 - yTrue[i][j]) * log(1 - layer->neurons[i][j]);
+		}
 	}
 	return -sum / layer->size;
 }
 
-void BinaryCrossEntropy::differentiate(Layer* layer, double* yTrue) {
-	for (int i = 0; i < layer->size; i++) {
-		layer->neuronGradient[i][0] = (-yTrue[i] / layer->neurons[i][0] + (1 - yTrue[i]) / (1 - layer->neurons[i][0])) / layer->size;
+void BinaryCrossEntropy::differentiate(Layer* layer, double** yTrue) {
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			layer->neuronGradient[i][j] = (-yTrue[i][j] / layer->neurons[i][j] + (1 - yTrue[i][j]) / (1 - layer->neurons[i][j])) / layer->size;
+		}
 	}
 }
 
@@ -45,17 +53,21 @@ string BinaryCrossEntropy::toString() {
 	return toString;
 }
 
-double CategoricalCrossEntropy::loss(Layer* layer, double* yTrue) {
+double CategoricalCrossEntropy::loss(Layer* layer, double** yTrue) {
 	double sum = 0;
-	for (int i = 0; i < layer->size; i++) {
-		sum += yTrue[i] * log(layer->neurons[i][0]);
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			sum += yTrue[i][j] * log(layer->neurons[i][j]);
+		}
 	}
 	return -sum / layer->size;
 }
 
-void CategoricalCrossEntropy::differentiate(Layer* layer, double* yTrue) {
-	for (int i = 0; i < layer->size; i++) {
-		layer->neuronGradient[i][0] = -yTrue[i] / (layer->size * layer->neurons[i][0]);
+void CategoricalCrossEntropy::differentiate(Layer* layer, double** yTrue) {
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			layer->neuronGradient[i][j] = -yTrue[i][j] / (layer->size * layer->neurons[i][j]);
+		}
 	}
 }
 
@@ -64,20 +76,24 @@ string CategoricalCrossEntropy::toString() {
 	return toString;
 }
 
-double Accuracy::loss(Layer* layer, double* yTrue) {
-	int predMax = 0;
-	int trueMax = 0;
-	for (int i = 0; i < layer->size; i++) {
-		if (layer->neurons[i][0] > layer->neurons[predMax][0]) {
-			predMax = i;
-		} if (yTrue[i] > yTrue[trueMax]) {
-			trueMax = i;
+double Accuracy::loss(Layer* layer, double** yTrue) {
+	int sum = 0;
+	for (int i = 0; i < layer->batchSize; i++) {
+		int predMax = 0;
+		int trueMax = 0;
+		for (int j = 0; j < layer->size; j++) {
+			if (layer->neurons[i][j] > layer->neurons[i][predMax]) {
+				predMax = j;
+			} if (yTrue[i][j] > yTrue[i][trueMax]) {
+				trueMax = j;
+			}
 		}
+		sum += predMax == trueMax ? 1 : 0;
 	}
-	return predMax == trueMax ? 1 : 0;
+	return sum;
 }
 
-void Accuracy::differentiate(Layer* layer, double* yTrue) {
+void Accuracy::differentiate(Layer* layer, double** yTrue) {
 	throw invalid_argument("Accuracy is a metric and cannot be used as a loss function");
 }
 
@@ -85,17 +101,19 @@ string Accuracy::toString() {
 	return "Accuracy";
 }
 
-double BinaryAccuracy::loss(Layer* layer, double* yTrue) {
+double BinaryAccuracy::loss(Layer* layer, double** yTrue) {
 	double sum = 0;
-	for (int i = 0; i < layer->size; i++) {
-		if ((layer->neurons[i][0] >= 0.5 && yTrue[i] >= 0.5) || (layer->neurons[i][0] < 0.5 && yTrue[i] < 0.5)) {
-			sum++;
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			if ((layer->neurons[i][j] >= 0.5 && yTrue[i][j] >= 0.5) || (layer->neurons[i][j] < 0.5 && yTrue[i][j] < 0.5)) {
+				sum++;
+			}
 		}
 	}
 	return sum / layer->size;
 }
 
-void BinaryAccuracy::differentiate(Layer* layer, double* yTrue) {
+void BinaryAccuracy::differentiate(Layer* layer, double** yTrue) {
 	throw invalid_argument("BinaryAccuracy is a metric and cannot be used as a loss function");
 }
 

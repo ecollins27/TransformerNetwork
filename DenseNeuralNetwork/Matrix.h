@@ -21,8 +21,11 @@ public:
 	static void scale(int m, int n, double** A, double scalar);
 	static void multiplyABC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
 	static void multiplyAtBC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void multiplyABtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
 	static void multiplyABCt(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
 	static void multiplyAtBtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void matrixTensorMultiply(int m, int n, int p, double** A, double*** B, double** C, bool overwrite);
+	static void elementMultiply(int m, int n, double** A, double** B, double** C, bool overwrite);
 	static void fill(FillFunction* fillFunction, int m, int n, double** A);
 
 	static virtual class FillFunction {

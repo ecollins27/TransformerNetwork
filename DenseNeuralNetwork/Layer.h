@@ -10,6 +10,7 @@ public:
 	int size;
 	//includes bias
 	int prevSize;
+	int batchSize;
 	double** neurons;
 	double** neuronGradient;
 	bool trainable = true;
@@ -22,6 +23,7 @@ public:
 
 	virtual void setPrevLayer(Layer* prevLayer) = 0;
 	virtual void setNextLayer(Layer* nextLayer) = 0;
+	virtual void setBatchSize(int batchSize) = 0;
 	virtual void applyGradients(TrainingParams* params, int t) = 0;
 	void setTrainable(bool trainable);
 

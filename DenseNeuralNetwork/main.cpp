@@ -35,7 +35,7 @@ void getData(string fileName, double** X, double** y, int num) {
 	file.close();
 }
 
-int main2() {
+int main() {
 	double** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 784);
 	double** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 10);
 	getData("C:\\Users\\Owner\\OneDrive\\Desktop\\mnist_test.csv", X, y, 10000);
@@ -46,7 +46,7 @@ int main2() {
 	Matrix::deallocateMatrix(y, 10000, 10);
 }
 
-int main() {
+int main2() {
 	double** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 784);
 	double** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 10);
 	getData("C:\\Users\\Owner\\OneDrive\\Desktop\\mnist_train.csv", X, y, 60000);
@@ -55,7 +55,7 @@ int main() {
 	dnn->addLayer({ new DenseLayer(Activation::ELU, 300) });
 	dnn->addLayer({ new DenseLayer(Activation::ELU, 100) });
 	dnn->addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
-	dnn->fit(60000, X, y, TrainingParams::DEFAULT->withMetrics(1, Loss::ACCURACY)->withNumEpochs(20));
+	dnn->fit(60000, X, y, TrainingParams::DEFAULT->withMetrics(1, Loss::ACCURACY)->withNumEpochs(10));
 	dnn->save("dnn.txt");
 
 	Matrix::deallocateMatrix(X, 60000, 784);

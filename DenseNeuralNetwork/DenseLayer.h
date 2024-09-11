@@ -13,7 +13,7 @@ public:
 	double** backPropIntermediate;
 
 	Activation* activation;
-	double** activationGradient;
+	double*** activationGradient;
 	bool isDiagonal;
 
 	DenseLayer(Activation* activation, int size);
@@ -22,6 +22,7 @@ public:
 
 	void setPrevLayer(Layer* prevLayer);
 	void setNextLayer(Layer* nextLayer);
+	void setBatchSize(int batchSize);
 
 	void forwardPropagate();
 	void backPropagate();

@@ -7,12 +7,13 @@ public:
 
 	InputLayer(int size);
 
-	void setInput(double* data);
+	void setInput(double** data);
 
 	~InputLayer();
 
 	void setPrevLayer(Layer* layer);
 	void setNextLayer(Layer* layer);
+	void setBatchSize(int batchSize);
 
 	void forwardPropagate();
 	void backPropagate();

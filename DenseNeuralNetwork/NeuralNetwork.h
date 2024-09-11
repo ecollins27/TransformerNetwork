@@ -14,11 +14,11 @@ public:
 	NeuralNetwork(string fileName);
 
 	void addLayer(Layer* layer);
-	void forwardPropagate(double* input);
-	void backPropagate(double* yTrue);
+	void forwardPropagate(double** input);
+	void backPropagate(double** yTrue);
 	void applyGradients(TrainingParams* params);
-	double getLoss(double* yTrue);
-	void fit(double* X, double* y, double* losses, TrainingParams* params);
+	double getLoss(double** yTrue);
+	void fit(double** X, double** y, double* losses, TrainingParams* params);
 	void fit(int numData, double** X, double** y, TrainingParams* params);
 	double test(int numData, double** X, double** y, int numMetrics, Loss** metrics);
 	void shuffle(int numData, double** X, double** y);

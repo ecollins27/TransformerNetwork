@@ -7,8 +7,9 @@ Activation* Activation::RELU{ new Relu() };
 Activation* Activation::ELU{ new Elu(1) };
 Activation* Activation::SELU{ new Selu() };
 Activation* Activation::TANH{ new Tanh() };
+Activation* Activation::SWISH{ new Swish() };
 Activation* Activation::SOFTMAX{ new Softmax() };
-Activation* Activation::ALL_ACTIVATIONS[7] = { NONE, SIGMOID, RELU, ELU, SELU, TANH, SOFTMAX };
+Activation* Activation::ALL_ACTIVATIONS[8] = { NONE, SIGMOID, RELU, ELU, SELU, TANH, SWISH, SOFTMAX };
 
 void None::operate(DenseLayer* layer) {
 	return;
@@ -150,6 +151,29 @@ void Tanh::differentiate(DenseLayer* layer) {
 }
 
 bool Tanh::isDiagonal() {
+	return true;
+}
+
+void Swish::operate(DenseLayer* layer) {
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			double& value = layer->neurons[i][j];
+			value = value / (1 + exp(-value));
+		}
+	}
+}
+
+void Swish::differentiate(DenseLayer* layer) {
+	for (int i = 0; i < layer->batchSize; i++) {
+		for (int j = 0; j < layer->size; j++) {
+			double& activation = layer->activations[i][j];
+			double eNegX = exp(-activation);
+			layer->activationGradient[0][i][j] = (1 + eNegX * layer->neurons[i][j]) / (1.0 + eNegX);
+		}
+	}
+}
+
+bool Swish::isDiagonal() {
 	return true;
 }
 

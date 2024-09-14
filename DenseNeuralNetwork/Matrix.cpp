@@ -137,6 +137,14 @@ void Matrix::fill(FillFunction* fillFunction, int m, int n, double** A) {
 	}
 }
 
+void Matrix::copy(int m, int n, double** from, double** to) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < n; j++) {
+			to[i][j] = from[i][j];
+		}
+	}
+}
+
 Matrix::ConstantFill::ConstantFill(double value){
 	this->value = value;
 }

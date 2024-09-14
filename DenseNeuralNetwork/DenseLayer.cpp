@@ -13,6 +13,9 @@ DenseLayer::~DenseLayer() {
 	Matrix::deallocateMatrix(neuronGradient, size + 1, 1);
 	Matrix::deallocateMatrix(weights, size, prevSize);
 	Matrix::deallocateMatrix(weightGradient, size, prevSize);
+	Matrix::deallocateMatrix(weightM1, size, prevSize);
+	Matrix::deallocateMatrix(weightM2, size, prevSize);
+	Matrix::deallocateMatrix(weightS, size, prevSize);
 	if (isDiagonal) {
 		Matrix::deallocateMatrix(activationGradient[0], size, size);
 		free(activationGradient);
@@ -40,7 +43,8 @@ void DenseLayer::setPrevLayer(Layer* prevLayer) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
 	weights = Matrix::allocateMatrix({ new Matrix::NormalFill(0,stdDeviation) }, size, prevSize);
-	weightM = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
+	weightM1 = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
+	weightM2 = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
 	weightS = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
 	weightGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
 }
@@ -52,6 +56,7 @@ void DenseLayer::setBatchSize(int batchSize) {
 	this->batchSize = batchSize;
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+	activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	backPropIntermediate = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size);
 	if (isDiagonal) {
 		activationGradient = (double***)malloc(sizeof(double**));
@@ -69,7 +74,8 @@ void DenseLayer::setBatchSize(int batchSize) {
 }
 
 void DenseLayer::forwardPropagate() {
-	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, neurons, true);
+	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
+	Matrix::copy(batchSize, size + 1, activations, neurons);
 	activation->operate(this);
 	if (nextLayer != NULL) {
 		nextLayer->forwardPropagate();
@@ -92,7 +98,7 @@ void DenseLayer::backPropagate() {
 
 void DenseLayer::applyGradients(TrainingParams* params, int t) {
 	Matrix::scale(size, prevSize, weightGradient, 1.0 / params->batchSize);
-	params->optimizer->applyGradient(size, prevSize, weightM, weightS, weightGradient, weights, t, params);
+	params->optimizer->applyGradient(size, prevSize, weightM1, weightM2, weightS, weightGradient, weights, t, params);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(params, t);
 	}

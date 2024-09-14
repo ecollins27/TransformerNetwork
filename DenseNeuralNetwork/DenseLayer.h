@@ -6,9 +6,11 @@
 class DenseLayer : public Layer {
 
 public:
+	double** activations;
 	double** weights;
 	double** weightGradient;
-	double** weightM;
+	double** weightM1;
+	double** weightM2;
 	double** weightS;
 	double** backPropIntermediate;
 

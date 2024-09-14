@@ -91,12 +91,12 @@ void NeuralNetwork::fit(int numData, double** X, double** y, TrainingParams* par
 			averages[i] = 0;
 		}
 		for (int i = 0; i < trainingNum; i += params->batchSize) {
+			printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, params->numEpochs, i, trainingNum, averages[params->numMetrics] / i);
+			for (int j = 0; j < params->numMetrics; j++) {
+				printf("%s:%f  ", params->metrics[j]->toString().c_str(), averages[j] / i);
+			}
 			fit(&X[i], &y[i], averages, params);
 			applyGradients(params);
-			printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, params->numEpochs, i + 1, trainingNum, averages[params->numMetrics] / (i + 1));
-			for (int j = 0; j < params->numMetrics; j++) {
-				printf("%s:%f  ", params->metrics[j]->toString().c_str(), averages[j] / (i + 1));
-			}
 		}
 		printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, params->numEpochs, trainingNum, trainingNum, averages[params->numMetrics] / trainingNum);
 		for (int j = 0; j < params->numMetrics; j++) {

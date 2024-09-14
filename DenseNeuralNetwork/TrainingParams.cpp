@@ -1,7 +1,7 @@
 #include "TrainingParams.h"
 #include "Optimizer.h"
 
-TrainingParams* TrainingParams::DEFAULT = { new TrainingParams(0.0001, 32, 10, 0.1, Optimizer::ADAM, 0, NULL) };
+TrainingParams* TrainingParams::DEFAULT = { new TrainingParams(0.0001, 32, 10, 0.1, Optimizer::ADEMAMIX, 0, NULL) };
 
 TrainingParams::TrainingParams(double learningRate, int batchSize, int numEpochs, double valSplit, Optimizer* optimizer, int numMetrics, Loss** metrics) {
 	this->learningRate = learningRate;

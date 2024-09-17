@@ -1,6 +1,7 @@
 #pragma once
 #include "Loss.h"
 #include "DenseLayer.h"
+#include "Dropout.h"
 #include <fstream>
 
 class NeuralNetwork {
@@ -14,6 +15,7 @@ public:
 	NeuralNetwork(string fileName);
 
 	void addLayer(Layer* layer);
+	void predict(double** input);
 	void forwardPropagate(double** input);
 	void backPropagate(double** yTrue);
 	void applyGradients(TrainingParams* params);

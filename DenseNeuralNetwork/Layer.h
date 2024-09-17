@@ -18,6 +18,7 @@ public:
 	Layer* prevLayer;
 	Layer* nextLayer;
 
+	virtual void predict() = 0;
 	virtual void forwardPropagate() = 0;
 	virtual void backPropagate() = 0;
 

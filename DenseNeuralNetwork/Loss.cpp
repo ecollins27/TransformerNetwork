@@ -57,6 +57,8 @@ double CategoricalCrossEntropy::loss(Layer* layer, double** yTrue) {
 	double sum = 0;
 	for (int i = 0; i < layer->batchSize; i++) {
 		for (int j = 0; j < layer->size; j++) {
+			double trueValue = yTrue[i][j];
+			double predValue = layer->neurons[i][j];
 			sum += yTrue[i][j] * log(layer->neurons[i][j]);
 		}
 	}

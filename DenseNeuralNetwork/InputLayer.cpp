@@ -40,6 +40,12 @@ void InputLayer::setBatchSize(int batchSize) {
 	}
 }
 
+void InputLayer::predict() {
+	if (nextLayer != NULL) {
+		nextLayer->predict();
+	}
+}
+
 void InputLayer::forwardPropagate() {
 	if (nextLayer != NULL) {
 		nextLayer->forwardPropagate();

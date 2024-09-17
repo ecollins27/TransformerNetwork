@@ -7,6 +7,7 @@ NeuralNetwork::NeuralNetwork(Loss* lossFunction, int inputSize) {
 	t = 0;
 }
 
+
 NeuralNetwork::NeuralNetwork(string fileName) {
 	string line;
 	ifstream file(fileName);
@@ -21,19 +22,28 @@ NeuralNetwork::NeuralNetwork(string fileName) {
 	t = 0;
 	while (getline(file, line)) {
 		commaIndex = line.find_first_of(",");
-		index = stoi(line.substr(0, commaIndex));
-		int size = stoi(line.substr(commaIndex + 1, line.length()));
-		addLayer({ new DenseLayer(Activation::ALL_ACTIVATIONS[index], size)});
-		for (int i = 0; i < size; i++) {
-			commaIndex = 0;
-			getline(file, line);
-			for (int j = 0; j < prevSize; j++) {
-				int newCommaIndex = line.find_first_of(",", commaIndex + 1);
-				((DenseLayer*)outputLayer)->weights[i][j] = stod(line.substr(commaIndex + 1, newCommaIndex - commaIndex - 1));
-				commaIndex = newCommaIndex;
+		string layerType = line.substr(0, commaIndex);
+		if (layerType.compare("DenseLayer") == 0) {
+			int newCommaIndex = line.find_first_of(",", commaIndex + 1);
+			index = stoi(line.substr(commaIndex + 1, newCommaIndex));
+			commaIndex = newCommaIndex;
+			int size = stoi(line.substr(commaIndex + 1, line.length()));
+			addLayer({ new DenseLayer(Activation::ALL_ACTIVATIONS[index], size) });
+			for (int i = 0; i < size; i++) {
+				commaIndex = 0;
+				getline(file, line);
+				for (int j = 0; j < prevSize; j++) {
+					newCommaIndex = line.find_first_of(",", commaIndex + 1);
+					((DenseLayer*)outputLayer)->weights[i][j] = stod(line.substr(commaIndex + 1, newCommaIndex - commaIndex - 1));
+					commaIndex = newCommaIndex;
+				}
 			}
+			prevSize = size + 1;
 		}
-		prevSize = size + 1;
+		else if (layerType.compare("Dropout") == 0) {
+			double dropRate = stod(line.substr(commaIndex + 1, line.length()));
+			addLayer({ new Dropout(dropRate) });
+		}
 	}
 }
 
@@ -41,6 +51,11 @@ void NeuralNetwork::addLayer(Layer* layer) {
 	outputLayer->setNextLayer(layer);
 	layer->setPrevLayer(outputLayer);
 	outputLayer = layer;
+}
+
+void NeuralNetwork::predict(double** input) {
+	inputLayer->setInput(input);
+	inputLayer->predict();
 }
 
 void NeuralNetwork::forwardPropagate(double** input) {
@@ -126,11 +141,12 @@ double NeuralNetwork::test(int numData, double** X, double** y, int numMetrics, 
 	inputLayer->setBatchSize(1);
 	double* averages = new double[numMetrics + 1];
 	for (int i = 0; i < numData; i++) {
-		forwardPropagate(&X[i]);
+		predict(&X[i]);
 		for (int j = 0; j < numMetrics; j++) {
 			averages[j] += metrics[j]->loss(outputLayer, &y[i]);
 		}
 		averages[numMetrics] += lossFunction->loss(outputLayer, &y[i]);
+		double loss = averages[numMetrics];
 		printf("\rTest:  %d/%d  Loss:%f  ", i + 1, numData, averages[numMetrics] / (i + 1));
 		for (int j = 0; j < numMetrics; j++) {
 			printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / (i + 1));
@@ -141,6 +157,7 @@ double NeuralNetwork::test(int numData, double** X, double** y, int numMetrics, 
 		printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / numData);
 	}
 	printf("\n");
+	return averages[numMetrics];
 }
 
 void NeuralNetwork::setTrainable(bool trainable) {

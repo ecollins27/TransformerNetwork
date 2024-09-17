@@ -4,6 +4,7 @@ class DenseLayer;
 
 class Activation {
 	public:
+		const static int NUM_ACTIVATIONS = 8;
 		static Activation* NONE;
 		static Activation* SIGMOID;
 		static Activation* RELU;
@@ -12,7 +13,7 @@ class Activation {
 		static Activation* TANH;
 		static Activation* SWISH;
 		static Activation* SOFTMAX;
-		static Activation* ALL_ACTIVATIONS[8];
+		static Activation* ALL_ACTIVATIONS[NUM_ACTIVATIONS];
 
 		virtual void operate(DenseLayer* layer) = 0;
 		virtual void differentiate(DenseLayer* layer) = 0;

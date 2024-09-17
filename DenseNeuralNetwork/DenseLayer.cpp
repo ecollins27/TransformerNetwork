@@ -6,6 +6,9 @@ DenseLayer::DenseLayer(Activation* activation, int size) {
 	this->size = size;
 	prevLayer = NULL;
 	nextLayer = NULL;
+	if (activation == Activation::ELU) {
+		printf("%d true\n", size);
+	}
 }
 
 DenseLayer::~DenseLayer() {
@@ -55,6 +58,9 @@ void DenseLayer::setNextLayer(Layer* nextLayer) {
 void DenseLayer::setBatchSize(int batchSize) {
 	this->batchSize = batchSize;
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+	for (int i = 0; i < batchSize; i++) {
+		neurons[i][size] = 1;
+	}
 	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	backPropIntermediate = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size);
@@ -70,6 +76,15 @@ void DenseLayer::setBatchSize(int batchSize) {
 	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
+	}
+}
+
+void DenseLayer::predict() {
+	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
+	Matrix::copy(batchSize, size + 1, activations, neurons);
+	activation->operate(this);
+	if (nextLayer != NULL) {
+		nextLayer->predict();
 	}
 }
 
@@ -106,12 +121,12 @@ void DenseLayer::applyGradients(TrainingParams* params, int t) {
 
 void DenseLayer::save(ofstream& file) {
 	int index = 0;
-	for (int i = 0; i < 7; i++) {
+	for (int i = 0; i < 8; i++) {
 		if (activation == Activation::ALL_ACTIVATIONS[i]) {
 			index = i;
 		}
 	}
-	file << index << "," << size << "\n";
+	file << "DenseLayer," << index << "," << size << "\n";
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights[i][j] << ",";

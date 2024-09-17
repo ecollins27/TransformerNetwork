@@ -15,6 +15,7 @@ public:
 	void setNextLayer(Layer* layer);
 	void setBatchSize(int batchSize);
 
+	void predict();
 	void forwardPropagate();
 	void backPropagate();
 	void applyGradients(TrainingParams* params, int t);

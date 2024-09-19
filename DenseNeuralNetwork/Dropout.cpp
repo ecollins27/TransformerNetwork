@@ -5,6 +5,15 @@ Dropout::Dropout(double dropRate) {
 	this->scale = 1.0 / (1 - dropRate);
 }
 
+Dropout::~Dropout() {
+	Matrix::deallocateMatrix(neurons, batchSize, size + 1);
+	Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
+	for (int i = 0; i < batchSize; i++) {
+		free(dropped[i]);
+	}
+	free(dropped);
+}
+
 void Dropout::setPrevLayer(Layer* layer) {
 	this->prevLayer = layer;
 	this->size = prevLayer->size;
@@ -15,6 +24,16 @@ void Dropout::setNextLayer(Layer* layer) {
 }
 
 void Dropout::setBatchSize(int batchSize) {
+	if (neurons != NULL) {
+		Matrix::deallocateMatrix(neurons, batchSize, size + 1);
+	} if (neuronGradient != NULL) {
+		Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
+	} if (dropped != NULL) {
+		for (int i = 0; i < batchSize; i++) {
+			free(dropped[i]);
+		}
+		free(dropped);
+	}
 	this->batchSize = batchSize;
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	for (int i = 0; i < batchSize; i++) {
@@ -65,6 +84,8 @@ void Dropout::backPropagate() {
 		for (int j = 0; j < size; j++) {
 			if (!dropped[i][j]) {
 				prevLayer->neuronGradient[i][j] = neuronGradient[i][j] / scale;
+			} else {
+				prevLayer->neuronGradient[i][j] = 0;
 			}
 		}
 	}
@@ -76,6 +97,12 @@ void Dropout::backPropagate() {
 void Dropout::applyGradients(TrainingParams* params, int t) {
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(params, t);
+	}
+}
+
+void Dropout::setOptimizer(Optimizer* optimizer) {
+	if (nextLayer != NULL) {
+		nextLayer->setOptimizer(optimizer);
 	}
 }
 

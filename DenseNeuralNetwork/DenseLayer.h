@@ -9,9 +9,6 @@ public:
 	double** activations;
 	double** weights;
 	double** weightGradient;
-	double** weightM1;
-	double** weightM2;
-	double** weightS;
 	double** backPropIntermediate;
 
 	Activation* activation;
@@ -30,6 +27,7 @@ public:
 	void forwardPropagate();
 	void backPropagate();
 	void applyGradients(TrainingParams* params, int t);
+	void setOptimizer(Optimizer* optimizer);
 	void save(ofstream& file);
 };
 

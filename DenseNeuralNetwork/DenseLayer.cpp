@@ -1,7 +1,7 @@
 #include "DenseLayer.h"
 
 DenseLayer::DenseLayer(Activation* activation, int size) {
-	this->activation = activation;
+	this->activation = activation->clone();
 	this->isDiagonal = activation->isDiagonal();
 	this->size = size;
 	prevLayer = NULL;
@@ -16,9 +16,6 @@ DenseLayer::~DenseLayer() {
 	Matrix::deallocateMatrix(neuronGradient, size + 1, 1);
 	Matrix::deallocateMatrix(weights, size, prevSize);
 	Matrix::deallocateMatrix(weightGradient, size, prevSize);
-	Matrix::deallocateMatrix(weightM1, size, prevSize);
-	Matrix::deallocateMatrix(weightM2, size, prevSize);
-	Matrix::deallocateMatrix(weightS, size, prevSize);
 	if (isDiagonal) {
 		Matrix::deallocateMatrix(activationGradient[0], size, size);
 		free(activationGradient);
@@ -46,9 +43,6 @@ void DenseLayer::setPrevLayer(Layer* prevLayer) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
 	weights = Matrix::allocateMatrix({ new Matrix::NormalFill(0,stdDeviation) }, size, prevSize);
-	weightM1 = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
-	weightM2 = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
-	weightS = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
 	weightGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
 }
 void DenseLayer::setNextLayer(Layer* nextLayer) {
@@ -56,6 +50,27 @@ void DenseLayer::setNextLayer(Layer* nextLayer) {
 }
 
 void DenseLayer::setBatchSize(int batchSize) {
+	activation->setDimensions(batchSize, size);
+	if (neurons != NULL) {
+		Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
+	} if (neuronGradient != NULL) {
+		Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
+	} if (activations != NULL) {
+		Matrix::deallocateMatrix(activations, this->batchSize, size + 1);
+	} if (backPropIntermediate != NULL) {
+		Matrix::deallocateMatrix(backPropIntermediate, this->batchSize, size);
+	} if (activationGradient != NULL) {
+		if (isDiagonal) {
+			Matrix::deallocateMatrix(activationGradient[0], this->batchSize, size);
+			free(activationGradient);
+		}
+		else {
+			for (int i = 0; i < this->batchSize; i++) {
+				Matrix::deallocateMatrix(activationGradient[i], size, size);
+			}
+			free(activationGradient);
+		}
+	}
 	this->batchSize = batchSize;
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	for (int i = 0; i < batchSize; i++) {
@@ -113,9 +128,17 @@ void DenseLayer::backPropagate() {
 
 void DenseLayer::applyGradients(TrainingParams* params, int t) {
 	Matrix::scale(size, prevSize, weightGradient, 1.0 / params->batchSize);
-	params->optimizer->applyGradient(size, prevSize, weightM1, weightM2, weightS, weightGradient, weights, t, params);
+	params->optimizer->applyGradient(weightGradient, weights, t, params);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(params, t);
+	}
+}
+
+void DenseLayer::setOptimizer(Optimizer* optimizer) {
+	this->optimizer = optimizer->clone();
+	this->optimizer->setDimensions(size, prevSize);
+	if (nextLayer != NULL) {
+		nextLayer->setOptimizer(optimizer);
 	}
 }
 

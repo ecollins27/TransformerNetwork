@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Activation.cpp" />
+    <ClCompile Include="BatchNormalization.cpp" />
     <ClCompile Include="DenseLayer.cpp" />
     <ClCompile Include="Dropout.cpp" />
     <ClCompile Include="InputLayer.cpp" />
@@ -33,6 +34,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Activation.h" />
+    <ClInclude Include="BatchNormalization.h" />
     <ClInclude Include="DenseLayer.h" />
     <ClInclude Include="Dropout.h" />
     <ClInclude Include="InputLayer.h" />

@@ -96,6 +96,7 @@ void NeuralNetwork::shuffle(int numData, double** X, double** y) {
 
 void NeuralNetwork::fit(int numData, double** X, double** y, TrainingParams* params) {
 	inputLayer->setBatchSize(params->batchSize);
+	inputLayer->setOptimizer(params->optimizer);
 	double* averages = NULL;
 	averages = new double[params->numMetrics + 1];
 	int trainingNum = (int)(numData * (1 - params->valSplit));

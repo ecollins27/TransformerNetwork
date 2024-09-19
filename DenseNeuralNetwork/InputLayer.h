@@ -19,6 +19,7 @@ public:
 	void forwardPropagate();
 	void backPropagate();
 	void applyGradients(TrainingParams* params, int t);
+	void setOptimizer(Optimizer* optimizer);
 	void save(ofstream& file);
 };
 

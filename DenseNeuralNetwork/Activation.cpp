@@ -23,6 +23,15 @@ void None::differentiate(DenseLayer* layer) {
 	}
 }
 
+Activation* None::clone() {
+	return { new None() };
+}
+
+void None::setDimensions(int height, int width) {
+	this->height = height;
+	this->width = width;
+}
+
 bool None::isDiagonal() {
 	return true;
 }
@@ -43,6 +52,15 @@ void Sigmoid::differentiate(DenseLayer* layer) {
 			layer->activationGradient[0][i][j] = value * (1 - value);
 		}
 	}
+}
+
+Activation* Sigmoid::clone() {
+	return { new Sigmoid() };
+}
+
+void Sigmoid::setDimensions(int height, int width) {
+	this->height = height;
+	this->width = width;
 }
 
 bool Sigmoid::isDiagonal() {
@@ -69,6 +87,15 @@ void Relu::differentiate(DenseLayer* layer) {
 			}
 		}
 	}
+}
+
+Activation* Relu::clone() {
+	return { new Relu() };
+}
+
+void Relu::setDimensions(int height, int width) {
+	this->height = height;
+	this->width = width;
 }
 
 bool Relu::isDiagonal() {
@@ -99,6 +126,15 @@ void Elu::differentiate(DenseLayer* layer) {
 	}
 }
 
+Activation* Elu::clone() {
+	return { new Elu(alpha) };
+}
+
+void Elu::setDimensions(int height, int width) {
+	this->height = height;
+	this->width = width;
+}
+
 bool Elu::isDiagonal() {
 	return true;
 }
@@ -126,6 +162,15 @@ void Selu::differentiate(DenseLayer* layer) {
 	}
 }
 
+Activation* Selu::clone() {
+	return { new Selu() };
+}
+
+void Selu::setDimensions(int height, int width) {
+	this->height = height;
+	this->width = width;
+}
+
 bool Selu::isDiagonal() {
 	return true;
 }
@@ -150,6 +195,15 @@ void Tanh::differentiate(DenseLayer* layer) {
 	}
 }
 
+Activation* Tanh::clone() {
+	return { new Tanh() };
+}
+
+void Tanh::setDimensions(int height, int width) {
+	this->height = height;
+	this->width = width;
+}
+
 bool Tanh::isDiagonal() {
 	return true;
 }
@@ -171,6 +225,15 @@ void Swish::differentiate(DenseLayer* layer) {
 			layer->activationGradient[0][i][j] = (1 + eNegX * layer->neurons[i][j]) / (1.0 + eNegX);
 		}
 	}
+}
+
+Activation* Swish::clone() {
+	return { new Swish() };
+}
+
+void Swish::setDimensions(int height, int width) {
+	this->height = height;
+	this->width = width;
 }
 
 bool Swish::isDiagonal() {
@@ -201,6 +264,15 @@ void Softmax::differentiate(DenseLayer* layer) {
 			}
 		}
 	}
+}
+
+Activation* Softmax::clone() {
+	return { new Softmax() };
+}
+
+void Softmax::setDimensions(int height, int width) {
+	this->height = height;
+	this->width = width;
 }
 
 bool Softmax::isDiagonal() {

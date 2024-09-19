@@ -15,6 +15,8 @@ public:
 	double** neuronGradient;
 	bool trainable = true;
 
+	Optimizer* optimizer;
+
 	Layer* prevLayer;
 	Layer* nextLayer;
 
@@ -26,6 +28,7 @@ public:
 	virtual void setNextLayer(Layer* nextLayer) = 0;
 	virtual void setBatchSize(int batchSize) = 0;
 	virtual void applyGradients(TrainingParams* params, int t) = 0;
+	virtual void setOptimizer(Optimizer* optimizer) = 0;
 	void setTrainable(bool trainable);
 
 	virtual void save(ofstream& file) = 0;

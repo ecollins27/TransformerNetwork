@@ -62,6 +62,12 @@ void InputLayer::applyGradients(TrainingParams* params, int t) {
 	}
 }
 
+void InputLayer::setOptimizer(Optimizer* optimizer) {
+	if (nextLayer != NULL) {
+		nextLayer->setOptimizer(optimizer);
+	}
+}
+
 void InputLayer::save(ofstream& file) {
 	file << size << "\n";
 	if (nextLayer != NULL) {

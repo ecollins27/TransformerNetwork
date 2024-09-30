@@ -3,12 +3,13 @@
 class Loss {
 
 public:
+	const static int NUM_LOSSES = 3;
 	static Loss* MEAN_SQUARED_ERROR;
 	static Loss* BINARY_CROSS_ENTROPY;
 	static Loss* CATEGORICAL_CROSS_ENTROPY;
 	static Loss* ACCURACY;
 	static Loss* BINARY_ACCURACY;
-	static Loss* ALL_LOSSES[3];
+	static Loss* ALL_LOSSES[NUM_LOSSES];
 
 	virtual double loss(Layer* layer, double** yTrue) = 0;
 	virtual void differentiate(Layer* layer, double** yTrue) = 0;

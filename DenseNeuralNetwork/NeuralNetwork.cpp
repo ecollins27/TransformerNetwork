@@ -1,4 +1,5 @@
 #include "NeuralNetwork.h"
+#include "BatchNormalization.h"
 
 NeuralNetwork::NeuralNetwork(Loss* lossFunction, int inputSize) {
 	this->lossFunction = lossFunction;
@@ -39,10 +40,30 @@ NeuralNetwork::NeuralNetwork(string fileName) {
 				}
 			}
 			prevSize = size + 1;
-		}
-		else if (layerType.compare("Dropout") == 0) {
+		} else if (layerType.compare("Dropout") == 0) {
 			double dropRate = stod(line.substr(commaIndex + 1, line.length()));
 			addLayer({ new Dropout(dropRate) });
+		} else if (layerType.compare("BatchNormalization") == 0) {
+			addLayer({ new BatchNormalization() });
+			int newCommaIndex = 0;
+			for (int i = 0; i < 4; i++) {
+				getline(file, line);
+				commaIndex = -1;
+				for (int j = 0; j < outputLayer->size; j++) {
+					newCommaIndex = line.find_first_of(",", commaIndex + 1);
+					double param = stod(line.substr(commaIndex + 1, newCommaIndex));
+					if (i < 2) {
+						((BatchNormalization*)outputLayer)->parameters[i][j] = param;
+						commaIndex = newCommaIndex;
+					} else if (i == 3) {
+						((BatchNormalization*)outputLayer)->mean[0][j] = param;
+					} else {
+						((BatchNormalization*)outputLayer)->variance[0][j] = param;
+						((BatchNormalization*)outputLayer)->std[0][j] = sqrt(param);
+					}
+					commaIndex = newCommaIndex;
+				}
+			}
 		}
 	}
 }
@@ -95,18 +116,18 @@ void NeuralNetwork::shuffle(int numData, double** X, double** y) {
 }
 
 void NeuralNetwork::fit(int numData, double** X, double** y, TrainingParams* params) {
-	inputLayer->setBatchSize(params->batchSize);
 	inputLayer->setOptimizer(params->optimizer);
 	double* averages = NULL;
 	averages = new double[params->numMetrics + 1];
 	int trainingNum = (int)(numData * (1 - params->valSplit));
-	trainingNum += params->batchSize - trainingNum % params->batchSize;
+	trainingNum -= trainingNum % params->batchSize;
 	for (int epoch = 0; epoch < params->numEpochs; epoch++) {
+		inputLayer->setBatchSize(params->batchSize);
 		shuffle(numData, X, y);
 		for (int i = 0; i < params->numMetrics + 1; i++) {
 			averages[i] = 0;
 		}
-		for (int i = 0; i < trainingNum; i += params->batchSize) {
+		for (int i = 0; i < trainingNum - params->batchSize; i += params->batchSize) {
 			printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, params->numEpochs, i, trainingNum, averages[params->numMetrics] / i);
 			for (int j = 0; j < params->numMetrics; j++) {
 				printf("%s:%f  ", params->metrics[j]->toString().c_str(), averages[j] / i);
@@ -118,47 +139,27 @@ void NeuralNetwork::fit(int numData, double** X, double** y, TrainingParams* par
 		for (int j = 0; j < params->numMetrics; j++) {
 			printf("%s:%f  ", params->metrics[j]->toString().c_str(), averages[j] / trainingNum);
 		}
-		for (int i = 0; i < params->numMetrics + 1; i++) {
-			averages[i] = 0;
-		}
-		int valCounter = 0;
-		for (int i = trainingNum; i <= numData - params->batchSize; i += params->batchSize) {
-			valCounter += params->batchSize;
-			forwardPropagate(&X[i]);
-			for (int j = 0; j < params->numMetrics; j++) {
-				averages[j] += params->metrics[j]->loss(outputLayer, &y[i]);
+		int valNum = numData * params->valSplit;
+		if (valNum > 0) {
+			inputLayer->setBatchSize(valNum);
+			predict(&X[trainingNum]);
+			printf("ValLoss:%f  ", lossFunction->loss(outputLayer, &y[trainingNum]) / valNum);
+			for (int i = 0; i < params->numMetrics; i++) {
+				printf("Val%s:%f  ", params->metrics[i]->toString().c_str(), params->metrics[i]->loss(outputLayer, &y[trainingNum]) / valNum);
 			}
-			averages[params->numMetrics] += lossFunction->loss(outputLayer, &y[i]);
-		}
-		printf("ValLoss:%f  ", averages[params->numMetrics] / valCounter);
-		for (int i = 0; i < params->numMetrics; i++) {
-			printf("Val%s:%f  ", params->metrics[i]->toString().c_str(), averages[i] / valCounter);
 		}
 		printf("\n");
 	}
 }
 
-double NeuralNetwork::test(int numData, double** X, double** y, int numMetrics, Loss** metrics) {
-	inputLayer->setBatchSize(1);
-	double* averages = new double[numMetrics + 1];
-	for (int i = 0; i < numData; i++) {
-		predict(&X[i]);
-		for (int j = 0; j < numMetrics; j++) {
-			averages[j] += metrics[j]->loss(outputLayer, &y[i]);
-		}
-		averages[numMetrics] += lossFunction->loss(outputLayer, &y[i]);
-		double loss = averages[numMetrics];
-		printf("\rTest:  %d/%d  Loss:%f  ", i + 1, numData, averages[numMetrics] / (i + 1));
-		for (int j = 0; j < numMetrics; j++) {
-			printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / (i + 1));
-		}
-	}
-	printf("\rTest:  %d/%d  Loss:%f  ", numData, numData, averages[numMetrics] / numData);
+void NeuralNetwork::test(int numData, double** X, double** y, int numMetrics, Loss** metrics) {
+	inputLayer->setBatchSize(numData);
+	predict(X);
+	printf("TestLoss:%f  ", lossFunction->loss(outputLayer, y) / numData);
 	for (int j = 0; j < numMetrics; j++) {
-		printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / numData);
+		printf("Test%s:%f  ", metrics[j]->toString().c_str(), metrics[j]->loss(outputLayer, y) / numData);
 	}
 	printf("\n");
-	return averages[numMetrics];
 }
 
 void NeuralNetwork::setTrainable(bool trainable) {
@@ -168,7 +169,7 @@ void NeuralNetwork::setTrainable(bool trainable) {
 void NeuralNetwork::save(string fileName) {
 	ofstream file(fileName.c_str());
 	int index = 0;
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < Loss::NUM_LOSSES; i++) {
 		if (lossFunction == Loss::ALL_LOSSES[i]) {
 			index = i;
 		}

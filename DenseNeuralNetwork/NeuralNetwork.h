@@ -22,7 +22,7 @@ public:
 	double getLoss(double** yTrue);
 	void fit(double** X, double** y, double* losses, TrainingParams* params);
 	void fit(int numData, double** X, double** y, TrainingParams* params);
-	double test(int numData, double** X, double** y, int numMetrics, Loss** metrics);
+	void test(int numData, double** X, double** y, int numMetrics, Loss** metrics);
 	void shuffle(int numData, double** X, double** y);
 	void setTrainable(bool trainable);
 	void save(string fileName);

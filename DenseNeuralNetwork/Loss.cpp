@@ -5,7 +5,7 @@ Loss* Loss::BINARY_CROSS_ENTROPY = { new BinaryCrossEntropy() };
 Loss* Loss::CATEGORICAL_CROSS_ENTROPY = { new CategoricalCrossEntropy() };
 Loss* Loss::ACCURACY = { new Accuracy() };
 Loss* Loss::BINARY_ACCURACY = { new BinaryAccuracy() };
-Loss* Loss::ALL_LOSSES[3] = {MEAN_SQUARED_ERROR, BINARY_CROSS_ENTROPY, CATEGORICAL_CROSS_ENTROPY};
+Loss* Loss::ALL_LOSSES[Loss::NUM_LOSSES] = {MEAN_SQUARED_ERROR, BINARY_CROSS_ENTROPY, CATEGORICAL_CROSS_ENTROPY};
 
 double MeanSquaredError::loss(Layer* layer, double** yTrue) {
 	double sum = 0;
@@ -57,9 +57,9 @@ double CategoricalCrossEntropy::loss(Layer* layer, double** yTrue) {
 	double sum = 0;
 	for (int i = 0; i < layer->batchSize; i++) {
 		for (int j = 0; j < layer->size; j++) {
-			double trueValue = yTrue[i][j];
-			double predValue = layer->neurons[i][j];
-			sum += yTrue[i][j] * log(layer->neurons[i][j]);
+			if (yTrue[i][j] != 0) {
+				sum += yTrue[i][j] * log(layer->neurons[i][j] + 0.0000001);
+			}
 		}
 	}
 	return -sum / layer->size;
@@ -68,7 +68,12 @@ double CategoricalCrossEntropy::loss(Layer* layer, double** yTrue) {
 void CategoricalCrossEntropy::differentiate(Layer* layer, double** yTrue) {
 	for (int i = 0; i < layer->batchSize; i++) {
 		for (int j = 0; j < layer->size; j++) {
-			layer->neuronGradient[i][j] = -yTrue[i][j] / (layer->size * layer->neurons[i][j]);
+			if (yTrue[i][j] != 0) {
+				layer->neuronGradient[i][j] = -yTrue[i][j] / (layer->size * layer->neurons[i][j] + 0.0000001);
+			}
+			else {
+				layer->neuronGradient[i][j] = 0;
+			}
 		}
 	}
 }

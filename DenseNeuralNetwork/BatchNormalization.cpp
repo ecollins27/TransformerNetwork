@@ -18,6 +18,9 @@ void BatchNormalization::predict() {
 			neurons[i][j] = parameters[1][j] + parameters[0][j] * (prevLayer->neurons[i][j] - mean[0][j]) / std[0][j];
 		}
 	}
+	if (nextLayer != NULL) {
+		nextLayer->predict();
+	}
 }
 
 void BatchNormalization::forwardPropagate() {
@@ -80,6 +83,11 @@ void BatchNormalization::setNextLayer(Layer* nextLayer) {
 }
 
 void BatchNormalization::setBatchSize(int batchSize) {
+	if (neurons != NULL) {
+		Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
+	} if (neuronGradient != NULL) {
+		Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
+	}
 	this->batchSize = batchSize;
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
@@ -93,8 +101,7 @@ void BatchNormalization::setBatchSize(int batchSize) {
 
 void BatchNormalization::applyGradients(TrainingParams* params, int t) {
 	Matrix::scale(2, size, parameterGradient, 1.0 / batchSize);
-	params->optimizer;
-	params->optimizer->applyGradient(parameterGradient, parameters, t, params);
+	optimizer->applyGradient(parameterGradient, parameters, t, params);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(params, t);
 	}
@@ -110,9 +117,16 @@ void BatchNormalization::setOptimizer(Optimizer* optimizer) {
 
 void BatchNormalization::save(ofstream& file) {
 	file << "BatchNormalization\n";
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < size; j++) {
-			file << parameters[i][j] << ",";
+			if (i < 2) {
+				file << parameters[i][j] << ",";
+			}
+			else if (i == 3) {
+				file << mean[0][j] << ",";
+			} else {
+				file << variance[0][j] << ",";
+			}
 		}
 		file << "\n";
 	}

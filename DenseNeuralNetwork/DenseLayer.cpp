@@ -6,9 +6,6 @@ DenseLayer::DenseLayer(Activation* activation, int size) {
 	this->size = size;
 	prevLayer = NULL;
 	nextLayer = NULL;
-	if (activation == Activation::ELU) {
-		printf("%d true\n", size);
-	}
 }
 
 DenseLayer::~DenseLayer() {
@@ -17,15 +14,13 @@ DenseLayer::~DenseLayer() {
 	Matrix::deallocateMatrix(weights, size, prevSize);
 	Matrix::deallocateMatrix(weightGradient, size, prevSize);
 	if (isDiagonal) {
-		Matrix::deallocateMatrix(activationGradient[0], size, size);
-		free(activationGradient);
-	}
-	else {
-		for (int i = 0; i < batchSize; i++) {
+		Matrix::deallocateMatrix(activationGradient[0], batchSize, size);
+	} else {
+		for (int i = 0; i < this->batchSize; i++) {
 			Matrix::deallocateMatrix(activationGradient[i], size, size);
 		}
-		free(activationGradient);
 	}
+	free(activationGradient);
 }
 
 template<typename A, typename T>
@@ -50,7 +45,6 @@ void DenseLayer::setNextLayer(Layer* nextLayer) {
 }
 
 void DenseLayer::setBatchSize(int batchSize) {
-	activation->setDimensions(batchSize, size);
 	if (neurons != NULL) {
 		Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
 	} if (neuronGradient != NULL) {
@@ -62,28 +56,27 @@ void DenseLayer::setBatchSize(int batchSize) {
 	} if (activationGradient != NULL) {
 		if (isDiagonal) {
 			Matrix::deallocateMatrix(activationGradient[0], this->batchSize, size);
-			free(activationGradient);
-		}
-		else {
+		} else {
 			for (int i = 0; i < this->batchSize; i++) {
 				Matrix::deallocateMatrix(activationGradient[i], size, size);
 			}
-			free(activationGradient);
 		}
+		free(activationGradient);
 	}
 	this->batchSize = batchSize;
+	activation->init(this);
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+	activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	for (int i = 0; i < batchSize; i++) {
 		neurons[i][size] = 1;
+		activations[i][size] = 1;
 	}
 	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	backPropIntermediate = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size);
 	if (isDiagonal) {
 		activationGradient = (double***)malloc(sizeof(double**));
 		activationGradient[0] = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size);
-	}
-	else {
+	} else {
 		activationGradient = (double***)malloc(batchSize * sizeof(double**));
 		for (int i = 0; i < batchSize; i++) {
 			activationGradient[i] = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, size);
@@ -95,7 +88,7 @@ void DenseLayer::setBatchSize(int batchSize) {
 }
 
 void DenseLayer::predict() {
-	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
+	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
 	Matrix::copy(batchSize, size + 1, activations, neurons);
 	activation->operate(this);
 	if (nextLayer != NULL) {
@@ -104,7 +97,7 @@ void DenseLayer::predict() {
 }
 
 void DenseLayer::forwardPropagate() {
-	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
+	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
 	Matrix::copy(batchSize, size + 1, activations, neurons);
 	activation->operate(this);
 	if (nextLayer != NULL) {
@@ -116,11 +109,12 @@ void DenseLayer::backPropagate() {
 	activation->differentiate(this);
 	if (isDiagonal) {
 		Matrix::elementMultiply(batchSize, size, neuronGradient, activationGradient[0], backPropIntermediate, true);
-	} else {
+	}
+	else {
 		Matrix::matrixTensorMultiply(batchSize, size, size, neuronGradient, activationGradient, backPropIntermediate, true);
 	}
-	Matrix::multiplyABC(batchSize, size, prevSize, backPropIntermediate, weights, prevLayer->neuronGradient, true);
-	Matrix::multiplyAtBC(size, batchSize, prevSize, backPropIntermediate, prevLayer->neurons, weightGradient, true);
+	Matrix::matrixMultiplyABC(batchSize, size, prevSize, backPropIntermediate, weights, prevLayer->neuronGradient, true);
+	Matrix::matrixMultiplyAtBC(size, batchSize, prevSize, backPropIntermediate, prevLayer->neurons, weightGradient, true);
 	if (prevLayer != NULL) {
 		prevLayer->backPropagate();
 	}
@@ -128,7 +122,8 @@ void DenseLayer::backPropagate() {
 
 void DenseLayer::applyGradients(TrainingParams* params, int t) {
 	Matrix::scale(size, prevSize, weightGradient, 1.0 / params->batchSize);
-	params->optimizer->applyGradient(weightGradient, weights, t, params);
+	optimizer->applyGradient(weightGradient, weights, t, params);
+	activation->applyGradient(this, params, t);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(params, t);
 	}
@@ -137,6 +132,7 @@ void DenseLayer::applyGradients(TrainingParams* params, int t) {
 void DenseLayer::setOptimizer(Optimizer* optimizer) {
 	this->optimizer = optimizer->clone();
 	this->optimizer->setDimensions(size, prevSize);
+	activation->setOptimizer(this, optimizer);
 	if (nextLayer != NULL) {
 		nextLayer->setOptimizer(optimizer);
 	}
@@ -144,8 +140,9 @@ void DenseLayer::setOptimizer(Optimizer* optimizer) {
 
 void DenseLayer::save(ofstream& file) {
 	int index = 0;
-	for (int i = 0; i < 8; i++) {
-		if (activation == Activation::ALL_ACTIVATIONS[i]) {
+	string activationName = typeid(*activation).name();
+	for (int i = 0; i < Activation::NUM_ACTIVATIONS; i++) {
+		if (activationName.compare(typeid(*(Activation::ALL_ACTIVATIONS[i])).name()) == 0) {
 			index = i;
 		}
 	}

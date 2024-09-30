@@ -6,9 +6,11 @@
 using namespace std;
 
 
+
 const class Matrix {
 
 public:
+
 	class FillFunction;
 
 	static FillFunction* ZERO_FILL;
@@ -19,11 +21,11 @@ public:
 	static void deallocateMatrix(double** A, int height, int width);
 	static void add(int m, int n, double** A, double** B, double** C, double scalar1, double scalar2);
 	static void scale(int m, int n, double** A, double scalar);
-	static void multiplyABC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void multiplyAtBC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void multiplyABtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void multiplyABCt(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void multiplyAtBtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void matrixMultiplyABC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void matrixMultiplyAtBC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void matrixMultiplyABtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void matrixMultiplyABCt(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
+	static void matrixMultiplyAtBtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
 	static void matrixTensorMultiply(int m, int n, int p, double** A, double*** B, double** C, bool overwrite);
 	static void elementMultiply(int m, int n, double** A, double** B, double** C, bool overwrite);
 	static void fill(FillFunction* fillFunction, int m, int n, double** A);

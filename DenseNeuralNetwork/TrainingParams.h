@@ -13,21 +13,17 @@ class TrainingParams {
 public:
 
 	static TrainingParams* DEFAULT;
+	const static int NUM_PARAMETERS = 5;
+	const static int LEARNING_RATE = 0, BATCH_SIZE = 1, NUM_EPOCHS = 2, VAL_SPLIT = 3, OPTIMIZER = 4;
 
-	double learningRate;
-	int batchSize;
-	int numEpochs;
-	int numMetrics;
-	double valSplit;
-	Optimizer* optimizer;
-	Loss** metrics;
+	void** data;
 
-	TrainingParams(double learningRate, int batchSize, int numEpochs, double valSplit, Optimizer* optimizer, int numMetrics, Loss** metrics);
-	TrainingParams* withLearningRate(double learningRate);
-	TrainingParams* withBatchSize(int batchSize);
-	TrainingParams* withNumEpochs(int numEpochs);
-	TrainingParams* withMetrics(int numMetrics, ...);
-	TrainingParams* withOptimizer(Optimizer* optimizer);
-	TrainingParams* withValidationSplit(double valSplit);
+	TrainingParams(double learningRate, int batchSize, int numEpochs, double valSplit, Optimizer* optimizer);
+	TrainingParams(void** data);
+
+	TrainingParams* with(const int index, void* value);
+	
+	void* get(const int index);
+
 };
 

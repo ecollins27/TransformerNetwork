@@ -12,7 +12,7 @@ public:
 
 	int height, width;
 
-	virtual void applyGradient(double** weightGradient, double** weights, double t, TrainingParams* params) = 0;
+	virtual void applyGradient(double** weightGradient, double** weights, double t, double learningRate) = 0;
 	virtual Optimizer* clone() = 0;
 	virtual void setDimensions(int height, int width) = 0;
 };
@@ -20,7 +20,7 @@ public:
 class GradientDescent : public Optimizer {
 
 public:
-	void applyGradient(double** weightGradient, double** weights, double t, TrainingParams* params);
+	void applyGradient(double** weightGradient, double** weights, double t, double learningRate);
 	Optimizer* clone();
 	void setDimensions(int height, int width);
 
@@ -33,7 +33,7 @@ public:
 	double** M;
 
 	Momentum(double beta);
-	void applyGradient(double** weightGradient, double** weights, double t, TrainingParams* params);
+	void applyGradient(double** weightGradient, double** weights, double t, double learningRate);
 	Optimizer* clone();
 	void setDimensions(int height, int width);
 
@@ -47,7 +47,7 @@ public:
 	double** S;
 
 	Adam(double beta1, double beta2, double lambda);
-	void applyGradient(double** weightGradient, double** weights, double t, TrainingParams* params);
+	void applyGradient(double** weightGradient, double** weights, double t, double learningRate);
 	Optimizer* clone();
 	void setDimensions(int height, int width);
 
@@ -63,7 +63,7 @@ public:
 	double** S;
 
 	AdEMAMix(double beta1, double beta2, double beta3, double alpha, double lambda);
-	void applyGradient(double** weightGradient, double** weights, double t, TrainingParams* params);
+	void applyGradient(double** weightGradient, double** weights, double t, double learningRate);
 	Optimizer* clone();
 	void setDimensions(int height, int width);
 };

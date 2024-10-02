@@ -56,9 +56,9 @@ void InputLayer::backPropagate() {
 	return;
 }
 
-void InputLayer::applyGradients(TrainingParams* params, int t) {
+void InputLayer::applyGradients(double learningRate, int t) {
 	if (nextLayer != NULL) {
-		nextLayer->applyGradients(params, t);
+		nextLayer->applyGradients(learningRate, t);
 	}
 }
 

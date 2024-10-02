@@ -1,8 +1,7 @@
 #include "NeuralNetwork.h"
 #include "BatchNormalization.h"
 
-NeuralNetwork::NeuralNetwork(Loss* lossFunction, int inputSize) {
-	this->lossFunction = lossFunction;
+NeuralNetwork::NeuralNetwork(int inputSize) {
 	inputLayer = { new InputLayer(inputSize) };
 	outputLayer = inputLayer;
 	t = 0;
@@ -16,7 +15,6 @@ NeuralNetwork::NeuralNetwork(string fileName) {
 	int commaIndex = line.find_first_of(",");
 	int index = stoi(line.substr(0,commaIndex));
 	int inputSize = stoi(line.substr(commaIndex + 1, line.length()));
-	this->lossFunction = Loss::ALL_LOSSES[index];
 	inputLayer = { new InputLayer(inputSize) };
 	outputLayer = inputLayer;
 	int prevSize = inputSize + 1;
@@ -84,27 +82,23 @@ void NeuralNetwork::forwardPropagate(double** input) {
 	inputLayer->forwardPropagate();
 }
 
-double NeuralNetwork::getLoss(double** output) {
-	return lossFunction->loss(outputLayer, output);
-}
-
-void NeuralNetwork::backPropagate(double** yTrue) {
+void NeuralNetwork::backPropagate(Loss* lossFunction, double** yTrue) {
 	lossFunction->differentiate(outputLayer, yTrue);
 	outputLayer->backPropagate();
 }
 
-void NeuralNetwork::applyGradients(TrainingParams* params) {
+void NeuralNetwork::applyGradients(double learningRate) {
 	t++;
-	inputLayer->applyGradients(params, t);
+	inputLayer->applyGradients(learningRate, t);
 }
 
-void NeuralNetwork::fit(double** X, double** y, double* losses, TrainingParams* params) {
+void NeuralNetwork::fit(Loss* lossFunction, double** X, double** y, double* losses, int numMetrics, Loss** metrics, TrainingParams* params) {
 	forwardPropagate(X);
-	backPropagate(y);
-	for (int i = 0; i < params->numMetrics; i++) {
-		losses[i] += params->metrics[i]->loss(outputLayer, y);
+	backPropagate(lossFunction, y);
+	for (int i = 0; i < numMetrics; i++) {
+		losses[i] += metrics[i]->loss(outputLayer, y);
 	}
-	losses[params->numMetrics] += lossFunction->loss(outputLayer, y);
+	losses[numMetrics] += lossFunction->loss(outputLayer, y);
 }
 
 void NeuralNetwork::shuffle(int numData, double** X, double** y) {
@@ -115,44 +109,48 @@ void NeuralNetwork::shuffle(int numData, double** X, double** y) {
 	}
 }
 
-void NeuralNetwork::fit(int numData, double** X, double** y, TrainingParams* params) {
-	inputLayer->setOptimizer(params->optimizer);
+void NeuralNetwork::fit(Loss* lossFunction, int numData, double** X, double** y, int numMetrics, Loss** metrics, TrainingParams* params) {
+	double valSplit = *((double*)(params->get(TrainingParams::VAL_SPLIT)));
+	int batchSize = *((int*)(params->get(TrainingParams::BATCH_SIZE)));
+	int numEpochs = *((int*)(params->get(TrainingParams::NUM_EPOCHS)));
+	double learningRate = *((double*)(params->get(TrainingParams::LEARNING_RATE)));
+	inputLayer->setOptimizer((Optimizer*)params->get(TrainingParams::OPTIMIZER));
 	double* averages = NULL;
-	averages = new double[params->numMetrics + 1];
-	int trainingNum = (int)(numData * (1 - params->valSplit));
-	trainingNum -= trainingNum % params->batchSize;
-	for (int epoch = 0; epoch < params->numEpochs; epoch++) {
-		inputLayer->setBatchSize(params->batchSize);
+	averages = new double[numMetrics + 1];
+	int trainingNum = (int)(numData * (1 - valSplit));
+	trainingNum -= trainingNum % batchSize;
+	for (int epoch = 0; epoch < numEpochs; epoch++) {
+		inputLayer->setBatchSize(batchSize);
 		shuffle(numData, X, y);
-		for (int i = 0; i < params->numMetrics + 1; i++) {
+		for (int i = 0; i < numMetrics + 1; i++) {
 			averages[i] = 0;
 		}
-		for (int i = 0; i < trainingNum - params->batchSize; i += params->batchSize) {
-			printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, params->numEpochs, i, trainingNum, averages[params->numMetrics] / i);
-			for (int j = 0; j < params->numMetrics; j++) {
-				printf("%s:%f  ", params->metrics[j]->toString().c_str(), averages[j] / i);
+		for (int i = 0; i < trainingNum - batchSize; i += batchSize) {
+			printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, numEpochs, i, trainingNum, averages[numMetrics] / i);
+			for (int j = 0; j < numMetrics; j++) {
+				printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / i);
 			}
-			fit(&X[i], &y[i], averages, params);
-			applyGradients(params);
+			fit(lossFunction, &X[i], &y[i], averages, numMetrics, metrics, params);
+			applyGradients(learningRate);
 		}
-		printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, params->numEpochs, trainingNum, trainingNum, averages[params->numMetrics] / trainingNum);
-		for (int j = 0; j < params->numMetrics; j++) {
-			printf("%s:%f  ", params->metrics[j]->toString().c_str(), averages[j] / trainingNum);
+		printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, numEpochs, trainingNum, trainingNum, averages[numMetrics] / trainingNum);
+		for (int j = 0; j < numMetrics; j++) {
+			printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / trainingNum);
 		}
-		int valNum = numData * params->valSplit;
+		int valNum = numData * valSplit;
 		if (valNum > 0) {
 			inputLayer->setBatchSize(valNum);
 			predict(&X[trainingNum]);
 			printf("ValLoss:%f  ", lossFunction->loss(outputLayer, &y[trainingNum]) / valNum);
-			for (int i = 0; i < params->numMetrics; i++) {
-				printf("Val%s:%f  ", params->metrics[i]->toString().c_str(), params->metrics[i]->loss(outputLayer, &y[trainingNum]) / valNum);
+			for (int i = 0; i < numMetrics; i++) {
+				printf("Val%s:%f  ", metrics[i]->toString().c_str(), metrics[i]->loss(outputLayer, &y[trainingNum]) / valNum);
 			}
 		}
 		printf("\n");
 	}
 }
 
-void NeuralNetwork::test(int numData, double** X, double** y, int numMetrics, Loss** metrics) {
+void NeuralNetwork::test(Loss* lossFunction, int numData, double** X, double** y, int numMetrics, Loss** metrics) {
 	inputLayer->setBatchSize(numData);
 	predict(X);
 	printf("TestLoss:%f  ", lossFunction->loss(outputLayer, y) / numData);
@@ -168,13 +166,6 @@ void NeuralNetwork::setTrainable(bool trainable) {
 
 void NeuralNetwork::save(string fileName) {
 	ofstream file(fileName.c_str());
-	int index = 0;
-	for (int i = 0; i < Loss::NUM_LOSSES; i++) {
-		if (lossFunction == Loss::ALL_LOSSES[i]) {
-			index = i;
-		}
-	}
-	file << index << ",";
 	inputLayer->save(file);
 	file.close();
 }

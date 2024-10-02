@@ -26,8 +26,7 @@ public:
 	void setPrevLayer(Layer* prevLayer);
 	void setNextLayer(Layer* nextLayer);
 	void setBatchSize(int batchSize);
-	void applyGradients(TrainingParams* params, int t);
-	void setTrainable(bool trainable);
+	void applyGradients(double learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 
 	void save(ofstream& file);

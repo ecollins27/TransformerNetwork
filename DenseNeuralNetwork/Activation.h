@@ -22,7 +22,7 @@ class Activation {
 		virtual Activation* clone() = 0;
 		virtual void init(DenseLayer* layer) {return;};
 		virtual void setOptimizer(DenseLayer* layer, Optimizer* optimizer) { return; };
-		virtual void applyGradient(DenseLayer* layer, TrainingParams* params, int t) { return; };
+		virtual void applyGradient(DenseLayer* layer, double learningRate, int t) { return; };
 		virtual bool isDiagonal() { return true; };
 
 };
@@ -100,7 +100,7 @@ public:
 	Activation* clone();
 	void init(DenseLayer* layer);
 	void setOptimizer(DenseLayer* layer, Optimizer* optimizer);
-	void applyGradient(DenseLayer* layer, TrainingParams* params, int t);
+	void applyGradient(DenseLayer* layer, double learningRate, int t);
 	bool isDiagonal();
 };
 

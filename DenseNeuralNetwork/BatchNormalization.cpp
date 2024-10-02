@@ -99,11 +99,11 @@ void BatchNormalization::setBatchSize(int batchSize) {
 	}
 }
 
-void BatchNormalization::applyGradients(TrainingParams* params, int t) {
+void BatchNormalization::applyGradients(double learningRate, int t) {
 	Matrix::scale(2, size, parameterGradient, 1.0 / batchSize);
-	optimizer->applyGradient(parameterGradient, parameters, t, params);
+	optimizer->applyGradient(parameterGradient, parameters, t, learningRate);
 	if (nextLayer != NULL) {
-		nextLayer->applyGradients(params, t);
+		nextLayer->applyGradients(learningRate, t);
 	}
 }
 

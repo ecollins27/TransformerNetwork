@@ -260,9 +260,9 @@ void Glu::setOptimizer(DenseLayer* layer, Optimizer* optimizer) {
 	this->optimizer->setDimensions(layer->size, layer->size + 1);
 }
 
-void Glu::applyGradient(DenseLayer* layer, TrainingParams* params, int t) {
+void Glu::applyGradient(DenseLayer* layer, double learningRate, int t) {
 	Matrix::scale(layer->size, layer->size + 1, weightGradient, 1.0 / layer->batchSize);
-	optimizer->applyGradient(weightGradient, weights, t, params);
+	optimizer->applyGradient(weightGradient, weights, t, learningRate);
 }
 
 bool Glu::isDiagonal() {

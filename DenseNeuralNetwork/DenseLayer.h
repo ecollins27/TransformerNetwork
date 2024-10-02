@@ -26,7 +26,7 @@ public:
 	void predict();
 	void forwardPropagate();
 	void backPropagate();
-	void applyGradients(TrainingParams* params, int t);
+	void applyGradients(double learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	void save(ofstream& file);
 };

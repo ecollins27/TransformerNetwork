@@ -120,12 +120,12 @@ void DenseLayer::backPropagate() {
 	}
 }
 
-void DenseLayer::applyGradients(TrainingParams* params, int t) {
-	Matrix::scale(size, prevSize, weightGradient, 1.0 / params->batchSize);
-	optimizer->applyGradient(weightGradient, weights, t, params);
-	activation->applyGradient(this, params, t);
+void DenseLayer::applyGradients(double learningRate, int t) {
+	Matrix::scale(size, prevSize, weightGradient, 1.0 / batchSize);
+	optimizer->applyGradient(weightGradient, weights, t, learningRate);
+	activation->applyGradient(this, learningRate, t);
 	if (nextLayer != NULL) {
-		nextLayer->applyGradients(params, t);
+		nextLayer->applyGradients(learningRate, t);
 	}
 }
 

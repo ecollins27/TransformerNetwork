@@ -8,21 +8,19 @@ class NeuralNetwork {
 public:
 	InputLayer* inputLayer;
 	Layer* outputLayer;
-	Loss* lossFunction;
 	int t;
 
-	NeuralNetwork(Loss* lossFunction, int inputSize);
+	NeuralNetwork(int inputSize);
 	NeuralNetwork(string fileName);
 
 	void addLayer(Layer* layer);
 	void predict(double** input);
 	void forwardPropagate(double** input);
-	void backPropagate(double** yTrue);
-	void applyGradients(TrainingParams* params);
-	double getLoss(double** yTrue);
-	void fit(double** X, double** y, double* losses, TrainingParams* params);
-	void fit(int numData, double** X, double** y, TrainingParams* params);
-	void test(int numData, double** X, double** y, int numMetrics, Loss** metrics);
+	void backPropagate(Loss* lossFunction, double** yTrue);
+	void applyGradients(double learningRate);
+	void fit(Loss* lossFunction, double** X, double** y, double* losses, int numMetrics, Loss** metrics, TrainingParams* params);
+	void fit(Loss* lossFunction, int numData, double** X, double** y, int numMetrics, Loss** metrics, TrainingParams* params);
+	void test(Loss* lossFunction, int numData, double** X, double** y, int numMetrics, Loss** metrics);
 	void shuffle(int numData, double** X, double** y);
 	void setTrainable(bool trainable);
 	void save(string fileName);

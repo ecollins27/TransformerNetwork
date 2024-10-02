@@ -94,9 +94,9 @@ void Dropout::backPropagate() {
 	}
 }
 
-void Dropout::applyGradients(TrainingParams* params, int t) {
+void Dropout::applyGradients(double learningRate, int t) {
 	if (nextLayer != NULL) {
-		nextLayer->applyGradients(params, t);
+		nextLayer->applyGradients(learningRate, t);
 	}
 }
 

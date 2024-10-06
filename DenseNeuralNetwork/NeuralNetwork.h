@@ -24,5 +24,6 @@ public:
 	void shuffle(int numData, double** X, double** y);
 	void setTrainable(bool trainable);
 	void save(string fileName);
+	int getNumParameters();
 };
 

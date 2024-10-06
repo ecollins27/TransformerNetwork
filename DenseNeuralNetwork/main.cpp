@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "DenseLayer.h"
+#include "GatedLayer.h"
 #include "NeuralNetwork.h"
 #include "BatchNormalization.h"
 #include <typeinfo>
@@ -83,11 +84,20 @@ int main() {
 	double** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 10);
 	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\mnist_train.csv", X, y, 60000);
 	NeuralNetwork* dnn{ new NeuralNetwork(784) };
-	dnn->addLayer({ new DenseLayer({ new Glu(Activation::SWISH)}, 500)});
+	dnn->addLayer({ new GatedLayer(Activation::SWISH, 500) });
+	dnn->addLayer({ new GatedLayer(Activation::SWISH, 300) });
 	dnn->addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
-	dnn->fit(Loss::CATEGORICAL_CROSS_ENTROPY, 60000, X, y, 1, new Loss * [1] {Loss::ACCURACY}, TrainingParams::DEFAULT);
+	printf("%d\n", dnn->getNumParameters());
+	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 10);
+	dnn->fit(Loss::CATEGORICAL_CROSS_ENTROPY, 60000, X, y, 1, new Loss * [1] {Loss::ACCURACY}, params);
 	dnn->save("dnn.txt");
 	Matrix::deallocateMatrix(X, 60000, 784);
 	Matrix::deallocateMatrix(y, 60000, 10);
 	return 0;
 }
+
+/*
+* TODO:
+* Allow for 2D and 3D layers
+* Allow for non sequential models
+*/

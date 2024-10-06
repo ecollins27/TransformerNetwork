@@ -23,6 +23,7 @@
     <ClCompile Include="BatchNormalization.cpp" />
     <ClCompile Include="DenseLayer.cpp" />
     <ClCompile Include="Dropout.cpp" />
+    <ClCompile Include="GatedLayer.cpp" />
     <ClCompile Include="InputLayer.cpp" />
     <ClCompile Include="Layer.cpp" />
     <ClCompile Include="Loss.cpp" />
@@ -37,6 +38,7 @@
     <ClInclude Include="BatchNormalization.h" />
     <ClInclude Include="DenseLayer.h" />
     <ClInclude Include="Dropout.h" />
+    <ClInclude Include="GatedLayer.h" />
     <ClInclude Include="InputLayer.h" />
     <ClInclude Include="Layer.h" />
     <ClInclude Include="Loss.h" />

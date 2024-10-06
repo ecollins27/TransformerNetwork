@@ -30,6 +30,7 @@ public:
 	static void elementMultiply(int m, int n, double** A, double** B, double** C, bool overwrite);
 	static void fill(FillFunction* fillFunction, int m, int n, double** A);
 	static void copy(int m, int n, double** from, double** to);
+	static void print(int m, int n, double** A);
 
 	static virtual class FillFunction {
 	public:

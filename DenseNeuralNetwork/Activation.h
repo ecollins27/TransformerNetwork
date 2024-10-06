@@ -1,6 +1,8 @@
 #pragma once
 #include <cmath>
 #include "Optimizer.h"
+#include <fstream>
+
 class DenseLayer;
 
 class Activation {
@@ -17,37 +19,38 @@ class Activation {
 		static Activation* ALL_ACTIVATIONS[NUM_ACTIVATIONS];
 
 		bool condenseGradient = true;
-		virtual void operate(DenseLayer* layer) = 0;
-		virtual void differentiate(DenseLayer* layer) = 0;
+		virtual void operate(int batchSize, int size, double** activations, double** neurons) = 0;
+		virtual void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) = 0;
 		virtual Activation* clone() = 0;
-		virtual void init(DenseLayer* layer) {return;};
-		virtual void setOptimizer(DenseLayer* layer, Optimizer* optimizer) { return; };
-		virtual void applyGradient(DenseLayer* layer, double learningRate, int t) { return; };
 		virtual bool isDiagonal() { return true; };
+		virtual void save(ofstream& file) {
+			string name(& typeid(*this).name()[6]);
+			file << name << ",";
+		};
 
 };
 
 class None : public Activation {
 
 public:
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
+	void operate(int batchSize, int size, double** activations, double** neurons);
+	void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient);
 	Activation* clone();
 };
 
 class Sigmoid : public Activation {
 
 public:
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
+	void operate(int batchSize, int size, double** activations, double** neurons);
+	void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient);
 	Activation* clone();
 };
 
 class Relu : public Activation {
 
 public:
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
+	void operate(int batchSize, int size, double** activations, double** neurons);
+	void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient);
 	Activation* clone();
 };
 
@@ -56,59 +59,40 @@ class Elu : public Activation {
 public:
 	double alpha;
 	Elu(double alpha);
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
+	void operate(int batchSize, int size, double** activations, double** neurons);
+	void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient);
 	Activation* clone();
+	void save(ofstream& file);
 };
 
 class Selu : public Activation {
 public:
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
+	void operate(int batchSize, int size, double** activations, double** neurons);
+	void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient);
 	Activation* clone();
 };
 
 class Tanh : public Activation {
 
 public:
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
+	void operate(int batchSize, int size, double** activations, double** neurons);
+	void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient);
 	Activation* clone();
 };
 
 class Swish : public Activation {
 
 public:
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
+	void operate(int batchSize, int size, double** activations, double** neurons);
+	void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient);
 	Activation* clone();
-};
-
-class Glu : public Activation {
-
-public:
-	double** weights;
-	double** weightGradient;
-	double** output;
-	double** activationOutput;
-	Activation* activation;
-	Optimizer* optimizer;
-
-	Glu(Activation* activation);
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
-	Activation* clone();
-	void init(DenseLayer* layer);
-	void setOptimizer(DenseLayer* layer, Optimizer* optimizer);
-	void applyGradient(DenseLayer* layer, double learningRate, int t);
-	bool isDiagonal();
 };
 
 class Softmax : public Activation {
 
 public:
-	void operate(DenseLayer* layer);
-	void differentiate(DenseLayer* layer);
+	void operate(int batchSize, int size, double** activations, double** neurons);
+	void differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient);
 	Activation* clone();
 	bool isDiagonal();
 };

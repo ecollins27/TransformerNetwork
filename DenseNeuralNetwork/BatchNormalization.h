@@ -30,5 +30,6 @@ public:
 	void setOptimizer(Optimizer* optimizer);
 
 	void save(ofstream& file);
+	int getNumParameters();
 };
 

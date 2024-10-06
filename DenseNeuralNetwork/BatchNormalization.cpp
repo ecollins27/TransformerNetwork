@@ -116,13 +116,13 @@ void BatchNormalization::setOptimizer(Optimizer* optimizer) {
 }
 
 void BatchNormalization::save(ofstream& file) {
-	file << "BatchNormalization\n";
+	file << "BatchNormalization,\n";
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < size; j++) {
 			if (i < 2) {
 				file << parameters[i][j] << ",";
 			}
-			else if (i == 3) {
+			else if (i == 2) {
 				file << mean[0][j] << ",";
 			} else {
 				file << variance[0][j] << ",";
@@ -133,4 +133,9 @@ void BatchNormalization::save(ofstream& file) {
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+int BatchNormalization::getNumParameters() {
+	int current = nextLayer == NULL ? 0 : nextLayer->getNumParameters();
+	return current + 2 * size;
 }

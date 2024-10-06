@@ -32,5 +32,11 @@ public:
 	void setTrainable(bool trainable);
 
 	virtual void save(ofstream& file) = 0;
+	virtual int getNumParameters() {
+		if (nextLayer != NULL) {
+			return nextLayer->getNumParameters();
+		}
+		return 0;
+	};
 };
 

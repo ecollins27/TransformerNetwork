@@ -11,17 +11,17 @@ Activation* Activation::SWISH{ new Swish() };
 Activation* Activation::SOFTMAX{ new Softmax() };
 Activation* Activation::ALL_ACTIVATIONS[Activation::NUM_ACTIVATIONS] = {NONE, SIGMOID, RELU, ELU, SELU, TANH, SWISH, SOFTMAX };
 
-void None::operate(DenseLayer* layer) {
+void None::operate(int batchSize, int size, double** activations, double** neurons) {
 	return;
 }
 
-void None::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
+void None::differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
 			if (condenseGradient) {
-				layer->activationGradient[0][i][j] = 1;
+				activationGradient[0][i][j] = 1;
 			} else {
-				layer->activationGradient[i][j][j] = 1;
+				activationGradient[i][j][j] = 1;
 			}
 		}
 	}
@@ -31,23 +31,23 @@ Activation* None::clone() {
 	return { new None() };
 }
 
-void Sigmoid::operate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Sigmoid::operate(int batchSize, int size, double** activations, double** neurons) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			value = 1.0 / (1.0 + exp(-value));
 		}
 	}
 }
 
-void Sigmoid::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double value = layer->neurons[i][j];
+void Sigmoid::differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double value = neurons[i][j];
 			if (condenseGradient) {
-				layer->activationGradient[0][i][j] = value * (1 - value);
+				activationGradient[0][i][j] = value * (1 - value);
 			} else {
-				layer->activationGradient[i][j][j] = value * (1 - value);
+				activationGradient[i][j][j] = value * (1 - value);
 			}
 		}
 	}
@@ -57,10 +57,10 @@ Activation* Sigmoid::clone() {
 	return { new Sigmoid() };
 }
 
-void Relu::operate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Relu::operate(int batchSize, int size, double** activations, double** neurons) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			if (value < 0) {
 				value = 0;
 			}
@@ -68,15 +68,15 @@ void Relu::operate(DenseLayer* layer) {
 	}
 }
 
-void Relu::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Relu::differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			if (value > 0) {
 				if (condenseGradient) {
-					layer->activationGradient[0][i][j] = 1;
+					activationGradient[0][i][j] = 1;
 				} else {
-					layer->activationGradient[i][j][j] = 1;
+					activationGradient[i][j][j] = 1;
 				}
 			}
 		}
@@ -91,10 +91,10 @@ Elu::Elu(double alpha) {
 	this->alpha = alpha;
 }
 
-void Elu::operate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Elu::operate(int batchSize, int size, double** activations, double** neurons) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			if (value < 0) {
 				value = alpha * (exp(value) - 1);
 			}
@@ -102,15 +102,15 @@ void Elu::operate(DenseLayer* layer) {
 	}
 }
 
-void Elu::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Elu::differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			if (condenseGradient) {
-				layer->activationGradient[0][i][j] = value < 0 ? (value + alpha) : 1;
+				activationGradient[0][i][j] = value < 0 ? (value + alpha) : 1;
 			}
 			else {
-				layer->activationGradient[i][j][j] = value < 0 ? (value + alpha) : 1;
+				activationGradient[i][j][j] = value < 0 ? (value + alpha) : 1;
 			}
 		}
 	}
@@ -120,10 +120,14 @@ Activation* Elu::clone() {
 	return { new Elu(alpha) };
 }
 
-void Selu::operate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Elu::save(ofstream& file) {
+	file << "Elu" << "," << alpha << ",";
+}
+
+void Selu::operate(int batchSize, int size, double** activations, double** neurons) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			if (value < 0) {
 				value = 1.6733 * 1.0507 * (exp(value) - 1);
 			}
@@ -134,14 +138,14 @@ void Selu::operate(DenseLayer* layer) {
 	}
 }
 
-void Selu::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Selu::differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			if (condenseGradient) {
-				layer->activationGradient[0][i][j] = value < 0 ? (value + 1.6733 * 1.0507) : 1.0507;
+				activationGradient[0][i][j] = value < 0 ? (value + 1.6733 * 1.0507) : 1.0507;
 			} else {
-				layer->activationGradient[i][j][j] = value < 0 ? (value + 1.6733 * 1.0507) : 1.0507;
+				activationGradient[i][j][j] = value < 0 ? (value + 1.6733 * 1.0507) : 1.0507;
 			}
 		}
 	}
@@ -151,10 +155,10 @@ Activation* Selu::clone() {
 	return { new Selu() };
 }
 
-void Tanh::operate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Tanh::operate(int batchSize, int size, double** activations, double** neurons) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			double eX = exp(value);
 			double eNegX = exp(-value);
 			value = (eX - eNegX) / (eX + eNegX);
@@ -162,14 +166,14 @@ void Tanh::operate(DenseLayer* layer) {
 	}
 }
 
-void Tanh::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Tanh::differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			if (condenseGradient) {
-				layer->activationGradient[0][i][j] = 1 - value * value;
+				activationGradient[0][i][j] = 1 - value * value;
 			} else {
-				layer->activationGradient[i][j][j] = 1 - value * value;
+				activationGradient[i][j][j] = 1 - value * value;
 			}
 		}
 	}
@@ -179,24 +183,24 @@ Activation* Tanh::clone() {
 	return { new Tanh() };
 }
 
-void Swish::operate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+void Swish::operate(int batchSize, int size, double** activations, double** neurons) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			value = value / (1 + exp(-value));
 		}
 	}
 }
 
-void Swish::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			double& activation = layer->activations[i][j];
+void Swish::differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			double& activation = activations[i][j];
 			double eNegX = exp(-activation);
 			if (condenseGradient) {
-				layer->activationGradient[0][i][j] = (1 + eNegX * layer->neurons[i][j]) / (1.0 + eNegX);
+				activationGradient[0][i][j] = (1 + eNegX * neurons[i][j]) / (1.0 + eNegX);
 			} else {
-				layer->activationGradient[i][j][j] = (1 + eNegX * layer->neurons[i][j]) / (1.0 + eNegX);
+				activationGradient[i][j][j] = (1 + eNegX * neurons[i][j]) / (1.0 + eNegX);
 			}
 		}
 	}
@@ -206,95 +210,32 @@ Activation* Swish::clone() {
 	return { new Swish() };
 }
 
-Glu::Glu(Activation* activation) {
-	this->activation = activation->clone();
-	this->activation->condenseGradient = false;
-}
-
-void Glu::operate(DenseLayer* layer) {
-	activation->operate(layer);
-	Matrix::copy(layer->batchSize, layer->size, layer->neurons, activationOutput);
-	Matrix::matrixMultiplyABtC(layer->batchSize, layer->size + 1, layer->size, layer->activations, weights, output, true);
-	Matrix::elementMultiply(layer->batchSize, layer->size, activationOutput, output, layer->neurons, true);
-}
-
-void Glu::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		Matrix::fill(Matrix::ZERO_FILL, layer->size, layer->size, layer->activationGradient[i]);
-	}
-	activation->differentiate(layer);
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			for (int k = 0; k < layer->size; k++) {
-				layer->activationGradient[i][j][k] = layer->activationGradient[i][j][k] * output[i][j] + activationOutput[i][j] * weights[j][k];
-				weightGradient[j][k] += layer->neuronGradient[i][j] * activationOutput[i][j] * layer->activations[i][k];
-			}
-		}
-	}
-}
-
-Activation* Glu::clone() {
-	return { new Glu(activation) };
-}
-
-template<typename A, typename T>
-bool instanceof(T* ptr) {
-	return dynamic_cast<A*>(ptr) != NULL;
-}
-
-void Glu::init(DenseLayer* layer) {
-	if (weights == NULL) {
-		double stdDeviation = sqrt(2.0 / (layer->size));
-		if (instanceof<Selu>(activation)) {
-			stdDeviation = sqrt(1.0 / layer->size);
-		}
-		weights = Matrix::allocateMatrix({ new Matrix::NormalFill(0,stdDeviation) }, layer->size, layer->size + 1);
-		weightGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, layer->size, layer->size + 1);
-	}
-	output = Matrix::allocateMatrix(Matrix::ZERO_FILL, layer->batchSize, layer->size);
-	activationOutput = Matrix::allocateMatrix(Matrix::ZERO_FILL, layer->batchSize, layer->size);
-}
-
-void Glu::setOptimizer(DenseLayer* layer, Optimizer* optimizer) {
-	this->optimizer = optimizer->clone();
-	this->optimizer->setDimensions(layer->size, layer->size + 1);
-}
-
-void Glu::applyGradient(DenseLayer* layer, double learningRate, int t) {
-	Matrix::scale(layer->size, layer->size + 1, weightGradient, 1.0 / layer->batchSize);
-	optimizer->applyGradient(weightGradient, weights, t, learningRate);
-}
-
-bool Glu::isDiagonal() {
-	return false;
-}
-
-void Softmax::operate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
+void Softmax::operate(int batchSize, int size, double** activations, double** neurons) {
+	for (int i = 0; i < batchSize; i++) {
 		int max = 0;
-		for (int j = 0; j < layer->size; j++) {
-			if (layer->neurons[i][j] > max) {
-				max = layer->neurons[i][j];
+		for (int j = 0; j < size; j++) {
+			if (neurons[i][j] > max) {
+				max = neurons[i][j];
 			}
 		}
 		double sum = 0;
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			value = exp(value - max);
 			sum += value;
 		}
-		for (int j = 0; j < layer->size; j++) {
-			double& value = layer->neurons[i][j];
+		for (int j = 0; j < size; j++) {
+			double& value = neurons[i][j];
 			value = value / sum;
 		}
 	}
 }
 
-void Softmax::differentiate(DenseLayer* layer) {
-	for (int i = 0; i < layer->batchSize; i++) {
-		for (int j = 0; j < layer->size; j++) {
-			for (int k = 0; k < layer->size; k++) {
-				layer->activationGradient[i][j][k] = layer->neurons[i][j] * ((j == k ? 1 : 0) - layer->neurons[i][k]);
+void Softmax::differentiate(int batchSize, int size, double** activations, double** neurons, double*** activationGradient) {
+	for (int i = 0; i < batchSize; i++) {
+		for (int j = 0; j < size; j++) {
+			for (int k = 0; k < size; k++) {
+				activationGradient[i][j][k] = neurons[i][j] * ((j == k ? 1 : 0) - neurons[i][k]);
 			}
 		}
 	}

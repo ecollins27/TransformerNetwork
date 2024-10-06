@@ -145,6 +145,15 @@ void Matrix::copy(int m, int n, double** from, double** to) {
 	}
 }
 
+void Matrix::print(int m, int n, double** A) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < n; j++) {
+			printf("%f  ", A[i][j]);
+		}
+		printf("\n");
+	}
+}
+
 Matrix::ConstantFill::ConstantFill(double value){
 	this->value = value;
 }

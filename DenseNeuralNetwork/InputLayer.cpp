@@ -29,6 +29,11 @@ void InputLayer::setNextLayer(Layer* layer) {
 }
 
 void InputLayer::setBatchSize(int batchSize) {
+	if (neurons != NULL) {
+		Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
+	} if (neuronGradient != NULL) {
+		Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
+	}
 	this->batchSize = batchSize;
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);

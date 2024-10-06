@@ -83,7 +83,7 @@ void Dropout::backPropagate() {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			if (!dropped[i][j]) {
-				prevLayer->neuronGradient[i][j] = neuronGradient[i][j] / scale;
+				prevLayer->neuronGradient[i][j] = neuronGradient[i][j];
 			} else {
 				prevLayer->neuronGradient[i][j] = 0;
 			}
@@ -107,7 +107,7 @@ void Dropout::setOptimizer(Optimizer* optimizer) {
 }
 
 void Dropout::save(ofstream& file) {
-	file << "Dropout," << dropRate << "\n";
+	file << "Dropout," << dropRate << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}

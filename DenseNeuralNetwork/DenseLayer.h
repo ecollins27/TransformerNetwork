@@ -29,5 +29,6 @@ public:
 	void applyGradients(double learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	void save(ofstream& file);
+	int getNumParameters();
 };
 

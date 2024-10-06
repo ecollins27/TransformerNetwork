@@ -21,9 +21,23 @@ public:
 	TrainingParams(double learningRate, int batchSize, int numEpochs, double valSplit, Optimizer* optimizer);
 	TrainingParams(void** data);
 
-	TrainingParams* with(const int index, void* value);
+	template<typename T>
+	TrainingParams* with(const int index, T value) {
+		TrainingParams* params = { new TrainingParams(data) };
+		params->edit(index, value);
+		return params;
+	}
 	
-	void* get(const int index);
+	template<typename T>
+	T get(const int index) {
+		return *((T*)data[index]);
+	}
+
+private:
+	template<typename T>
+	void edit(const int index, T value) {
+		*((T*)data[index]) = value;
+	}
 
 };
 

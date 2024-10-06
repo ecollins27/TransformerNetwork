@@ -64,7 +64,6 @@ void DenseLayer::setBatchSize(int batchSize) {
 		free(activationGradient);
 	}
 	this->batchSize = batchSize;
-	activation->init(this);
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	for (int i = 0; i < batchSize; i++) {
@@ -90,7 +89,7 @@ void DenseLayer::setBatchSize(int batchSize) {
 void DenseLayer::predict() {
 	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
 	Matrix::copy(batchSize, size + 1, activations, neurons);
-	activation->operate(this);
+	activation->operate(batchSize, size, activations, neurons);
 	if (nextLayer != NULL) {
 		nextLayer->predict();
 	}
@@ -99,14 +98,14 @@ void DenseLayer::predict() {
 void DenseLayer::forwardPropagate() {
 	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
 	Matrix::copy(batchSize, size + 1, activations, neurons);
-	activation->operate(this);
+	activation->operate(batchSize, size, activations, neurons);
 	if (nextLayer != NULL) {
 		nextLayer->forwardPropagate();
 	}
 }
 
 void DenseLayer::backPropagate() {
-	activation->differentiate(this);
+	activation->differentiate(batchSize, size, activations, neurons, activationGradient);
 	if (isDiagonal) {
 		Matrix::elementMultiply(batchSize, size, neuronGradient, activationGradient[0], backPropIntermediate, true);
 	}
@@ -123,7 +122,6 @@ void DenseLayer::backPropagate() {
 void DenseLayer::applyGradients(double learningRate, int t) {
 	Matrix::scale(size, prevSize, weightGradient, 1.0 / batchSize);
 	optimizer->applyGradient(weightGradient, weights, t, learningRate);
-	activation->applyGradient(this, learningRate, t);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);
 	}
@@ -132,21 +130,15 @@ void DenseLayer::applyGradients(double learningRate, int t) {
 void DenseLayer::setOptimizer(Optimizer* optimizer) {
 	this->optimizer = optimizer->clone();
 	this->optimizer->setDimensions(size, prevSize);
-	activation->setOptimizer(this, optimizer);
 	if (nextLayer != NULL) {
 		nextLayer->setOptimizer(optimizer);
 	}
 }
 
 void DenseLayer::save(ofstream& file) {
-	int index = 0;
-	string activationName = typeid(*activation).name();
-	for (int i = 0; i < Activation::NUM_ACTIVATIONS; i++) {
-		if (activationName.compare(typeid(*(Activation::ALL_ACTIVATIONS[i])).name()) == 0) {
-			index = i;
-		}
-	}
-	file << "DenseLayer," << index << "," << size << "\n";
+	file << "DenseLayer,";
+	activation->save(file);
+	file << size << ",\n";
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights[i][j] << ",";
@@ -156,4 +148,9 @@ void DenseLayer::save(ofstream& file) {
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+int DenseLayer::getNumParameters() {
+	int current = nextLayer == NULL ? 0 : nextLayer->getNumParameters();
+	return current + size * prevSize;
 }

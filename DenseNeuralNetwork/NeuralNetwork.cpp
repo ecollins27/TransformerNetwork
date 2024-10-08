@@ -8,8 +8,8 @@ NeuralNetwork::NeuralNetwork(int inputSize) {
 	t = 0;
 }
 
-double getNextDouble(string line, int* commaIndex, int* newCommaIndex) {
-	double value = stod(line.substr(*commaIndex + 1, *newCommaIndex - *commaIndex - 1));
+float getNextFloat(string line, int* commaIndex, int* newCommaIndex) {
+	float value = stof(line.substr(*commaIndex + 1, *newCommaIndex - *commaIndex - 1));
 	*commaIndex = *newCommaIndex;
 	*newCommaIndex = line.find_first_of(",", *commaIndex + 1);
 	return value;
@@ -42,7 +42,7 @@ Activation* readActivation(string& line, int* commaIndex, int* newCommaIndex) {
 	} else if (activationName.compare("Relu") == 0) {
 		return { new Relu() };
 	} else if (activationName.compare("Elu") == 0) {
-		return { new Elu(getNextDouble(line,commaIndex, newCommaIndex)) };
+		return { new Elu(getNextFloat(line,commaIndex, newCommaIndex)) };
 	} else if (activationName.compare("Selu") == 0) {
 		return { new Selu() };
 	} else if (activationName.compare("Tanh") == 0) {
@@ -64,7 +64,7 @@ void addDenseLayer(NeuralNetwork* nn, ifstream& file, string& line, int* commaIn
 	for (int i = 0; i < size; i++) {
 		getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			denseLayer->weights[i][j] = getNextDouble(line, commaIndex, newCommaIndex);
+			denseLayer->weights[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	*prevSize = size + 1;
@@ -76,22 +76,22 @@ void addBatchNormalization(NeuralNetwork* nn, ifstream& file, string& line, int*
 	for (int i = 0; i < 2; i++) {
 		getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize - 1; j++) {
-			batchNormalization->parameters[i][j] = getNextDouble(line, commaIndex, newCommaIndex);
+			batchNormalization->parameters[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	getNextLine(file, line, commaIndex, newCommaIndex);
 	for (int j = 0; j < *prevSize - 1; j++) {
-		batchNormalization->mean[0][j] = getNextDouble(line, commaIndex, newCommaIndex);
+		batchNormalization->mean[0][j] = getNextFloat(line, commaIndex, newCommaIndex);
 	}
 	getNextLine(file, line, commaIndex, newCommaIndex);
 	for (int j = 0; j < *prevSize - 1; j++) {
-		batchNormalization->variance[0][j] = getNextDouble(line, commaIndex, newCommaIndex);
+		batchNormalization->variance[0][j] = getNextFloat(line, commaIndex, newCommaIndex);
 		batchNormalization->std[0][j] = sqrt(batchNormalization->variance[0][j] + 0.0000001);
 	}
 }
 
 void addDropout(NeuralNetwork* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
-	Dropout* dropout = { new Dropout(getNextDouble(line, commaIndex, newCommaIndex)) };
+	Dropout* dropout = { new Dropout(getNextFloat(line, commaIndex, newCommaIndex)) };
 	nn->addLayer(dropout);
 }
 
@@ -103,13 +103,13 @@ void addGatedLayer(NeuralNetwork* nn, ifstream& file, string& line, int* commaIn
 	for (int i = 0; i < size; i++) {
 		getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights1[i][j] = getNextDouble(line, commaIndex, newCommaIndex);
+			gatedLayer->weights1[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	for (int i = 0; i < size; i++) {
 		getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights2[i][j] = getNextDouble(line, commaIndex, newCommaIndex);
+			gatedLayer->weights2[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	*prevSize = size + 1;
@@ -123,6 +123,8 @@ void addSavedLayer(NeuralNetwork* nn, ifstream& file, string& line, int* commaIn
 		addBatchNormalization(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	} else if (layerName.compare("Dropout") == 0) {
 		addDropout(nn, file, line, commaIndex, newCommaIndex, prevSize);
+	} else if (layerName.compare("GatedLayer") == 0) {
+		addGatedLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
 }
 
@@ -151,27 +153,27 @@ void NeuralNetwork::addLayer(Layer* layer) {
 	outputLayer = layer;
 }
 
-void NeuralNetwork::predict(double** input) {
+void NeuralNetwork::predict(float** input) {
 	inputLayer->setInput(input);
 	inputLayer->predict();
 }
 
-void NeuralNetwork::forwardPropagate(double** input) {
+void NeuralNetwork::forwardPropagate(float** input) {
 	inputLayer->setInput(input);
 	inputLayer->forwardPropagate();
 }
 
-void NeuralNetwork::backPropagate(Loss* lossFunction, double** yTrue) {
+void NeuralNetwork::backPropagate(Loss* lossFunction, float** yTrue) {
 	lossFunction->differentiate(outputLayer, yTrue);
 	outputLayer->backPropagate();
 }
 
-void NeuralNetwork::applyGradients(double learningRate) {
+void NeuralNetwork::applyGradients(float learningRate) {
 	t++;
 	inputLayer->applyGradients(learningRate, t);
 }
 
-void NeuralNetwork::fit(Loss* lossFunction, double** X, double** y, double* losses, int numMetrics, Loss** metrics, TrainingParams* params) {
+void NeuralNetwork::fit(Loss* lossFunction, float** X, float** y, float* losses, int numMetrics, Loss** metrics, TrainingParams* params) {
 	forwardPropagate(X);
 	backPropagate(lossFunction, y);
 	for (int i = 0; i < numMetrics; i++) {
@@ -180,22 +182,22 @@ void NeuralNetwork::fit(Loss* lossFunction, double** X, double** y, double* loss
 	losses[numMetrics] += lossFunction->loss(outputLayer, y);
 }
 
-void NeuralNetwork::shuffle(int numData, double** X, double** y) {
+void NeuralNetwork::shuffle(int numData, float** X, float** y) {
 	for (int i = 0; i < numData; i++) {
-		int index = (int)(numData * ((double)rand() / (RAND_MAX + 1)));
+		int index = (int)(numData * ((float)rand() / (RAND_MAX + 1)));
 		swap(X[i], X[index]);
 		swap(y[i], y[index]);
 	}
 }
 
-void NeuralNetwork::fit(Loss* lossFunction, int numData, double** X, double** y, int numMetrics, Loss** metrics, TrainingParams* params) {
-	double valSplit = params->get<double>(TrainingParams::VAL_SPLIT);
+void NeuralNetwork::fit(Loss* lossFunction, int numData, float** X, float** y, int numMetrics, Loss** metrics, TrainingParams* params) {
+	float valSplit = params->get<float>(TrainingParams::VAL_SPLIT);
 	int batchSize = params->get<int>(TrainingParams::BATCH_SIZE);
 	int numEpochs = params->get<int>(TrainingParams::NUM_EPOCHS);
-	double learningRate = params->get<double>(TrainingParams::LEARNING_RATE);
+	float learningRate = params->get<float>(TrainingParams::LEARNING_RATE);
 	inputLayer->setOptimizer(params->get<Optimizer*>(TrainingParams::OPTIMIZER));
-	double* averages = NULL;
-	averages = new double[numMetrics + 1];
+	float* averages = NULL;
+	averages = new float[numMetrics + 1];
 	int trainingNum = (int)(numData * (1 - valSplit));
 	trainingNum -= trainingNum % batchSize;
 	for (int epoch = 0; epoch < numEpochs; epoch++) {
@@ -247,9 +249,9 @@ void NeuralNetwork::fit(Loss* lossFunction, int numData, double** X, double** y,
 	}
 }
 
-void NeuralNetwork::test(Loss* lossFunction, int numData, double** X, double** y, int numMetrics, Loss** metrics) {
+void NeuralNetwork::test(Loss* lossFunction, int numData, float** X, float** y, int numMetrics, Loss** metrics) {
 	inputLayer->setBatchSize(16);
-	double* averages = new double[numMetrics + 1];
+	float* averages = new float[numMetrics + 1];
 	for (int i = 0; i <= numData - 16; i += 16) {
 		predict(&X[i]);
 		averages[numMetrics] += lossFunction->loss(outputLayer, &y[i]);

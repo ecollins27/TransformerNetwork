@@ -8,14 +8,16 @@ InputLayer::InputLayer(int size) {
 }
 
 InputLayer::~InputLayer() {
-	Matrix::deallocateMatrix(neurons, size + 1, 1);
-	Matrix::deallocateMatrix(neuronGradient, size + 1, 1);
+	Matrix::deallocateMatrix(neurons, batchSize, size + 1);
+	Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
+	Matrix::deallocateMatrix(neuronsTranspose, size + 1, batchSize);
 }
 
-void InputLayer::setInput(double** data) {
+void InputLayer::setInput(float** data) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			neurons[i][j] = data[i][j];
+			neuronsTranspose[j][i] = data[i][j];
 		}
 	}
 }
@@ -31,11 +33,12 @@ void InputLayer::setNextLayer(Layer* layer) {
 void InputLayer::setBatchSize(int batchSize) {
 	if (neurons != NULL) {
 		Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
-	} if (neuronGradient != NULL) {
+		Matrix::deallocateMatrix(neuronsTranspose, size + 1, this->batchSize);
 		Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
 	}
 	this->batchSize = batchSize;
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+	neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
 	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	for (int i = 0; i < batchSize; i++) {
 		neurons[i][size] = 1;
@@ -61,7 +64,7 @@ void InputLayer::backPropagate() {
 	return;
 }
 
-void InputLayer::applyGradients(double learningRate, int t) {
+void InputLayer::applyGradients(float learningRate, int t) {
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);
 	}

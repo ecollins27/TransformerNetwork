@@ -4,10 +4,33 @@ Matrix::FillFunction* Matrix::ZERO_FILL{ new ConstantFill(0) };
 Matrix::FillFunction* Matrix::UNIT_NORMAL_FILL{ new NormalFill(0,1) };
 Matrix::FillFunction* Matrix::UNIT_UNIFORM_FILL{ new UniformFill(0,1) };
 
-double** Matrix::allocateMatrix(FillFunction* fillFunction, int height, int width) {
-	double** matrix = (double**)malloc(height * sizeof(double*));
+float Matrix::dotProduct(int n, float* x, float* y) {
+	int i, n8 = n >> 3 << 3;
+	__m128 vs1, vs2;
+	float s, t[4];
+	vs1 = _mm_setzero_ps();
+	vs2 = _mm_setzero_ps();
+	for (i = 0; i < n8; i += 8) {
+		__m128 vx1, vx2, vy1, vy2;
+		vx1 = _mm_loadu_ps(&x[i]);
+		vx2 = _mm_loadu_ps(&x[i + 4]);
+		vy1 = _mm_loadu_ps(&y[i]);
+		vy2 = _mm_loadu_ps(&y[i + 4]);
+		vs1 = _mm_add_ps(vs1, _mm_mul_ps(vx1, vy1));
+		vs2 = _mm_add_ps(vs2, _mm_mul_ps(vx2, vy2));
+	}
+	for (s = 0.0f; i < n; ++i) s += x[i] * y[i];
+	_mm_storeu_ps(t, vs1);
+	s += t[0] + t[1] + t[2] + t[3];
+	_mm_storeu_ps(t, vs2);
+	s += t[0] + t[1] + t[2] + t[3];
+	return s;
+}
+
+float** Matrix::allocateMatrix(FillFunction* fillFunction, int height, int width) {
+	float** matrix = (float**)malloc(height * sizeof(float*));
 	for (int i = 0; i < height; i++) {
-		matrix[i] = (double*)malloc(width * sizeof(double));
+		matrix[i] = (float*)malloc(width * sizeof(float));
 		for (int j = 0; j < width; j++) {
 			matrix[i][j] = fillFunction->get();
 		}
@@ -15,14 +38,14 @@ double** Matrix::allocateMatrix(FillFunction* fillFunction, int height, int widt
 	return matrix;
 }
 
-void Matrix::deallocateMatrix(double** A, int height, int width) {
+void Matrix::deallocateMatrix(float** A, int height, int width) {
 	for (int i = 0; i < height; i++) {
 		free(A[i]);
 	}
 	free(A);
 }
 
-void Matrix::add(int m, int n, double** A, double** B, double** C, double scalar1, double scalar2) {
+void Matrix::add(int m, int n, float** A, float** B, float** C, float scalar1, float scalar2) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			C[i][j] = scalar1 * A[i][j] + scalar2 * B[i][j];
@@ -30,7 +53,7 @@ void Matrix::add(int m, int n, double** A, double** B, double** C, double scalar
 	}
 }
 
-void Matrix::scale(int m, int n, double** A, double scalar) {
+void Matrix::scale(int m, int n, float** A, float scalar) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			A[i][j] *= scalar;
@@ -38,85 +61,77 @@ void Matrix::scale(int m, int n, double** A, double scalar) {
 	}
 }
 
-void Matrix::matrixMultiplyABC(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
+void Matrix::transpose(int m, int n, float** A, float** At) {
 	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < p; j++) {
-			if (overwrite) {
-				C[i][j] = 0;
-			}
-			for (int k = 0; k < n; k++) {
+		for (int j = 0; j < n; j++) {
+			At[j][i] = A[i][j];
+		}
+	}
+}
+
+void Matrix::transposeInPlace(int m, float** A) {
+	float temp;
+	for (int i = 0; i < m; i++) {
+		for (int j = i + 1; j < m; j++) {
+			temp = A[i][j];
+			A[i][j] = A[j][i];
+			A[j][i] = temp;
+		}
+	}
+}
+
+void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int k = 0; k < n; k++) {
+			for (int j = 0; j < p; j++) {
+				if (k == 0 && overwrite) {
+					C[i][j] = 0;
+				}
 				C[i][j] += A[i][k] * B[k][j];
 			}
 		}
 	}
 }
 
-void Matrix::matrixMultiplyAtBC(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
+void Matrix::matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < p; j++) {
-			if (overwrite) {
-				C[i][j] = 0;
-			}
-			for (int k = 0; k < n; k++) {
+		for (int k = 0; k < n; k++) {
+			for (int j = 0; j < p; j++) {
+				if (k == 0 && overwrite) {
+					C[i][j] = 0;
+				}
 				C[i][j] += A[k][i] * B[k][j];
 			}
 		}
 	}
 }
 
-void Matrix::matrixMultiplyABtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite){
+void Matrix::matrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite){
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[i][j] = 0;
+				C[i][j] = dotProduct(n, A[i], B[j]);
 			}
-			for (int k = 0; k < n; k++) {
-				C[i][j] += A[i][k] * B[j][k];
+			else {
+				C[i][j] += dotProduct(n, A[i], B[j]);
 			}
 		}
 	}
 }
 
-void Matrix::matrixMultiplyABCt(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
+void Matrix::matrixTensorMultiply(int m, int n, int p, float** A, float*** B, float** C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[j][i] = 0;
-			}
-			for (int k = 0; k < n; k++) {
-				C[j][i] += A[i][k] * B[k][j];
+				C[i][j] = dotProduct(n, A[i], B[i][j]);
+			} else {
+				C[i][j] += dotProduct(n, A[i], B[i][j]);
 			}
 		}
 	}
 }
 
-void Matrix::matrixMultiplyAtBtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < p; j++) {
-			if (overwrite) {
-				C[i][j] = 0;
-			}
-			for (int k = 0; k < n; k++) {
-				C[i][j] += A[k][i] * B[j][k];
-			}
-		}
-	}
-}
-
-void Matrix::matrixTensorMultiply(int m, int n, int p, double** A, double*** B, double** C, bool overwrite) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < p; j++) {
-			if (overwrite) {
-				C[i][j] = 0;
-			}
-			for (int k = 0; k < n; k++) {
-				C[i][j] += A[i][k] * B[i][k][j];
-			}
-		}
-	}
-}
-
-void Matrix::elementMultiply(int m, int n, double** A, double** B, double** C, bool overwrite) {
+void Matrix::elementMultiply(int m, int n, float** A, float** B, float** C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			if (overwrite) {
@@ -129,7 +144,7 @@ void Matrix::elementMultiply(int m, int n, double** A, double** B, double** C, b
 	}
 }
 
-void Matrix::fill(FillFunction* fillFunction, int m, int n, double** A) {
+void Matrix::fill(FillFunction* fillFunction, int m, int n, float** A) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			A[i][j] = fillFunction->get();
@@ -137,7 +152,7 @@ void Matrix::fill(FillFunction* fillFunction, int m, int n, double** A) {
 	}
 }
 
-void Matrix::copy(int m, int n, double** from, double** to) {
+void Matrix::copy(int m, int n, float** from, float** to) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			to[i][j] = from[i][j];
@@ -145,7 +160,7 @@ void Matrix::copy(int m, int n, double** from, double** to) {
 	}
 }
 
-void Matrix::print(int m, int n, double** A) {
+void Matrix::print(int m, int n, float** A) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			printf("%f  ", A[i][j]);
@@ -154,26 +169,26 @@ void Matrix::print(int m, int n, double** A) {
 	}
 }
 
-Matrix::ConstantFill::ConstantFill(double value){
+Matrix::ConstantFill::ConstantFill(float value){
 	this->value = value;
 }
 
-double Matrix::ConstantFill::get() {
+float Matrix::ConstantFill::get() {
 	return value;
 }
 
-Matrix::NormalFill::NormalFill(double mean, double stdDeviation) {
-	distribution = { new normal_distribution<double>(mean, stdDeviation) };
+Matrix::NormalFill::NormalFill(float mean, float stdDeviation) {
+	distribution = { new normal_distribution<float>(mean, stdDeviation) };
 }
 
-double Matrix::NormalFill::get() {
+float Matrix::NormalFill::get() {
 	return (*distribution)(generator);
 }
 
-Matrix::UniformFill::UniformFill(double lowerBound, double upperBound){
-	distribution = { new uniform_real_distribution<double>(lowerBound, upperBound) };
+Matrix::UniformFill::UniformFill(float lowerBound, float upperBound){
+	distribution = { new uniform_real_distribution<float>(lowerBound, upperBound) };
 }
 
-double Matrix::UniformFill::get() {
+float Matrix::UniformFill::get() {
 	return (*distribution)(generator);
 }

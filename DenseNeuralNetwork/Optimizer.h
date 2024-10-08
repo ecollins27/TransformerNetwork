@@ -11,9 +11,9 @@ public:
 	static Optimizer* ADEMAMIX;
 
 	int height, width;
-	double weightDecay;
+	float weightDecay;
 
-	virtual void applyGradient(double** weightGradient, double** weights, double t, double learningRate) = 0;
+	virtual void applyGradient(float** weightGradient, float** weights, float t, float learningRate) = 0;
 	virtual Optimizer* clone() = 0;
 	virtual void setDimensions(int height, int width) = 0;
 };
@@ -21,8 +21,8 @@ public:
 class GradientDescent : public Optimizer {
 
 public:
-	GradientDescent(double weightDecay);
-	void applyGradient(double** weightGradient, double** weights, double t, double learningRate);
+	GradientDescent(float weightDecay);
+	void applyGradient(float** weightGradient, float** weights, float t, float learningRate);
 	Optimizer* clone();
 	void setDimensions(int height, int width);
 
@@ -31,11 +31,11 @@ public:
 class Momentum : public Optimizer {
 
 public:
-	double beta;
-	double** M;
+	float beta;
+	float** M;
 
-	Momentum(double beta, double weightDecay);
-	void applyGradient(double** weightGradient, double** weights, double t, double learningRate);
+	Momentum(float beta, float weightDecay);
+	void applyGradient(float** weightGradient, float** weights, float t, float learningRate);
 	Optimizer* clone();
 	void setDimensions(int height, int width);
 
@@ -44,12 +44,12 @@ public:
 class Adam : public Optimizer {
 
 public:
-	double beta1, beta2;
-	double** M;
-	double** S;
+	float beta1, beta2;
+	float** M;
+	float** S;
 
-	Adam(double beta1, double beta2, double weightDecay);
-	void applyGradient(double** weightGradient, double** weights, double t, double learningRate);
+	Adam(float beta1, float beta2, float weightDecay);
+	void applyGradient(float** weightGradient, float** weights, float t, float learningRate);
 	Optimizer* clone();
 	void setDimensions(int height, int width);
 
@@ -59,13 +59,13 @@ class AdEMAMix : public Optimizer {
 
 public:
 
-	double beta1, beta2, beta3, alpha;
-	double** M1;
-	double** M2;
-	double** S;
+	float beta1, beta2, beta3, alpha;
+	float** M1;
+	float** M2;
+	float** S;
 
-	AdEMAMix(double beta1, double beta2, double beta3, double alpha, double weightDecay);
-	void applyGradient(double** weightGradient, double** weights, double t, double learningRate);
+	AdEMAMix(float beta1, float beta2, float beta3, float alpha, float weightDecay);
+	void applyGradient(float** weightGradient, float** weights, float t, float learningRate);
 	Optimizer* clone();
 	void setDimensions(int height, int width);
 };

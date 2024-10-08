@@ -18,7 +18,7 @@ public:
 
 	void** data;
 
-	TrainingParams(double learningRate, int batchSize, int numEpochs, double valSplit, Optimizer* optimizer);
+	TrainingParams(float learningRate, int batchSize, int numEpochs, float valSplit, Optimizer* optimizer);
 	TrainingParams(void** data);
 
 	template<typename T>

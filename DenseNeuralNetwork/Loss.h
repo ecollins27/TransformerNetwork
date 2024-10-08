@@ -11,8 +11,8 @@ public:
 	static Loss* BINARY_ACCURACY;
 	static Loss* ALL_LOSSES[NUM_LOSSES];
 
-	virtual double loss(Layer* layer, double** yTrue) = 0;
-	virtual void differentiate(Layer* layer, double** yTrue) = 0;
+	virtual float loss(Layer* layer, float** yTrue) = 0;
+	virtual void differentiate(Layer* layer, float** yTrue) = 0;
 	virtual string toString() = 0;
 
 };
@@ -20,39 +20,39 @@ public:
 class MeanSquaredError : public Loss {
 
 public:
-	double loss(Layer* layer, double** yTrue);
-	void differentiate(Layer* layer, double** yTrue);
+	float loss(Layer* layer, float** yTrue);
+	void differentiate(Layer* layer, float** yTrue);
 	string toString();
 };
 
 class BinaryCrossEntropy : public Loss {
 
 public:
-	double loss(Layer* layer, double** yTrue);
-	void differentiate(Layer* layer, double** yTrue);
+	float loss(Layer* layer, float** yTrue);
+	void differentiate(Layer* layer, float** yTrue);
 	string toString();
 };
 
 class CategoricalCrossEntropy : public Loss {
 
 public:
-	double loss(Layer* layer, double** yTrue);
-	void differentiate(Layer* layer, double** yTrue);
+	float loss(Layer* layer, float** yTrue);
+	void differentiate(Layer* layer, float** yTrue);
 	string toString();
 };
 
 class Accuracy : public Loss {
 
 public:
-	double loss(Layer* layer, double** yTrue);
-	void differentiate(Layer* layer, double** yTrue);
+	float loss(Layer* layer, float** yTrue);
+	void differentiate(Layer* layer, float** yTrue);
 	string toString();
 };
 
 class BinaryAccuracy : public Loss {
 
 public:
-	double loss(Layer* layer, double** yTrue);
-	void differentiate(Layer* layer, double** yTrue);
+	float loss(Layer* layer, float** yTrue);
+	void differentiate(Layer* layer, float** yTrue);
 	string toString();
 };

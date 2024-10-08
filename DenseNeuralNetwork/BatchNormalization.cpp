@@ -5,7 +5,7 @@ BatchNormalization::BatchNormalization() {
 	momentum = 0.95;
 }
 
-BatchNormalization::BatchNormalization(double momentum) {
+BatchNormalization::BatchNormalization(float momentum) {
 	this->momentum = momentum;
 }
 BatchNormalization::~BatchNormalization() {
@@ -43,6 +43,7 @@ void BatchNormalization::forwardPropagate() {
 			neurons[i][j] = parameters[1][j] + parameters[0][j] * (prevLayer->neurons[i][j] - mean[0][j]) / std[0][j];
 		}
 	}
+	Matrix::transpose(batchSize, size + 1, neurons, neuronsTranspose);
 	if (nextLayer != NULL) {
 		nextLayer->forwardPropagate();
 	}
@@ -51,9 +52,9 @@ void BatchNormalization::forwardPropagate() {
 void BatchNormalization::backPropagate() {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
-			parameterGradient[0][j] += neuronGradient[i][j] * (neurons[i][j] - parameters[1][j]) / parameters[0][j];
+			parameterGradient[0][j] += neuronGradient[i][j] * (neurons[i][j] - parameters[1][j]) / (parameters[0][j] + 0.0000001);
 			parameterGradient[1][j] += neuronGradient[i][j];
-			double grad = std[0][j] * (1 - (1 - momentum) / batchSize);
+			float grad = std[0][j] * (1 - (1 - momentum) / batchSize);
 			grad -= (prevLayer->neurons[i][j] - mean[0][j]) * (prevLayer->neurons[i][j] - mean[0][j]) * (1 - momentum) * (1 - (1 - momentum) / batchSize) / (batchSize * std[0][j]);
 			prevLayer->neuronGradient[i][j] = neuronGradient[i][j] * parameters[0][j] * grad / variance[0][j];
 		}
@@ -85,21 +86,23 @@ void BatchNormalization::setNextLayer(Layer* nextLayer) {
 void BatchNormalization::setBatchSize(int batchSize) {
 	if (neurons != NULL) {
 		Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
-	} if (neuronGradient != NULL) {
+		Matrix::deallocateMatrix(neuronsTranspose, size + 1, this->batchSize);
 		Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
 	}
 	this->batchSize = batchSize;
 	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+	neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
 	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	for (int i = 0; i < batchSize; i++) {
 		neurons[i][size] = 1;
+		neuronGradient[i][size] = 0;
 	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
 }
 
-void BatchNormalization::applyGradients(double learningRate, int t) {
+void BatchNormalization::applyGradients(float learningRate, int t) {
 	Matrix::scale(2, size, parameterGradient, 1.0 / batchSize);
 	optimizer->applyGradient(parameterGradient, parameters, t, learningRate);
 	if (nextLayer != NULL) {

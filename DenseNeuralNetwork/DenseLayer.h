@@ -6,13 +6,15 @@
 class DenseLayer : public Layer {
 
 public:
-	double** activations;
-	double** weights;
-	double** weightGradient;
-	double** backPropIntermediate;
+	float** activations;
+	float** weights;
+	float** weightsTranspose;
+	float** weightGradient;
+	float** backPropIntermediate;
+	float** backPropIntermediateTranspose;
 
 	Activation* activation;
-	double*** activationGradient;
+	float*** activationGradient;
 	bool isDiagonal;
 
 	DenseLayer(Activation* activation, int size);
@@ -26,7 +28,7 @@ public:
 	void predict();
 	void forwardPropagate();
 	void backPropagate();
-	void applyGradients(double learningRate, int t);
+	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	void save(ofstream& file);
 	int getNumParameters();

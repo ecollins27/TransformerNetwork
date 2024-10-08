@@ -7,7 +7,7 @@ public:
 
 	InputLayer(int size);
 
-	void setInput(double** data);
+	void setInput(float** data);
 
 	~InputLayer();
 
@@ -18,7 +18,7 @@ public:
 	void predict();
 	void forwardPropagate();
 	void backPropagate();
-	void applyGradients(double learningRate, int t);
+	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	void save(ofstream& file);
 };

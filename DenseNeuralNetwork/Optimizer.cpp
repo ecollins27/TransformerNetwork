@@ -5,11 +5,11 @@ Optimizer* Optimizer::MOMENTUM = { new Momentum(0.9, 0) };
 Optimizer* Optimizer::ADAM = { new Adam(0.9,0.999, 0) };
 Optimizer* Optimizer::ADEMAMIX = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0) };
 
-GradientDescent::GradientDescent(double weightDecay) {
+GradientDescent::GradientDescent(float weightDecay) {
 	this->weightDecay = weightDecay;
 }
 
-void GradientDescent::applyGradient(double** weightGradient, double** weights, double t, double learningRate) {
+void GradientDescent::applyGradient(float** weightGradient, float** weights, float t, float learningRate) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
 			weights[i][j] -= learningRate * (weightGradient[i][j] + 2 * weightDecay * weights[i][j]);
@@ -28,12 +28,12 @@ void GradientDescent::setDimensions(int height, int width) {
 	return;
 }
 
-Momentum::Momentum(double beta, double weightDecay) {
+Momentum::Momentum(float beta, float weightDecay) {
 	this->beta = beta;
 	this->weightDecay = weightDecay;
 }
 
-void Momentum::applyGradient(double** weightGradient, double** weights, double t, double learningRate) {
+void Momentum::applyGradient(float** weightGradient, float** weights, float t, float learningRate) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
 			M[i][j] = beta * M[i][j] - learningRate * (weightGradient[i][j] + 2 * weightDecay * weights[i][j]);
@@ -53,16 +53,16 @@ void Momentum::setDimensions(int height, int width) {
 	M = Matrix::allocateMatrix(Matrix::ZERO_FILL, height, width);
 }
 
-Adam::Adam(double beta1, double beta2, double weightDecay) {
+Adam::Adam(float beta1, float beta2, float weightDecay) {
 	this->beta1 = beta1;
 	this->beta2 = beta2;
 	this->weightDecay = weightDecay;
 }
 
-void Adam::applyGradient(double** weightGradient, double** weights, double t, double learningRate) {
-	double mScalar = 1.0 / (1 - pow(beta1, t));
-	double sScalar = 1.0 / (1 - pow(beta2, t));
-	double fullGradient;
+void Adam::applyGradient(float** weightGradient, float** weights, float t, float learningRate) {
+	float mScalar = 1.0 / (1 - pow(beta1, t));
+	float sScalar = 1.0 / (1 - pow(beta2, t));
+	float fullGradient;
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
 			fullGradient = weightGradient[i][j] + 2 * weightDecay * weights[i][j];
@@ -85,7 +85,7 @@ void Adam::setDimensions(int height, int width) {
 	S = Matrix::allocateMatrix(Matrix::ZERO_FILL, height, width);
 }
 
-AdEMAMix::AdEMAMix(double beta1, double beta2, double beta3, double alpha, double weightDecay) {
+AdEMAMix::AdEMAMix(float beta1, float beta2, float beta3, float alpha, float weightDecay) {
 	this->beta1 = beta1;
 	this->beta2 = beta2;
 	this->beta3 = beta3;
@@ -93,10 +93,10 @@ AdEMAMix::AdEMAMix(double beta1, double beta2, double beta3, double alpha, doubl
 	this->weightDecay = weightDecay;
 }
 
-void AdEMAMix::applyGradient(double** weightGradient, double** weights, double t, double learningRate) {
-	double mScalar = 1.0 / (1 - pow(beta1, t));
-	double sScalar = 1.0 / (1 - pow(beta2, t));
-	double fullGradient;
+void AdEMAMix::applyGradient(float** weightGradient, float** weights, float t, float learningRate) {
+	float mScalar = 1.0 / (1 - pow(beta1, t));
+	float sScalar = 1.0 / (1 - pow(beta2, t));
+	float fullGradient;
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
 			fullGradient = weightGradient[i][j] + 2 * weightDecay * weights[i][j];

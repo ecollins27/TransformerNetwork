@@ -3,6 +3,7 @@
 #include <sstream>
 #include <cstdarg>
 #include <random>
+#include <xmmintrin.h>
 using namespace std;
 
 
@@ -17,49 +18,50 @@ public:
 	static FillFunction* UNIT_NORMAL_FILL;
 	static FillFunction* UNIT_UNIFORM_FILL;
 
-	static double** allocateMatrix(FillFunction* fillFunction, int height, int width);
-	static void deallocateMatrix(double** A, int height, int width);
-	static void add(int m, int n, double** A, double** B, double** C, double scalar1, double scalar2);
-	static void scale(int m, int n, double** A, double scalar);
-	static void matrixMultiplyABC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void matrixMultiplyAtBC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void matrixMultiplyABtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void matrixMultiplyABCt(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void matrixMultiplyAtBtC(int m, int n, int p, double** A, double** B, double** C, bool overwrite);
-	static void matrixTensorMultiply(int m, int n, int p, double** A, double*** B, double** C, bool overwrite);
-	static void elementMultiply(int m, int n, double** A, double** B, double** C, bool overwrite);
-	static void fill(FillFunction* fillFunction, int m, int n, double** A);
-	static void copy(int m, int n, double** from, double** to);
-	static void print(int m, int n, double** A);
+	static float dotProduct(int n, float* x, float* y);
+	static float** allocateMatrix(FillFunction* fillFunction, int height, int width);
+	static void deallocateMatrix(float** A, int height, int width);
+	static void add(int m, int n, float** A, float** B, float** C, float scalar1, float scalar2);
+	static void scale(int m, int n, float** A, float scalar);
+	static void transpose(int m, int n, float** A, float** At);
+	static void transposeInPlace(int m, float** A);
+	static void matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
+	static void matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
+	static void matrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
+	static void matrixTensorMultiply(int m, int n, int p, float** A, float*** B, float** C, bool overwrite);
+	static void elementMultiply(int m, int n, float** A, float** B, float** C, bool overwrite);
+	static void fill(FillFunction* fillFunction, int m, int n, float** A);
+	static void copy(int m, int n, float** from, float** to);
+	static void print(int m, int n, float** A);
 
 	static virtual class FillFunction {
 	public:
-		virtual double get() = 0;
+		virtual float get() = 0;
 	};
 
 	static class ConstantFill : public FillFunction {
 	public:
-		double value;
-		ConstantFill(double value);
-		double get();
+		float value;
+		ConstantFill(float value);
+		float get();
 	};
 
 	static class NormalFill : public FillFunction {
 	public:
 		default_random_engine generator;
-		normal_distribution<double>* distribution;
+		normal_distribution<float>* distribution;
 
-		NormalFill(double mean, double stdDeviation);
-		double get();
+		NormalFill(float mean, float stdDeviation);
+		float get();
 	};
 
 	static class UniformFill : public FillFunction {
 	public:
 		default_random_engine generator;
-		uniform_real_distribution<double>* distribution;
+		uniform_real_distribution<float>* distribution;
 
-		UniformFill(double lowerBound, double upperBound);
-		double get();
+		UniformFill(float lowerBound, float upperBound);
+		float get();
 	};
 };
 

@@ -6,17 +6,21 @@
 class GatedLayer : public Layer {
 
 public:
-	double** weights1;
-	double** weights2;
-	double** weightGradient1;
-	double** weightGradient2;
-	double** activations1;
-	double** activations2;
-	double** activationOutput;
-	double*** activationGradient;
-	double** backPropIntermediate1;
-	double** backPropIntermediate2;
-	double** backPropIntermediate3;
+	float** weights1;
+	float** weights1Transpose;
+	float** weights2;
+	float** weights2Transpose;
+	float** weightGradient1;
+	float** weightGradient2;
+	float** activations1;
+	float** activations2;
+	float** activationOutput;
+	float*** activationGradient;
+	float** backPropIntermediate1;
+	float** backPropIntermediate2;
+	float** backPropIntermediate2Transpose;
+	float** backPropIntermediate3;
+	float** backPropIntermediate3Transpose;
 
 	Activation* activation;
 	bool isDiagonal;
@@ -32,7 +36,7 @@ public:
 	void setPrevLayer(Layer* prevLayer);
 	void setNextLayer(Layer* nextLayer);
 	void setBatchSize(int batchSize);
-	void applyGradients(double learningRate, int t);
+	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 
 	void save(ofstream& file);

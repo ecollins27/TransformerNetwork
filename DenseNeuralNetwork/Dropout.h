@@ -4,10 +4,10 @@
 class Dropout : public Layer {
 
 public:
-	double dropRate, scale;
+	float dropRate, scale;
 	bool** dropped;
 
-	Dropout(double dropRate);
+	Dropout(float dropRate);
 	~Dropout();
 
 	void setPrevLayer(Layer* layer);
@@ -17,7 +17,7 @@ public:
 	void predict();
 	void forwardPropagate();
 	void backPropagate();
-	void applyGradients(double learningRate, int t);
+	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	void save(ofstream& file);
 };

@@ -4,19 +4,19 @@
 class BatchNormalization : public Layer {
 
 public:
-	double** batchMean;
-	double** batchVariance;
-	double** batchDifference;
-	double** mean;
-	double** variance;
-	double** std;
+	float** batchMean;
+	float** batchVariance;
+	float** batchDifference;
+	float** mean;
+	float** variance;
+	float** std;
 
-	double** parameters;
-	double** parameterGradient;
-	double momentum;
+	float** parameters;
+	float** parameterGradient;
+	float momentum;
 
 	BatchNormalization();
-	BatchNormalization(double momentum);
+	BatchNormalization(float momentum);
 	~BatchNormalization();
 
 	void predict();
@@ -26,7 +26,7 @@ public:
 	void setPrevLayer(Layer* prevLayer);
 	void setNextLayer(Layer* nextLayer);
 	void setBatchSize(int batchSize);
-	void applyGradients(double learningRate, int t);
+	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 
 	void save(ofstream& file);

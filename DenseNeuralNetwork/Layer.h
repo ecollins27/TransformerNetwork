@@ -11,8 +11,9 @@ public:
 	//includes bias
 	int prevSize;
 	int batchSize;
-	double** neurons;
-	double** neuronGradient;
+	float** neurons;
+	float** neuronsTranspose;
+	float** neuronGradient;
 	bool trainable = true;
 
 	Optimizer* optimizer;
@@ -27,7 +28,7 @@ public:
 	virtual void setPrevLayer(Layer* prevLayer) = 0;
 	virtual void setNextLayer(Layer* nextLayer) = 0;
 	virtual void setBatchSize(int batchSize) = 0;
-	virtual void applyGradients(double learningRate, int t) = 0;
+	virtual void applyGradients(float learningRate, int t) = 0;
 	virtual void setOptimizer(Optimizer* optimizer) = 0;
 	void setTrainable(bool trainable);
 

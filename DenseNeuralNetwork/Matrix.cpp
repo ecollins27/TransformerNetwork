@@ -38,6 +38,22 @@ float** Matrix::allocateMatrix(FillFunction* fillFunction, int height, int width
 	return matrix;
 }
 
+float*** Matrix::allocate3DMatrix(FillFunction* fillFunction, int d1, int d2, int d3) {
+	float*** array = (float***)malloc(d1 * sizeof(float**));
+	for (int i = 0; i < d1; i++) {
+		array[i] = allocateMatrix(fillFunction, d2, d3);
+	}
+	return array;
+}
+
+float**** Matrix::allocate4DMatrix(FillFunction* fillFunction, int d1, int d2, int d3, int d4){
+	float**** array = (float****)malloc(d1 * sizeof(float***));
+	for (int i = 0; i < d1; i++) {
+		array[i] = allocate3DMatrix(fillFunction, d2, d3, d4);
+	}
+	return array;
+}
+
 void Matrix::deallocateMatrix(float** A, int height, int width) {
 	for (int i = 0; i < height; i++) {
 		free(A[i]);
@@ -80,32 +96,6 @@ void Matrix::transposeInPlace(int m, float** A) {
 	}
 }
 
-void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
-	for (int i = 0; i < m; i++) {
-		for (int k = 0; k < n; k++) {
-			for (int j = 0; j < p; j++) {
-				if (k == 0 && overwrite) {
-					C[i][j] = 0;
-				}
-				C[i][j] += A[i][k] * B[k][j];
-			}
-		}
-	}
-}
-
-void Matrix::matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
-	for (int i = 0; i < m; i++) {
-		for (int k = 0; k < n; k++) {
-			for (int j = 0; j < p; j++) {
-				if (k == 0 && overwrite) {
-					C[i][j] = 0;
-				}
-				C[i][j] += A[k][i] * B[k][j];
-			}
-		}
-	}
-}
-
 void Matrix::matrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite){
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
@@ -114,6 +104,19 @@ void Matrix::matrixMultiplyABtC(int m, int n, int p, float** A, float** B, float
 			}
 			else {
 				C[i][j] += dotProduct(n, A[i], B[j]);
+			}
+		}
+	}
+}
+
+void Matrix::matrixMultiplyABtCt(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[j][i] = dotProduct(n, A[i], B[j]);
+			}
+			else {
+				C[j][i] += dotProduct(n, A[i], B[j]);
 			}
 		}
 	}

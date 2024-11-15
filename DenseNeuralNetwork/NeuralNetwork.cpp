@@ -153,6 +153,14 @@ void NeuralNetwork::addLayer(Layer* layer) {
 	outputLayer = layer;
 }
 
+Layer* NeuralNetwork::getLayer(int index) {
+	Layer* layer = inputLayer;
+	for (int i = 0; i < index; i++) {
+		layer = layer->nextLayer;
+	}
+	return layer;
+}
+
 void NeuralNetwork::predict(float** input) {
 	inputLayer->setInput(input);
 	inputLayer->predict();

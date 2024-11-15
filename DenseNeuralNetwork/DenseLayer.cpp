@@ -69,6 +69,7 @@ void DenseLayer::setBatchSize(int batchSize) {
 	activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 	for (int i = 0; i < batchSize; i++) {
 		neurons[i][size] = 1;
+		neuronsTranspose[size][i] = 1;
 		activations[i][size] = 1;
 	}
 	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
@@ -99,7 +100,7 @@ void DenseLayer::predict() {
 void DenseLayer::forwardPropagate() {
 	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
 	activation->operate(batchSize, size, activations, neurons);
-	Matrix::transpose(batchSize, size + 1, neurons, neuronsTranspose);
+	Matrix::transpose(batchSize, size, neurons, neuronsTranspose);
 	if (nextLayer != NULL) {
 		nextLayer->forwardPropagate();
 	}

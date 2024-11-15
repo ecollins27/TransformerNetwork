@@ -7,6 +7,9 @@
 #include "GatedLayer.h"
 #include "NeuralNetwork.h"
 #include "BatchNormalization.h"
+#include "MultiAttentionLayer.h"
+#include "ResidualAdd.h"
+#include "BytePairTokenizer.h"
 #include <typeinfo>
 
 using namespace std::chrono;
@@ -70,6 +73,41 @@ void getData(string fileName, float** X, float** y, int num) {
 	file.close();
 }
 
+void getIMDBData(string fileName, string* X, int** y, int num) {
+	string line;
+	int sentiment;
+	int commaIndex1, commaIndex2;
+	ifstream file(fileName);
+	getline(file, line);
+	for (int i = 0; i < num; i++) {
+		getline(file, line);
+		commaIndex1 = line.find_first_of(",");
+		commaIndex2 = line.find_first_of(",", commaIndex1 + 1);
+		X[i] = line.substr(commaIndex2 + 1, line.length());
+		sentiment = stoi(line.substr(commaIndex1 + 1, commaIndex2 - commaIndex1));
+		y[i][sentiment] = 1;
+		y[i][1 - sentiment] = 0;
+	}
+	file.close();
+}
+
+int main3() {
+	int size = 500000;
+	string* reviews = (string*)malloc(size * sizeof(string));
+	int** sentiments = (int**)malloc(size * sizeof(int*));
+	for (int i = 0; i < size; i++) {
+		sentiments[i] = (int*)malloc(2 * sizeof(int));
+	}
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, sentiments, size);
+	BytePairTokenizer tokenizer(size, reviews);
+	tokenizer.save("tokenizer.txt");
+
+	//BytePairTokenizer tokenizer("tokenizer.txt");
+	//int index = 1001;
+	//printf("%s\n", reviews[index].c_str());
+	//tokenizer.tokenize(reviews[index]);
+}
+
 int main2() {
 	float** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 784);
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 10);
@@ -89,12 +127,11 @@ int main() {
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numSamples, numClasses);
 	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-train.csv", X, y, numSamples);
 	NeuralNetwork* dnn{ new NeuralNetwork(784) };
-	dnn->addLayer({ new BatchNormalization() });
-	dnn->addLayer({ new GatedLayer(Activation::SWISH, 1000) });
-	dnn->addLayer({ new BatchNormalization() });
-	dnn->addLayer({ new GatedLayer(Activation::SWISH, 500) });
-	dnn->addLayer({ new BatchNormalization() });
-	dnn->addLayer({ new GatedLayer(Activation::SWISH, 100) });
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
+	dnn->addLayer({ new ResidualSave() });
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 100) });
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 100) });
+	dnn->addLayer({ new ResidualAdd((ResidualSave*)dnn->getLayer(2)) });
 	dnn->addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
 	printf("%d\n", dnn->getNumParameters());
 	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 10);

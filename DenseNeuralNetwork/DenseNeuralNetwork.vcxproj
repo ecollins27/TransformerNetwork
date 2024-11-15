@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="Activation.cpp" />
     <ClCompile Include="BatchNormalization.cpp" />
+    <ClCompile Include="BytePairTokenizer.cpp" />
     <ClCompile Include="DenseLayer.cpp" />
     <ClCompile Include="Dropout.cpp" />
     <ClCompile Include="GatedLayer.cpp" />
@@ -29,13 +30,17 @@
     <ClCompile Include="Loss.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
+    <ClCompile Include="MultiAttentionLayer.cpp" />
     <ClCompile Include="NeuralNetwork.cpp" />
     <ClCompile Include="Optimizer.cpp" />
+    <ClCompile Include="ResidualAdd.cpp" />
+    <ClCompile Include="ResidualSave.cpp" />
     <ClCompile Include="TrainingParams.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Activation.h" />
     <ClInclude Include="BatchNormalization.h" />
+    <ClInclude Include="BytePairTokenizer.h" />
     <ClInclude Include="DenseLayer.h" />
     <ClInclude Include="Dropout.h" />
     <ClInclude Include="GatedLayer.h" />
@@ -43,8 +48,11 @@
     <ClInclude Include="Layer.h" />
     <ClInclude Include="Loss.h" />
     <ClInclude Include="Matrix.h" />
+    <ClInclude Include="MultiAttentionLayer.h" />
     <ClInclude Include="NeuralNetwork.h" />
     <ClInclude Include="Optimizer.h" />
+    <ClInclude Include="ResidualAdd.h" />
+    <ClInclude Include="ResidualSave.h" />
     <ClInclude Include="TrainingParams.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

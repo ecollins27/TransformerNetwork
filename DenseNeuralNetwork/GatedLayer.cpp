@@ -17,12 +17,12 @@ bool instanceof(T* ptr) {
 void GatedLayer::setPrevLayer(Layer* prevLayer) {
 	this->prevLayer = prevLayer;
 	prevSize = prevLayer->size + 1;
-	float stdDeviation = sqrt(2.0 / (prevSize + size));
+	float stdDeviation = 2.0 / (prevSize + size);
 	if (instanceof<Relu>(activation) || instanceof<Elu>(activation) || instanceof<Swish>(activation)) {
-		stdDeviation = sqrt(2.0 / prevSize);
+		stdDeviation = 2.0 / prevSize;
 	}
 	else if (instanceof<Selu>(activation)) {
-		stdDeviation = sqrt(1.0 / prevSize);
+		stdDeviation = 1.0 / prevSize;
 	}
 	weights1 = Matrix::allocateMatrix({ new Matrix::NormalFill(0, stdDeviation) }, size, prevSize);
 	weights1Transpose = Matrix::allocateMatrix(Matrix::ZERO_FILL, prevSize, size);

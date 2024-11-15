@@ -14,6 +14,7 @@ public:
 	NeuralNetwork(string fileName);
 
 	void addLayer(Layer* layer);
+	Layer* getLayer(int index);
 	void predict(float** input);
 	void forwardPropagate(float** input);
 	void backPropagate(Loss* lossFunction, float** yTrue);

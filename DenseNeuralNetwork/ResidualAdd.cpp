@@ -36,43 +36,8 @@ void ResidualAdd::setPrevLayer(Layer* prevLayer) {
 	this->size = prevSize;
 }
 
-void ResidualAdd::setNextLayer(Layer* nextLayer) {
-	this->nextLayer = nextLayer;
-}
-
-void ResidualAdd::setBatchSize(int batchSize) {
-	if (neurons != NULL) {
-		Matrix::deallocateMatrix(neurons, batchSize, size + 1);
-		Matrix::deallocateMatrix(neuronsTranspose, size + 1, batchSize);
-		Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
-	}
-	this->batchSize = batchSize;
-	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
-	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	for (int i = 0; i < batchSize; i++) {
-		neurons[i][size] = 1;
-		neuronsTranspose[size][i] = 1;
-	}
-	if (nextLayer != NULL) {
-		nextLayer->setBatchSize(batchSize);
-	}
-}
-
-void ResidualAdd::applyGradients(float learningRate, int t) {
-	if (nextLayer != NULL) {
-		nextLayer->applyGradients(learningRate, t);
-	}
-}
-
-void ResidualAdd::setOptimizer(Optimizer* optimizer) {
-	if (nextLayer != NULL) {
-		nextLayer->setOptimizer(optimizer);
-	}
-}
-
 void ResidualAdd::save(ofstream& file) {
-	file << "ResidualAdd,\n";
+	file << "ResidualAdd," << saveLayer->getLayerIndex() << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}

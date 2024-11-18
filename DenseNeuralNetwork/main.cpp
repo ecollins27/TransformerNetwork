@@ -3,12 +3,7 @@
 #include <sstream>
 #include <chrono>
 
-#include "DenseLayer.h"
-#include "GatedLayer.h"
-#include "NeuralNetwork.h"
-#include "BatchNormalization.h"
-#include "MultiAttentionLayer.h"
-#include "ResidualAdd.h"
+#include "ModelParser.h"
 #include "BytePairTokenizer.h"
 #include <typeinfo>
 
@@ -108,11 +103,11 @@ int main3() {
 	//tokenizer.tokenize(reviews[index]);
 }
 
-int main2() {
+int main1() {
 	float** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 784);
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 10);
 	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-test.csv", X, y, 10000);
-	NeuralNetwork* dnn{ new NeuralNetwork("dnn.txt")};
+	NeuralNetwork* dnn = (NeuralNetwork*)ModelParser::parseModel("dnn.txt");
 	printf("%d\n", dnn->getNumParameters());
 	dnn->test(Loss::CATEGORICAL_CROSS_ENTROPY, 10000, X, y, 1, new Loss*[1]{ Loss::ACCURACY });
 	Matrix::deallocateMatrix(X, 10000, 784);
@@ -129,9 +124,9 @@ int main() {
 	NeuralNetwork* dnn{ new NeuralNetwork(784) };
 	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
 	dnn->addLayer({ new ResidualSave() });
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 100) });
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 100) });
-	dnn->addLayer({ new ResidualAdd((ResidualSave*)dnn->getLayer(2)) });
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
+	dnn->addLayer({ new ResidualAdd(dnn->getLayer<ResidualSave>(2)) });
 	dnn->addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
 	printf("%d\n", dnn->getNumParameters());
 	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 10);
@@ -139,7 +134,12 @@ int main() {
 	dnn->save("dnn.txt");
 	Matrix::deallocateMatrix(X, numSamples, 784);
 	Matrix::deallocateMatrix(y, numSamples, numClasses);
-	return 0;
+	float** X_test = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 784);
+	float** y_test = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 10);
+	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-test.csv", X_test, y_test, 10000);
+	dnn->test(Loss::CATEGORICAL_CROSS_ENTROPY, 10000, X_test, y_test, 1, &Loss::ACCURACY);
+	Matrix::deallocateMatrix(X_test, 10000, 784);
+	Matrix::deallocateMatrix(y_test, 10000, 10);
 }
 
 /*

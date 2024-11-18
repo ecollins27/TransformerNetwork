@@ -22,8 +22,8 @@ public:
 	~DenseLayer();
 
 	void setPrevLayer(Layer* prevLayer);
-	void setNextLayer(Layer* nextLayer);
 	void setBatchSize(int batchSize);
+	void setMaxBatchSize(int maxBatchSize);
 
 	void predict();
 	void forwardPropagate();

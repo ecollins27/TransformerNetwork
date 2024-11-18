@@ -11,14 +11,12 @@ public:
 	~Dropout();
 
 	void setPrevLayer(Layer* layer);
-	void setNextLayer(Layer* layer);
 	void setBatchSize(int batchSize);
+	void setMaxBatchSize(int maxBatchSize);
 
 	void predict();
 	void forwardPropagate();
 	void backPropagate();
-	void applyGradients(float learningRate, int t);
-	void setOptimizer(Optimizer* optimizer);
 	void save(ofstream& file);
 };
 

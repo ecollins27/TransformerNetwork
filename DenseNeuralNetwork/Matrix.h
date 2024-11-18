@@ -23,10 +23,14 @@ public:
 	static float*** allocate3DMatrix(FillFunction* fillFunction, int d1, int d2, int d3);
 	static float**** allocate4DMatrix(FillFunction* fillFunction, int d1, int d2, int d3, int d4);
 	static void deallocateMatrix(float** A, int height, int width);
+	static void deallocate3DMatrix(float*** A, int d1, int d2, int d3);
+	static void deallocate4DMatrix(float**** A, int d1, int d2, int d3, int d4);
 	static void add(int m, int n, float** A, float** B, float** C, float scalar1, float scalar2);
 	static void scale(int m, int n, float** A, float scalar);
 	static void transpose(int m, int n, float** A, float** At);
 	static void transposeInPlace(int m, float** A);
+	static void matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
+	static void matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
 	static void matrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
 	static void matrixMultiplyABtCt(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
 	static void matrixTensorMultiply(int m, int n, int p, float** A, float*** B, float** C, bool overwrite);

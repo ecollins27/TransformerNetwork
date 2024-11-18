@@ -7,6 +7,7 @@ Dropout::Dropout(float dropRate) {
 
 Dropout::~Dropout() {
 	Matrix::deallocateMatrix(neurons, batchSize, size + 1);
+	Matrix::deallocateMatrix(neuronsTranspose, size + 1, batchSize);
 	Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
 	for (int i = 0; i < batchSize; i++) {
 		free(dropped[i]);
@@ -19,33 +20,64 @@ void Dropout::setPrevLayer(Layer* layer) {
 	this->size = prevLayer->size;
 }
 
-void Dropout::setNextLayer(Layer* layer) {
-	this->nextLayer = layer;
-}
-
 void Dropout::setBatchSize(int batchSize) {
-	if (neurons != NULL) {
-		Matrix::deallocateMatrix(neurons, batchSize, size + 1);
-		Matrix::deallocateMatrix(neuronsTranspose, size + 1, batchSize);
-		Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
-		for (int i = 0; i < batchSize; i++) {
-			free(dropped[i]);
+	if (maxBatchSize > 0) {
+		this->batchSize = batchSize;
+	}
+	else {
+		if (neurons != NULL) {
+			Matrix::deallocateMatrix(neurons, batchSize, size + 1);
+			Matrix::deallocateMatrix(neuronsTranspose, size + 1, batchSize);
+			Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
+			for (int i = 0; i < batchSize; i++) {
+				free(dropped[i]);
+			}
+			free(dropped);
 		}
-		free(dropped);
-	}
-	this->batchSize = batchSize;
-	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
-	for (int i = 0; i < batchSize; i++) {
-		neurons[i][size] = 1;
-	}
-	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	dropped = (bool**)malloc(batchSize * sizeof(bool*));
-	for (int i = 0; i < batchSize; i++) {
-		dropped[i] = (bool*)malloc(size * sizeof(bool));
+		this->batchSize = batchSize;
+		neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+		neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
+		for (int i = 0; i < batchSize; i++) {
+			neurons[i][size] = 1;
+		}
+		neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+		dropped = (bool**)malloc(batchSize * sizeof(bool*));
+		for (int i = 0; i < batchSize; i++) {
+			dropped[i] = (bool*)malloc(size * sizeof(bool));
+		}
 	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
+	}
+}
+
+void Dropout::setMaxBatchSize(int maxBatchSize) {
+	if (maxBatchSize > 0) {
+		if (neurons != NULL) {
+			Matrix::deallocateMatrix(neurons, maxBatchSize, size + 1);
+			Matrix::deallocateMatrix(neuronsTranspose, size + 1, maxBatchSize);
+			Matrix::deallocateMatrix(neuronGradient, maxBatchSize, size + 1);
+			for (int i = 0; i < maxBatchSize; i++) {
+				free(dropped[i]);
+			}
+			free(dropped);
+		}
+		this->maxBatchSize = maxBatchSize;
+		neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size + 1);
+		neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, maxBatchSize);
+		for (int i = 0; i < maxBatchSize; i++) {
+			neurons[i][size] = 1;
+		}
+		neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size + 1);
+		dropped = (bool**)malloc(maxBatchSize * sizeof(bool*));
+		for (int i = 0; i < maxBatchSize; i++) {
+			dropped[i] = (bool*)malloc(size * sizeof(bool));
+		}
+	} else {
+		this->maxBatchSize = maxBatchSize;
+	}
+	if (nextLayer != NULL) {
+		nextLayer->setMaxBatchSize(maxBatchSize);
 	}
 }
 
@@ -92,18 +124,6 @@ void Dropout::backPropagate() {
 	}
 	if (prevLayer != NULL) {
 		prevLayer->backPropagate();
-	}
-}
-
-void Dropout::applyGradients(float learningRate, int t) {
-	if (nextLayer != NULL) {
-		nextLayer->applyGradients(learningRate, t);
-	}
-}
-
-void Dropout::setOptimizer(Optimizer* optimizer) {
-	if (nextLayer != NULL) {
-		nextLayer->setOptimizer(optimizer);
 	}
 }
 

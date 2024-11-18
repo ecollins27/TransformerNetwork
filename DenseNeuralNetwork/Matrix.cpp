@@ -61,6 +61,20 @@ void Matrix::deallocateMatrix(float** A, int height, int width) {
 	free(A);
 }
 
+void Matrix::deallocate3DMatrix(float*** A, int d1, int d2, int d3) {
+	for (int i = 0; i < d1; i++) {
+		deallocateMatrix(A[i], d2, d3);
+	}
+	free(A);
+}
+
+void Matrix::deallocate4DMatrix(float**** A, int d1, int d2, int d3, int d4) {
+	for (int i = 0; i < d1; i++) {
+		deallocate3DMatrix(A[i], d2, d3, d4);
+	}
+	free(A);
+}
+
 void Matrix::add(int m, int n, float** A, float** B, float** C, float scalar1, float scalar2) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
@@ -92,6 +106,35 @@ void Matrix::transposeInPlace(int m, float** A) {
 			temp = A[i][j];
 			A[i][j] = A[j][i];
 			A[j][i] = temp;
+		}
+	}
+}
+
+void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int k = 0; k < n; k++) {
+			for (int j = 0; j < p; j++) {
+				if (overwrite && k == 0) {
+					C[i][j] = A[i][k] * B[k][j];
+				} else {
+					C[i][j] += A[i][k] * B[k][j];
+				}
+			}
+		}
+	}
+}
+
+void Matrix::matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int k = 0; k < n; k++) {
+			for (int j = 0; j < p; j++) {
+				if (overwrite && k == 0) {
+					C[i][j] = A[k][i] * B[k][j];
+				}
+				else {
+					C[i][j] += A[k][i] * B[k][j];
+				}
+			}
 		}
 	}
 }

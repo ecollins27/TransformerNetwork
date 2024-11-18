@@ -27,15 +27,19 @@
     <ClCompile Include="GatedLayer.cpp" />
     <ClCompile Include="InputLayer.cpp" />
     <ClCompile Include="Layer.cpp" />
+    <ClCompile Include="LayerNormalization.cpp" />
     <ClCompile Include="Loss.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
-    <ClCompile Include="MultiAttentionLayer.cpp" />
+    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="ModelParser.cpp" />
+    <ClCompile Include="MultiHeadAttentionLayer.cpp" />
     <ClCompile Include="NeuralNetwork.cpp" />
     <ClCompile Include="Optimizer.cpp" />
     <ClCompile Include="ResidualAdd.cpp" />
     <ClCompile Include="ResidualSave.cpp" />
     <ClCompile Include="TrainingParams.cpp" />
+    <ClCompile Include="TransformerModel.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Activation.h" />
@@ -46,14 +50,18 @@
     <ClInclude Include="GatedLayer.h" />
     <ClInclude Include="InputLayer.h" />
     <ClInclude Include="Layer.h" />
+    <ClInclude Include="LayerNormalization.h" />
     <ClInclude Include="Loss.h" />
     <ClInclude Include="Matrix.h" />
-    <ClInclude Include="MultiAttentionLayer.h" />
+    <ClInclude Include="Model.h" />
+    <ClInclude Include="ModelParser.h" />
+    <ClInclude Include="MultiHeadAttentionLayer.h" />
     <ClInclude Include="NeuralNetwork.h" />
     <ClInclude Include="Optimizer.h" />
     <ClInclude Include="ResidualAdd.h" />
     <ClInclude Include="ResidualSave.h" />
     <ClInclude Include="TrainingParams.h" />
+    <ClInclude Include="TransformerModel.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

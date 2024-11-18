@@ -24,8 +24,6 @@ public:
 	void backPropagate();
 
 	void setPrevLayer(Layer* prevLayer);
-	void setNextLayer(Layer* nextLayer);
-	void setBatchSize(int batchSize);
 	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 

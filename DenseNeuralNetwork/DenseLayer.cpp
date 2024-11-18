@@ -9,8 +9,9 @@ DenseLayer::DenseLayer(Activation* activation, int size) {
 }
 
 DenseLayer::~DenseLayer() {
-	Matrix::deallocateMatrix(neurons, size + 1, 1);
-	Matrix::deallocateMatrix(neuronGradient, size + 1, 1);
+	Matrix::deallocateMatrix(neurons, batchSize, size + 1);
+	Matrix::deallocateMatrix(neuronsTranspose, size + 1, batchSize);
+	Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
 	Matrix::deallocateMatrix(weights, size, prevSize);
 	Matrix::deallocateMatrix(weightGradient, size, prevSize);
 	if (isDiagonal) {
@@ -21,6 +22,7 @@ DenseLayer::~DenseLayer() {
 		}
 	}
 	free(activationGradient);
+	printf("here");
 }
 
 template<typename A, typename T>
@@ -42,50 +44,70 @@ void DenseLayer::setPrevLayer(Layer* prevLayer) {
 	Matrix::transpose(size, prevSize, weights, weightsTranspose);
 	weightGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, prevSize);
 }
-void DenseLayer::setNextLayer(Layer* nextLayer) {
-	this->nextLayer = nextLayer;
-}
 
 void DenseLayer::setBatchSize(int batchSize) {
-	if (neurons != NULL) {
-		Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
-		Matrix::deallocateMatrix(neuronsTranspose, size + 1, this->batchSize);
-		Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
-		Matrix::deallocateMatrix(activations, this->batchSize, size + 1);
-		Matrix::deallocateMatrix(backPropIntermediate, this->batchSize, size);
-		Matrix::deallocateMatrix(backPropIntermediateTranspose, size, this->batchSize);
-		if (isDiagonal) {
-			Matrix::deallocateMatrix(activationGradient[0], this->batchSize, size);
-		} else {
-			for (int i = 0; i < this->batchSize; i++) {
-				Matrix::deallocateMatrix(activationGradient[i], size, size);
-			}
+	if (maxBatchSize > 0) {
+		this->batchSize = batchSize;
+	}
+	else {
+		if (neurons != NULL) {
+			Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
+			Matrix::deallocateMatrix(neuronsTranspose, size + 1, this->batchSize);
+			Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
+			Matrix::deallocateMatrix(activations, this->batchSize, size + 1);
+			Matrix::deallocateMatrix(backPropIntermediate, this->batchSize, size);
+			Matrix::deallocateMatrix(backPropIntermediateTranspose, size, this->batchSize);
+			Matrix::deallocate3DMatrix(activationGradient, isDiagonal ? 1 : this->batchSize, size, size);
 		}
-		free(activationGradient);
-	}
-	this->batchSize = batchSize;
-	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
-	activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	for (int i = 0; i < batchSize; i++) {
-		neurons[i][size] = 1;
-		neuronsTranspose[size][i] = 1;
-		activations[i][size] = 1;
-	}
-	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	backPropIntermediate = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size);
-	backPropIntermediateTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, batchSize);
-	if (isDiagonal) {
-		activationGradient = (float***)malloc(sizeof(float**));
-		activationGradient[0] = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size);
-	} else {
-		activationGradient = (float***)malloc(batchSize * sizeof(float**));
+		this->batchSize = batchSize;
+		neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+		neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
+		activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
 		for (int i = 0; i < batchSize; i++) {
-			activationGradient[i] = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, size);
+			neurons[i][size] = 1;
+			neuronsTranspose[size][i] = 1;
+			activations[i][size] = 1;
 		}
+		neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
+		backPropIntermediate = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size);
+		backPropIntermediateTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, batchSize);
+		activationGradient = Matrix::allocate3DMatrix(Matrix::ZERO_FILL, isDiagonal ? 1 : batchSize, size, size);
 	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
+	}
+}
+
+void DenseLayer::setMaxBatchSize(int maxBatchSize) {
+	if (maxBatchSize > 0) {
+		if (neurons != NULL) {
+			Matrix::deallocateMatrix(neurons, this->maxBatchSize, size + 1);
+			Matrix::deallocateMatrix(neuronsTranspose, size + 1, this->maxBatchSize);
+			Matrix::deallocateMatrix(neuronGradient, this->maxBatchSize, size + 1);
+			Matrix::deallocateMatrix(activations, this->maxBatchSize, size + 1);
+			Matrix::deallocateMatrix(backPropIntermediate, this->maxBatchSize, size);
+			Matrix::deallocateMatrix(backPropIntermediateTranspose, size, this->maxBatchSize);
+			Matrix::deallocate3DMatrix(activationGradient, isDiagonal ? 1 : this->maxBatchSize, size, size);
+		}
+		this->maxBatchSize = maxBatchSize;
+		neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size + 1);
+		neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, maxBatchSize);
+		activations = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size + 1);
+		for (int i = 0; i < maxBatchSize; i++) {
+			neurons[i][size] = 1;
+			neuronsTranspose[size][i] = 1;
+			activations[i][size] = 1;
+		}
+		neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size + 1);
+		backPropIntermediate = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size);
+		backPropIntermediateTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, maxBatchSize);
+		activationGradient = Matrix::allocate3DMatrix(Matrix::ZERO_FILL, isDiagonal ? 1 : maxBatchSize, size, size);
+	}
+	else {
+		this->maxBatchSize = maxBatchSize;
+	}
+	if (nextLayer != NULL) {
+		nextLayer->setMaxBatchSize(maxBatchSize);
 	}
 }
 
@@ -100,7 +122,7 @@ void DenseLayer::predict() {
 void DenseLayer::forwardPropagate() {
 	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
 	activation->operate(batchSize, size, activations, neurons);
-	Matrix::transpose(batchSize, size, neurons, neuronsTranspose);
+	Matrix::transpose(batchSize, size + 1, neurons, neuronsTranspose);
 	if (nextLayer != NULL) {
 		nextLayer->forwardPropagate();
 	}

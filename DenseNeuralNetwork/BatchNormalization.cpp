@@ -9,7 +9,16 @@ BatchNormalization::BatchNormalization(float momentum) {
 	this->momentum = momentum;
 }
 BatchNormalization::~BatchNormalization() {
-
+	Matrix::deallocateMatrix(mean, 1, size);
+	Matrix::deallocateMatrix(variance, 1, size);
+	Matrix::deallocateMatrix(std, 1, size);
+	Matrix::deallocateMatrix(batchMean, 1, size);
+	Matrix::deallocateMatrix(batchVariance, 1, size);
+	Matrix::deallocateMatrix(parameters, 2, size);
+	Matrix::deallocateMatrix(parameterGradient, 2, size);
+	Matrix::deallocateMatrix(neurons, batchSize, size + 1);
+	Matrix::deallocateMatrix(neuronsTranspose, size + 1, batchSize);
+	Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
 }
 
 void BatchNormalization::predict() {
@@ -77,29 +86,6 @@ void BatchNormalization::setPrevLayer(Layer* prevLayer) {
 		parameters[0][i] = 1;
 	}
 	parameterGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, 2, size);
-}
-
-void BatchNormalization::setNextLayer(Layer* nextLayer) {
-	this->nextLayer = nextLayer;
-}
-
-void BatchNormalization::setBatchSize(int batchSize) {
-	if (neurons != NULL) {
-		Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
-		Matrix::deallocateMatrix(neuronsTranspose, size + 1, this->batchSize);
-		Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
-	}
-	this->batchSize = batchSize;
-	neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
-	neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-	for (int i = 0; i < batchSize; i++) {
-		neurons[i][size] = 1;
-		neuronGradient[i][size] = 0;
-	}
-	if (nextLayer != NULL) {
-		nextLayer->setBatchSize(batchSize);
-	}
 }
 
 void BatchNormalization::applyGradients(float learningRate, int t) {

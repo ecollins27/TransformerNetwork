@@ -22,7 +22,6 @@ DenseLayer::~DenseLayer() {
 		}
 	}
 	free(activationGradient);
-	printf("here");
 }
 
 template<typename A, typename T>
@@ -101,7 +100,12 @@ void DenseLayer::setMaxBatchSize(int maxBatchSize) {
 		neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size + 1);
 		backPropIntermediate = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size);
 		backPropIntermediateTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, maxBatchSize);
-		activationGradient = Matrix::allocate3DMatrix(Matrix::ZERO_FILL, isDiagonal ? 1 : maxBatchSize, size, size);
+		if (isDiagonal) {
+			activationGradient = Matrix::allocate3DMatrix(Matrix::ZERO_FILL, 1, maxBatchSize, size);
+		}
+		else {
+			activationGradient = Matrix::allocate3DMatrix(Matrix::ZERO_FILL, maxBatchSize, size, size);
+		}
 	}
 	else {
 		this->maxBatchSize = maxBatchSize;
@@ -111,21 +115,10 @@ void DenseLayer::setMaxBatchSize(int maxBatchSize) {
 	}
 }
 
-void DenseLayer::predict() {
+void DenseLayer::propagateLayer() {
 	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
 	activation->operate(batchSize, size, activations, neurons);
-	if (nextLayer != NULL) {
-		nextLayer->predict();
-	}
-}
-
-void DenseLayer::forwardPropagate() {
-	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, activations, true);
-	activation->operate(batchSize, size, activations, neurons);
-	Matrix::transpose(batchSize, size + 1, neurons, neuronsTranspose);
-	if (nextLayer != NULL) {
-		nextLayer->forwardPropagate();
-	}
+	Matrix::transpose(batchSize, size, neurons, neuronsTranspose);
 }
 
 void DenseLayer::backPropagate() {

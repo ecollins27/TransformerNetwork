@@ -10,8 +10,7 @@ public:
 
 	~LayerNormalization();
 
-	void predict();
-	void forwardPropagate();
+	void propagateLayer();
 	void backPropagate();
 
 	void setPrevLayer(Layer* prevLayer);

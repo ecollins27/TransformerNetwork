@@ -9,7 +9,7 @@ LayerNormalization::~LayerNormalization() {
 	Matrix::deallocateMatrix(neuronGradient, batchSize, size + 1);
 }
 
-void LayerNormalization::predict() {
+void LayerNormalization::propagateLayer() {
 	for (int j = 0; j < size; j++) {
 		mean[0][j] = 0;
 		for (int i = 0; i < batchSize; i++) {
@@ -21,48 +21,33 @@ void LayerNormalization::predict() {
 			variance[0][j] += (prevLayer->neurons[i][j] - mean[0][j]) * (prevLayer->neurons[i][j] - mean[0][j]);
 		}
 		variance[0][j] /= batchSize;
-		std[0][j] = sqrt(variance[0][j] + 0.0000001);
+		std[0][j] = sqrt(variance[0][j]);
 
 		for (int i = 0; i < batchSize; i++) {
-			neurons[i][j] = (prevLayer->neurons[i][j] - mean[0][j]) / std[0][j];
+			if (std[0][j] == 0) {
+				neurons[i][j] = 0;
+			}
+			else {
+				neurons[i][j] = (prevLayer->neurons[i][j] - mean[0][j]) / std[0][j];
+			}
 		}
 	}
-	Matrix::transpose(batchSize, size + 1, neurons, neuronsTranspose);
-	if (nextLayer != NULL) {
-		nextLayer->predict();
-	}
-}
-
-void LayerNormalization::forwardPropagate() {
-	for (int j = 0; j < size; j++) {
-		mean[0][j] = 0;
-		for (int i = 0; i < batchSize; i++) {
-			mean[0][j] += prevLayer->neurons[i][j];
-		}
-		mean[0][j] /= batchSize;
-		variance[0][j] = 0;
-		for (int i = 0; i < batchSize; i++) {
-			variance[0][j] += (prevLayer->neurons[i][j] - mean[0][j]) * (prevLayer->neurons[i][j] - mean[0][j]);
-		}
-		variance[0][j] /= batchSize;
-		std[0][j] = sqrt(variance[0][j] + 0.0000001);
-
-		for (int i = 0; i < batchSize; i++) {
-			neurons[i][j] = (prevLayer->neurons[i][j] - mean[0][j]) / std[0][j];
-		}
-	}
-	Matrix::transpose(batchSize, size + 1, neurons, neuronsTranspose);
-	if (nextLayer != NULL) {
-		nextLayer->forwardPropagate();
-	}
+	Matrix::transpose(batchSize, size, neurons, neuronsTranspose);
 }
 
 void LayerNormalization::backPropagate() {
+	float grad = 0;
+	float inverseBatchSize = 1.0 / batchSize;
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
-			float grad = std[0][j] * (1 - 1.0 / batchSize);
-			grad -= (prevLayer->neurons[i][j] - mean[0][j]) * (prevLayer->neurons[i][j] - mean[0][j]) * (1 - 1.0 / batchSize) / (batchSize * std[0][j]);
-			prevLayer->neuronGradient[i][j] = neuronGradient[i][j] * grad / variance[0][j];
+			prevLayer->neuronGradient[i][j] = 0;
+			for (int k = 0; k < batchSize; k++) {
+				grad = ((k == i ? 1 : 0) - inverseBatchSize) - inverseBatchSize * neurons[k][j] * neurons[i][j];
+				grad /= std[0][j];
+				if (variance[0][j] != 0) {
+					prevLayer->neuronGradient[i][j] += neuronGradient[k][j] * grad;
+				}
+			}
 		}
 	}
 	if (prevLayer != NULL) {
@@ -73,6 +58,7 @@ void LayerNormalization::backPropagate() {
 void LayerNormalization::setPrevLayer(Layer* prevLayer) {
 	this->prevLayer = prevLayer;
 	size = prevLayer->size;
+	prevSize = size + 1;
 	mean = Matrix::allocateMatrix(Matrix::ZERO_FILL, 1, size);
 	variance = Matrix::allocateMatrix(Matrix::ZERO_FILL, 1, size);
 	std = Matrix::allocateMatrix(Matrix::ZERO_FILL, 1, size);

@@ -164,6 +164,18 @@ void addResidualSave(Model* nn, ifstream& file, string& line, int* commaIndex, i
 	nn->addLayer(residualSave);
 }
 
+void addPositionalEncodingLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	int L = getNextInt(line, commaIndex, newCommaIndex);
+	PositionalEncodingLayer* positionalEncodingLayer = { new PositionalEncodingLayer(L) };
+	nn->addLayer(positionalEncodingLayer);
+}
+
+void addBatchSum(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	Activation* activation = readActivation(line, commaIndex, newCommaIndex);
+	BatchMean* batchSum = { new BatchMean(activation) };
+	nn->addLayer(batchSum);
+}
+
 void addSavedLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	string layerName = getNextString(line, commaIndex, newCommaIndex);
 	if (layerName.compare("DenseLayer") == 0) {
@@ -189,6 +201,12 @@ void addSavedLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	}
 	else if (layerName.compare("ResidualSave") == 0) {
 		addResidualSave(nn, file, line, commaIndex, newCommaIndex, prevSize);
+	}
+	else if (layerName.compare("PositionalEncodingLayer") == 0) {
+		addPositionalEncodingLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
+	}
+	else if (layerName.compare("BatchSum") == 0) {
+		addBatchSum(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
 }
 

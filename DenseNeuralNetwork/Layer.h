@@ -24,8 +24,19 @@ public:
 	Layer* prevLayer;
 	Layer* nextLayer;
 
-	virtual void predict() = 0;
-	virtual void forwardPropagate() = 0;
+	virtual void propagateLayer() = 0;
+	virtual void predict() {
+		propagateLayer();
+		if (nextLayer != NULL) {
+			nextLayer->predict();
+		}
+	}
+	virtual void forwardPropagate() {
+		propagateLayer();
+		if (nextLayer != NULL) {
+			nextLayer->forwardPropagate();
+		}
+	}
 	virtual void backPropagate() = 0;
 
 	virtual void setPrevLayer(Layer* prevLayer) = 0;

@@ -34,7 +34,11 @@ float BinaryCrossEntropy::loss(Layer* layer, float** yTrue) {
 	float sum = 0;
 	for (int i = 0; i < layer->batchSize; i++) {
 		for (int j = 0; j < layer->size; j++) {
-			sum += yTrue[i][j] * log(layer->neurons[i][j]) + (1 - yTrue[i][j]) * log(1 - layer->neurons[i][j]);
+			if (yTrue[i][j] != 0) {
+				sum += yTrue[i][j] * log(layer->neurons[i][j] + 0.0000001);
+			} if (1 - yTrue[i][j] != 0) {
+				sum += (1 - yTrue[i][j]) * log(1 - layer->neurons[i][j] + 0.0000001);
+			}
 		}
 	}
 	return -sum / layer->size;
@@ -43,7 +47,7 @@ float BinaryCrossEntropy::loss(Layer* layer, float** yTrue) {
 void BinaryCrossEntropy::differentiate(Layer* layer, float** yTrue) {
 	for (int i = 0; i < layer->batchSize; i++) {
 		for (int j = 0; j < layer->size; j++) {
-			layer->neuronGradient[i][j] = (-yTrue[i][j] / layer->neurons[i][j] + (1 - yTrue[i][j]) / (1 - layer->neurons[i][j])) / layer->size;
+			layer->neuronGradient[i][j] = (-yTrue[i][j] / (layer->neurons[i][j] + 0.0000001) + (1 - yTrue[i][j]) / (1 - layer->neurons[i][j] + 0.0000001)) / layer->size;
 		}
 	}
 }

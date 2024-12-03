@@ -75,6 +75,20 @@ void Matrix::deallocate4DMatrix(float**** A, int d1, int d2, int d3, int d4) {
 	free(A);
 }
 
+bool Matrix::containsNaN(int height, int width, float** A) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			if (A[i][j] != A[i][j]) {
+				return true;
+			}
+			else if (isinf(A[i][j])) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void Matrix::add(int m, int n, float** A, float** B, float** C, float scalar1, float scalar2) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
@@ -112,13 +126,12 @@ void Matrix::transposeInPlace(int m, float** A) {
 
 void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
-		for (int k = 0; k < n; k++) {
-			for (int j = 0; j < p; j++) {
-				if (overwrite && k == 0) {
-					C[i][j] = A[i][k] * B[k][j];
-				} else {
-					C[i][j] += A[i][k] * B[k][j];
-				}
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[i][j] = 0;
+			}
+			for (int k = 0; k < n; k++) {
+				C[i][j] += A[i][k] * B[k][j];
 			}
 		}
 	}
@@ -126,14 +139,25 @@ void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float*
 
 void Matrix::matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
-		for (int k = 0; k < n; k++) {
-			for (int j = 0; j < p; j++) {
-				if (overwrite && k == 0) {
-					C[i][j] = A[k][i] * B[k][j];
-				}
-				else {
-					C[i][j] += A[k][i] * B[k][j];
-				}
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[i][j] = 0;
+			}
+			for (int k = 0; k < n; k++) {
+				C[i][j] += A[k][i] * B[k][j];
+			}
+		}
+	}
+}
+
+void Matrix::subMatrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite, int startY) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[i][j] = dotProduct(n, &A[i][startY], B[j]);
+			}
+			else {
+				C[i][j] += dotProduct(n, &A[i][startY], B[j]);
 			}
 		}
 	}

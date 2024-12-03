@@ -25,8 +25,7 @@ public:
 	void setBatchSize(int batchSize);
 	void setMaxBatchSize(int maxBatchSize);
 
-	void predict();
-	void forwardPropagate();
+	void propagateLayer();
 	void backPropagate();
 	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);

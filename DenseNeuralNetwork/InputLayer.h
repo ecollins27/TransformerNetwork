@@ -13,8 +13,7 @@ public:
 
 	void setPrevLayer(Layer* layer);
 
-	void predict();
-	void forwardPropagate();
+	void propagateLayer();
 	void backPropagate();
 	void save(ofstream& file);
 };

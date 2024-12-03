@@ -4,8 +4,7 @@
 class ResidualSave : public Layer {
 
 public:
-	void predict();
-	void forwardPropagate();
+	void propagateLayer();
 	void backPropagate();
 	void backPropagateWithResidual();
 

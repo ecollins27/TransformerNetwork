@@ -14,6 +14,7 @@ public:
 	void setBatchSize(int batchSize);
 	void setMaxBatchSize(int maxBatchSize);
 
+	void propagateLayer() { return; }
 	void predict();
 	void forwardPropagate();
 	void backPropagate();

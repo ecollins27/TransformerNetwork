@@ -4,21 +4,10 @@ ResidualAdd::ResidualAdd(ResidualSave* saveLayer) {
 	this->saveLayer = saveLayer;
 }
 
-void ResidualAdd::predict() {
-	Matrix::copy(batchSize, size, prevLayer->neurons, neurons);
-	Matrix::add(batchSize, size, neurons, saveLayer->neurons, neurons, 1, 1);
-	if (nextLayer != NULL) {
-		nextLayer->predict();
-	}
-}
-
-void ResidualAdd::forwardPropagate() {
+void ResidualAdd::propagateLayer() {
 	Matrix::copy(batchSize, size, prevLayer->neurons, neurons);
 	Matrix::add(batchSize, size, neurons, saveLayer->neurons, neurons, 1, 1);
 	Matrix::transpose(batchSize, size, neurons, neuronsTranspose);
-	if (nextLayer != NULL) {
-		nextLayer->predict();
-	}
 }
 
 void ResidualAdd::backPropagate() {
@@ -32,8 +21,8 @@ void ResidualAdd::backPropagate() {
 
 void ResidualAdd::setPrevLayer(Layer* prevLayer) {
 	this->prevLayer = prevLayer;
-	this->prevSize = prevLayer->size;
-	this->size = prevSize;
+	this->size = prevLayer->size;
+	prevSize = size + 1;
 }
 
 void ResidualAdd::save(ofstream& file) {

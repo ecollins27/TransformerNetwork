@@ -11,6 +11,8 @@
 #include "MultiHeadAttentionLayer.h"
 #include "ResidualAdd.h"
 #include "ResidualSave.h"
+#include "PositionalEncodingLayer.h"
+#include "BatchMean.h"
 
 class ModelParser {
 

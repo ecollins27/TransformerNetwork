@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="Activation.cpp" />
     <ClCompile Include="BatchNormalization.cpp" />
+    <ClCompile Include="BatchMean.cpp" />
     <ClCompile Include="BytePairTokenizer.cpp" />
     <ClCompile Include="DenseLayer.cpp" />
     <ClCompile Include="Dropout.cpp" />
@@ -36,6 +37,7 @@
     <ClCompile Include="MultiHeadAttentionLayer.cpp" />
     <ClCompile Include="NeuralNetwork.cpp" />
     <ClCompile Include="Optimizer.cpp" />
+    <ClCompile Include="PositionalEncodingLayer.cpp" />
     <ClCompile Include="ResidualAdd.cpp" />
     <ClCompile Include="ResidualSave.cpp" />
     <ClCompile Include="TrainingParams.cpp" />
@@ -44,6 +46,7 @@
   <ItemGroup>
     <ClInclude Include="Activation.h" />
     <ClInclude Include="BatchNormalization.h" />
+    <ClInclude Include="BatchMean.h" />
     <ClInclude Include="BytePairTokenizer.h" />
     <ClInclude Include="DenseLayer.h" />
     <ClInclude Include="Dropout.h" />
@@ -58,6 +61,7 @@
     <ClInclude Include="MultiHeadAttentionLayer.h" />
     <ClInclude Include="NeuralNetwork.h" />
     <ClInclude Include="Optimizer.h" />
+    <ClInclude Include="PositionalEncodingLayer.h" />
     <ClInclude Include="ResidualAdd.h" />
     <ClInclude Include="ResidualSave.h" />
     <ClInclude Include="TrainingParams.h" />
@@ -163,6 +167,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

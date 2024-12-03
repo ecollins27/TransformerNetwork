@@ -8,8 +8,7 @@ public:
 	ResidualSave* saveLayer;
 
 	ResidualAdd(ResidualSave* saveLayer);
-	void predict();
-	void forwardPropagate();
+	void propagateLayer();
 	void backPropagate();
 
 	void setPrevLayer(Layer* prevLayer);

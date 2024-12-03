@@ -26,16 +26,8 @@ void InputLayer::setPrevLayer(Layer* layer) {
 	throw invalid_argument("Input Layer must be first layer");
 }
 
-void InputLayer::predict() {
-	if (nextLayer != NULL) {
-		nextLayer->predict();
-	}
-}
-
-void InputLayer::forwardPropagate() {
-	if (nextLayer != NULL) {
-		nextLayer->forwardPropagate();
-	}
+void InputLayer::propagateLayer() {
+	return;
 }
 
 void InputLayer::backPropagate() {

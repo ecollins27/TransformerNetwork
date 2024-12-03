@@ -3,7 +3,6 @@
 bool contains(vector<string> strings, string str) {
 	for (string s : strings) {
 		if (s.compare(str) == 0) {
-			//printf("%s %s\n", s.c_str(), str.c_str());
 			return true;
 		}
 	}
@@ -104,7 +103,6 @@ BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings) {
 	while (maxIndex[0] >= 0 && maxIndex[1] >= 0 && tokenValues.size() < 1000) {
 		tokenValues.emplace_back(tokenValues[maxIndex[0]] + tokenValues[maxIndex[1]]);
 		replaceStrings(numStrings, newStrings, maxIndex, tokenValues.size() - 1);
-		printf("\"%s\" %d\n", tokenValues[tokenValues.size() - 1], tokenValues.size() - 1);
 		calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);
 	}
 }
@@ -131,7 +129,7 @@ void BytePairTokenizer::save(string fileName) {
 	file.close();
 }
 
-float** BytePairTokenizer::tokenize(string str) {
+float** BytePairTokenizer::tokenize(string str, int& length) {
 	string convertedString = "";
 	for (int i = 0; i < str.length(); i++) {
 		convertedString += tolower(str[i]);
@@ -148,17 +146,20 @@ float** BytePairTokenizer::tokenize(string str) {
 			}
 		}
 	}
-	for (int i = 0; i < tokens.size(); i++) {
-		printf("%d,", tokens[i]);
-	}
-	printf("\n");
-	for (int i = 0; i < tokens.size(); i++) {
-		printf("%s ", tokenValues[tokens[i]].c_str());
-	}
-	printf("\n");
+	length = tokens.size();
 	float** matrix = Matrix::allocateMatrix(Matrix::ZERO_FILL, tokens.size(), tokenValues.size());
 	for (int i = 0; i < tokens.size(); i++) {
 		matrix[i][tokens[i]] = 1;
 	}
 	return matrix;
+}
+
+float*** BytePairTokenizer::toTokens(int numStrings, string* strings, int* numTokens) {
+	float*** oneHotEmbeddings = (float***)malloc(numStrings * sizeof(float**));
+	for (int i = 0; i < numStrings; i++) {
+		oneHotEmbeddings[i] = tokenize(strings[i], numTokens[i]);
+		printf("\r%f", 100.0 * i / numStrings);
+	}
+	printf("\n");
+	return oneHotEmbeddings;
 }

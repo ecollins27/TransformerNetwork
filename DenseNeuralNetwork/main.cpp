@@ -6,6 +6,7 @@
 #include "ModelParser.h"
 #include "BytePairTokenizer.h"
 #include <typeinfo>
+#include <thread>
 
 using namespace std::chrono;
 
@@ -68,7 +69,7 @@ void getData(string fileName, float** X, float** y, int num) {
 	file.close();
 }
 
-void getIMDBData(string fileName, string* X, int** y, int num) {
+void getIMDBData(string fileName, string* X, float** y, int num) {
 	string line;
 	int sentiment;
 	int commaIndex1, commaIndex2;
@@ -82,70 +83,85 @@ void getIMDBData(string fileName, string* X, int** y, int num) {
 		sentiment = stoi(line.substr(commaIndex1 + 1, commaIndex2 - commaIndex1));
 		y[i][sentiment] = 1;
 		y[i][1 - sentiment] = 0;
+		printf("\r%f", 100.0 * i / num);
 	}
+	printf("\n");
 	file.close();
 }
 
-int main3() {
-	int size = 500000;
-	string* reviews = (string*)malloc(size * sizeof(string));
-	int** sentiments = (int**)malloc(size * sizeof(int*));
-	for (int i = 0; i < size; i++) {
-		sentiments[i] = (int*)malloc(2 * sizeof(int));
-	}
-	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, sentiments, size);
-	BytePairTokenizer tokenizer(size, reviews);
-	tokenizer.save("tokenizer.txt");
-
-	//BytePairTokenizer tokenizer("tokenizer.txt");
-	//int index = 1001;
-	//printf("%s\n", reviews[index].c_str());
-	//tokenizer.tokenize(reviews[index]);
-}
-
 int main1() {
-	float** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 784);
-	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 10);
-	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-test.csv", X, y, 10000);
-	NeuralNetwork* dnn = (NeuralNetwork*)ModelParser::parseModel("dnn.txt");
+	float** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 784);
+	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 10);
+	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-train.csv", X, y, 60000);
+	NeuralNetwork* dnn = { new NeuralNetwork(784) };
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 500) });
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 100) });
+	dnn->addLayer({ new LayerNormalization() });
+	dnn->addLayer({ new DenseLayer(Activation::SWISH, 50) });
+	dnn->addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
 	printf("%d\n", dnn->getNumParameters());
-	dnn->test(Loss::CATEGORICAL_CROSS_ENTROPY, 10000, X, y, 1, new Loss*[1]{ Loss::ACCURACY });
-	Matrix::deallocateMatrix(X, 10000, 784);
-	Matrix::deallocateMatrix(y, 10000, 10);
+	dnn->fit(Loss::CATEGORICAL_CROSS_ENTROPY, 60000, X, y, 1, &Loss::ACCURACY, TrainingParams::DEFAULT);
+	Matrix::deallocateMatrix(X, 60000, 784);
+	Matrix::deallocateMatrix(y, 60000, 10);
 	return 0;
 }
 
-int main() {
-	int numSamples = 60000;
-	int numClasses = 10;
-	float** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, numSamples, 784);
-	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numSamples, numClasses);
-	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-train.csv", X, y, numSamples);
-	NeuralNetwork* dnn{ new NeuralNetwork(784) };
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
-	dnn->addLayer({ new ResidualSave() });
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
-	dnn->addLayer({ new ResidualAdd(dnn->getLayer<ResidualSave>(2)) });
-	dnn->addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
-	printf("%d\n", dnn->getNumParameters());
-	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 10);
-	dnn->fit(Loss::CATEGORICAL_CROSS_ENTROPY, numSamples, X, y, 1, new Loss * [1] {Loss::ACCURACY}, params);
-	dnn->save("dnn.txt");
-	Matrix::deallocateMatrix(X, numSamples, 784);
-	Matrix::deallocateMatrix(y, numSamples, numClasses);
-	float** X_test = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 784);
-	float** y_test = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 10);
-	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-test.csv", X_test, y_test, 10000);
-	dnn->test(Loss::CATEGORICAL_CROSS_ENTROPY, 10000, X_test, y_test, 1, &Loss::ACCURACY);
-	Matrix::deallocateMatrix(X_test, 10000, 784);
-	Matrix::deallocateMatrix(y_test, 10000, 10);
+float calculateNaiveAccuracy(int numData, float** y) {
+	float mean[2] = { 0, 0 };
+	for (int i = 0; i < numData; i++) {
+		mean[0] += y[i][0];
+		mean[1] += y[i][1];
+	}
+	mean[0] /= numData;
+	mean[1] /= numData;
+	if (mean[0] > mean[1]) {
+		return mean[0];
+	}
+	return mean[1];
 }
 
-/*
-* TODO:
-* Fix SwiGLU overflowing after 2 layers
-* 
-* Allow for 2D and 3D layers
-* Allow for non sequential models
-*/
+int main() {
+	int numData = 100000;
+	string* reviews = new string[numData];
+	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, numData);
+	BytePairTokenizer tokenizer("tokenizer.txt");
+
+	int* numTokens = (int*)malloc(numData * sizeof(int));
+	float*** X = tokenizer.toTokens(numData, reviews, numTokens);
+
+	TransformerModel* model{ new TransformerModel(1000) };
+	model->addLayer({ new DenseLayer(Activation::NONE, 750) });
+	model->addLayer({ new DenseLayer(Activation::NONE, 300) });
+	model->addLayer({ new DenseLayer(Activation::NONE, 100) });
+	model->addLayer({ new PositionalEncodingLayer() });
+//	model->addTransformerBlock(20, 200, 20);
+//	model->addTransformerBlock(20, 200, 20);
+	model->addTransformerBlock(10, 100, 10);
+	model->addTransformerBlock(10, 100, 10);
+	model->addLayer({ new DenseLayer(Activation::SWISH, 75) });
+	model->addLayer({ new DenseLayer(Activation::SWISH, 20) });
+	model->addLayer({ new DenseLayer(Activation::SOFTMAX, 2) });
+	model->addLayer({ new BatchMean(Activation::SOFTMAX) });
+	
+	printf("NumParameters: %d\n", model->getNumParameters());
+	printf("NaiveAccuracy: %f\n", calculateNaiveAccuracy(numData, y));
+	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 10)->with(TrainingParams::LEARNING_RATE, 0.00001f);
+	model->fit(Loss::CATEGORICAL_CROSS_ENTROPY, numData, numTokens, X, y, 1, &Loss::ACCURACY, params, "transformer_model_best.txt");
+	model->save("transformer_model.txt");
+}
+
+int main2() {
+	int numData = 1000;
+	string* reviews = new string[numData];
+	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, numData);
+	BytePairTokenizer tokenizer("tokenizer.txt");
+
+	int* numTokens = (int*)malloc(numData * sizeof(int));
+	float*** X = tokenizer.toTokens(numData, reviews, numTokens);
+
+	TransformerModel* model = (TransformerModel*)ModelParser::parseModel("transformer_model_best.txt");
+	model->test(Loss::CATEGORICAL_CROSS_ENTROPY, numData, numTokens, X, y, 1, &Loss::ACCURACY);
+}

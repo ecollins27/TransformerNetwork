@@ -19,6 +19,7 @@ public:
 	BatchNormalization(float momentum);
 	~BatchNormalization();
 
+	void propagateLayer() { return; }
 	void predict();
 	void forwardPropagate();
 	void backPropagate();

@@ -1,18 +1,8 @@
 #include "ResidualSave.h"
 
-void ResidualSave::predict() {
-	Matrix::copy(batchSize, size, prevLayer->neurons, neurons);
-	if (nextLayer != NULL) {
-		nextLayer->predict();
-	}
-}
-
-void ResidualSave::forwardPropagate() {
+void ResidualSave::propagateLayer() {
 	Matrix::copy(batchSize, size, prevLayer->neurons, neurons);
 	Matrix::transpose(batchSize, size, neurons, neuronsTranspose);
-	if (nextLayer != NULL) {
-		nextLayer->forwardPropagate();
-	}
 }
 
 void ResidualSave::backPropagate() {

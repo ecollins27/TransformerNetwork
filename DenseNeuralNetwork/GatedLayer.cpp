@@ -110,7 +110,12 @@ void GatedLayer::setMaxBatchSize(int batchSize) {
 		backPropIntermediate3 = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size);
 		backPropIntermediate3Transpose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size, maxBatchSize);
 		activationOutput = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size);
-		activationGradient = Matrix::allocate3DMatrix(Matrix::ZERO_FILL, isDiagonal ? 1 : maxBatchSize, size, size);
+		if (isDiagonal) {
+			activationGradient = Matrix::allocate3DMatrix(Matrix::ZERO_FILL, 1, maxBatchSize, size);
+		}
+		else {
+			activationGradient = Matrix::allocate3DMatrix(Matrix::ZERO_FILL, maxBatchSize, size, size);
+		}
 	}
 	else {
 		this->maxBatchSize = maxBatchSize;
@@ -120,25 +125,12 @@ void GatedLayer::setMaxBatchSize(int batchSize) {
 	}
 }
 
-void GatedLayer::predict() {
-	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights1, activations1, true);
-	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights2, activations2, true);
-	activation->operate(batchSize, size, activations1, activationOutput);
-	Matrix::elementMultiply(batchSize, size, activations2, activationOutput, neurons, true);
-	if (nextLayer != NULL) {
-		nextLayer->predict();
-	}
-}
-
-void GatedLayer::forwardPropagate() {
+void GatedLayer::propagateLayer() {
 	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights1, activations1, true);
 	Matrix::matrixMultiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights2, activations2, true);
 	activation->operate(batchSize, size, activations1, activationOutput);
 	Matrix::elementMultiply(batchSize, size, activations2, activationOutput, neurons, true);
 	Matrix::transpose(batchSize, size + 1, neurons, neuronsTranspose);
-	if (nextLayer != NULL) {
-		nextLayer->forwardPropagate();
-	}
 }
 void GatedLayer::backPropagate() {
 	activation->differentiate(batchSize, size, activations1, activationOutput, activationGradient);

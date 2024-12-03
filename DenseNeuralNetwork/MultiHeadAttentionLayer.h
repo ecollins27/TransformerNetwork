@@ -8,24 +8,38 @@ public:
 
 	int numHeads, keySize, valueSize;
 
+	float** neuronGradientTrans;
+
 	float*** Wq;
+	float*** WqTrans;
 	float*** WqGrad;
 	float*** Wk;
+	float*** WkTrans;
 	float*** WkGrad;
 	float*** Wv;
+	float*** WvTrans;
 	float*** WvGrad;
 	float** Wo;
+	float** WoTrans;
 	float** WoGrad;
 
 	float*** Q;
+	float*** QTrans;
 	float*** QGrad;
+	float*** QGradTrans;
 	float*** K;
+	float*** KTrans;
 	float*** KGrad;
+	float*** KGradTrans;
 	float*** V;
+	float*** VTrans;
 	float*** VGrad;
+	float*** VGradTrans;
 	float*** A;
 	float*** AGrad;
+	float*** AGradTrans;
 	float*** Ao;
+	float*** AoTrans;
 	float*** AoGrad;
 	float** Ac;
 	float** AcTrans;
@@ -40,12 +54,11 @@ public:
 	Activation* softmax = Activation::SOFTMAX->clone();
 
 	MultiHeadAttentionLayer(int numHeads, int keySize, int valueSize);
-	void predict();
-	void forwardPropagate();
+
+	void propagateLayer();
 	void backPropagate();
 
 	void setPrevLayer(Layer* prevLayer);
-	void setNextLayer(Layer* nextLayer);
 	void setBatchSize(int batchSize);
 	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);

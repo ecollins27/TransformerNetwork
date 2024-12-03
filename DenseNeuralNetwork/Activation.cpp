@@ -12,6 +12,7 @@ Activation* Activation::SOFTMAX{ new Softmax() };
 Activation* Activation::ALL_ACTIVATIONS[Activation::NUM_ACTIVATIONS] = {NONE, SIGMOID, RELU, ELU, SELU, TANH, SWISH, SOFTMAX };
 
 void None::operate(int batchSize, int size, float** activations, float** neurons) {
+	Matrix::copy(batchSize, size, activations, neurons);
 	return;
 }
 
@@ -201,12 +202,10 @@ void Swish::operate(int batchSize, int size, float** activations, float** neuron
 void Swish::differentiate(int batchSize, int size, float** activations, float** neurons, float*** activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
-			float activation = activations[i][j];
-			float eNegX = exp(-activation);
 			if (condenseGradient) {
-				activationGradient[0][i][j] = (1 + eNegX * neurons[i][j]) / (1.0 + eNegX);
+				activationGradient[0][i][j] = activations[i][j] == 0? 0.5:(neurons[i][j] * (activations[i][j] - neurons[i][j] + 1) / activations[i][j]);
 			} else {
-				activationGradient[i][j][j] = (1 + eNegX * neurons[i][j]) / (1.0 + eNegX);
+				activationGradient[i][j][j] = activations[i][j] == 0 ? 0.5 : (neurons[i][j] * (activations[i][j] - neurons[i][j] + 1) / activations[i][j]);
 			}
 		}
 	}
@@ -218,7 +217,7 @@ Activation* Swish::clone() {
 
 void Softmax::operate(int batchSize, int size, float** activations, float** neurons) {
 	for (int i = 0; i < batchSize; i++) {
-		int max = 0;
+		int max = INT_MIN;
 		for (int j = 0; j < size; j++) {
 			if (activations[i][j] > max) {
 				max = activations[i][j];
@@ -226,12 +225,11 @@ void Softmax::operate(int batchSize, int size, float** activations, float** neur
 		}
 		float sum = 0;
 		for (int j = 0; j < size; j++) {
-			neurons[i][j] = exp(activations[i][j] - max);
+			neurons[i][j] = exp(activations[i][j] - max + 16);
 			sum += neurons[i][j];
 		}
 		for (int j = 0; j < size; j++) {
-			float& value = neurons[i][j];
-			value = value / sum;
+			neurons[i][j] /= sum;
 		}
 	}
 }

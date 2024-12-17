@@ -170,7 +170,7 @@ void addPositionalEncodingLayer(Model* nn, ifstream& file, string& line, int* co
 	nn->addLayer(positionalEncodingLayer);
 }
 
-void addBatchSum(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+void addBatchMean(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	Activation* activation = readActivation(line, commaIndex, newCommaIndex);
 	BatchMean* batchSum = { new BatchMean(activation) };
 	nn->addLayer(batchSum);
@@ -178,6 +178,7 @@ void addBatchSum(Model* nn, ifstream& file, string& line, int* commaIndex, int* 
 
 void addSavedLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	string layerName = getNextString(line, commaIndex, newCommaIndex);
+	printf("\n%s\n", layerName.c_str());
 	if (layerName.compare("DenseLayer") == 0) {
 		addDenseLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
@@ -193,7 +194,7 @@ void addSavedLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	else if (layerName.compare("LayerNormalization") == 0) {
 		addLayerNormalization(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
-	else if (layerName.compare("MultiAttentionLayer") == 0) {
+	else if (layerName.compare("MultiHeadAttention") == 0) {
 		addMultiHeadAttentionLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
 	else if (layerName.compare("ResidualAdd") == 0) {
@@ -205,8 +206,11 @@ void addSavedLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	else if (layerName.compare("PositionalEncodingLayer") == 0) {
 		addPositionalEncodingLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
-	else if (layerName.compare("BatchSum") == 0) {
-		addBatchSum(nn, file, line, commaIndex, newCommaIndex, prevSize);
+	else if (layerName.compare("BatchMean") == 0) {
+		addBatchMean(nn, file, line, commaIndex, newCommaIndex, prevSize);
+	}
+	else {
+		printf("\nFailed to Parse");
 	}
 }
 

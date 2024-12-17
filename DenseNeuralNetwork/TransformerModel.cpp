@@ -106,7 +106,7 @@ void TransformerModel::fit(Loss* lossFunction, int numData, int* numTokens, floa
 	}
 }
 
-void TransformerModel::test(Loss* lossFunction, int numData, int*numTokens, float*** X, float** y, int numMetrics, Loss** metrics) {
+void TransformerModel::test(Loss* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss** metrics) {
 	int maxTokenSize = 0;
 	for (int i = 0; i < numData; i++) {
 		if (numTokens[i] > maxTokenSize) {
@@ -117,15 +117,16 @@ void TransformerModel::test(Loss* lossFunction, int numData, int*numTokens, floa
 	inputLayer->setMaxBatchSize(maxTokenSize);
 	float* averages = new float[numMetrics + 1];
 	for (int i = 0; i < numData; i++) {
+		inputLayer->setBatchSize(numTokens[i]);
 		predict(X[i]);
 		averages[numMetrics] += lossFunction->loss(outputLayer, &y[i]);
 		for (int j = 0; j < numMetrics; j++) {
 			averages[j] += metrics[j]->loss(outputLayer, &y[i]);
 		}
-	}
-	printf("TestLoss:%f  ", averages[numMetrics] / numData);
-	for (int j = 0; j < numMetrics; j++) {
-		printf("Test%s:%f  ", metrics[j]->toString().c_str(), averages[j] / numData);
+		printf("\rTest %d/%d  NumTokens:%d  TestLoss:%f  ", i + 1, numData, numTokens[i], averages[numMetrics] / (i + 1));
+		for (int j = 0; j < numMetrics; j++) {
+			printf("Test%s:%f  ", metrics[j]->toString().c_str(), averages[j] / (i + 1));
+		}
 	}
 	printf("\n");
 }

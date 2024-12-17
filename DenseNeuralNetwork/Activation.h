@@ -2,6 +2,7 @@
 #include <cmath>
 #include "Optimizer.h"
 #include <fstream>
+#include <climits>
 
 class DenseLayer;
 

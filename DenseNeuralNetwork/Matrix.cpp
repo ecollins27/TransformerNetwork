@@ -4,7 +4,7 @@ Matrix::FillFunction* Matrix::ZERO_FILL{ new ConstantFill(0) };
 Matrix::FillFunction* Matrix::UNIT_NORMAL_FILL{ new NormalFill(0,1) };
 Matrix::FillFunction* Matrix::UNIT_UNIFORM_FILL{ new UniformFill(0,1) };
 
-float Matrix::dotProduct(int n, float* x, float* y) {
+float Matrix::rowRowDotProduct(int n, float* x, float* y) {
 	int i, n8 = n >> 3 << 3;
 	__m128 vs1, vs2;
 	float s, t[4];
@@ -23,6 +23,28 @@ float Matrix::dotProduct(int n, float* x, float* y) {
 	_mm_storeu_ps(t, vs1);
 	s += t[0] + t[1] + t[2] + t[3];
 	_mm_storeu_ps(t, vs2);
+	s += t[0] + t[1] + t[2] + t[3];
+	return s;
+}
+
+float Matrix::rowColumnDotProduct(int n, float* x, float** Y, int column) {
+	int i, n8 = n >> 3 << 3;
+	__m128 vs;
+	float s, t[4];
+	vs = _mm_setzero_ps();
+	for (i = 0; i < n8; i += 8) {
+		__m128 vx1, vx2, vy1, vy2;
+		vx1 = _mm_loadu_ps(&x[i]);
+		vx2 = _mm_loadu_ps(&x[i + 4]);
+		vy1 = _mm_set_ps(Y[i + 3][column], Y[i + 2][column], Y[i + 1][column], Y[i][column]);
+		vy2 = _mm_set_ps(Y[i + 7][column], Y[i + 6][column], Y[i + 5][column], Y[i + 4][column]);
+		vs = _mm_add_ps(vs, _mm_mul_ps(vx1, vy1));
+		vs = _mm_add_ps(vs, _mm_mul_ps(vx2, vy2));
+	}
+	for (s = 0.0f; i < n; i++) {
+		s += x[i] * Y[i][column];
+	}
+	_mm_storeu_ps(t, vs);
 	s += t[0] + t[1] + t[2] + t[3];
 	return s;
 }
@@ -124,7 +146,7 @@ void Matrix::transposeInPlace(int m, float** A) {
 	}
 }
 
-void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
+void Matrix::naiveMatrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
@@ -132,6 +154,19 @@ void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float*
 			}
 			for (int k = 0; k < n; k++) {
 				C[i][j] += A[i][k] * B[k][j];
+			}
+		}
+	}
+}
+
+void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < p; j++) {
+			if (overwrite) {
+				C[i][j] = rowColumnDotProduct(n, A[i], B, j);
+			}
+			else {
+				C[i][j] += rowColumnDotProduct(n, A[i], B, j);
 			}
 		}
 	}
@@ -154,10 +189,10 @@ void Matrix::subMatrixMultiplyABtC(int m, int n, int p, float** A, float** B, fl
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[i][j] = dotProduct(n, &A[i][startY], B[j]);
+				C[i][j] = rowRowDotProduct(n, &A[i][startY], B[j]);
 			}
 			else {
-				C[i][j] += dotProduct(n, &A[i][startY], B[j]);
+				C[i][j] += rowRowDotProduct(n, &A[i][startY], B[j]);
 			}
 		}
 	}
@@ -167,10 +202,10 @@ void Matrix::matrixMultiplyABtC(int m, int n, int p, float** A, float** B, float
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[i][j] = dotProduct(n, A[i], B[j]);
+				C[i][j] = rowRowDotProduct(n, A[i], B[j]);
 			}
 			else {
-				C[i][j] += dotProduct(n, A[i], B[j]);
+				C[i][j] += rowRowDotProduct(n, A[i], B[j]);
 			}
 		}
 	}
@@ -180,10 +215,10 @@ void Matrix::matrixMultiplyABtCt(int m, int n, int p, float** A, float** B, floa
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[j][i] = dotProduct(n, A[i], B[j]);
+				C[j][i] = rowRowDotProduct(n, A[i], B[j]);
 			}
 			else {
-				C[j][i] += dotProduct(n, A[i], B[j]);
+				C[j][i] += rowRowDotProduct(n, A[i], B[j]);
 			}
 		}
 	}
@@ -193,9 +228,9 @@ void Matrix::matrixTensorMultiply(int m, int n, int p, float** A, float*** B, fl
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[i][j] = dotProduct(n, A[i], B[i][j]);
+				C[i][j] = rowRowDotProduct(n, A[i], B[i][j]);
 			} else {
-				C[i][j] += dotProduct(n, A[i], B[i][j]);
+				C[i][j] += rowRowDotProduct(n, A[i], B[i][j]);
 			}
 		}
 	}

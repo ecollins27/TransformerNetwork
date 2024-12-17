@@ -73,7 +73,7 @@ void BatchMean::setPrevLayer(Layer* prevLayer) {
 }
 
 void BatchMean::save(ofstream& file) {
-	file << "BatchSum,";
+	file << "BatchMean,";
 	activation->save(file);
 	file << ",\n";
 	if (nextLayer != NULL) {

@@ -5,6 +5,7 @@
 #include "ResidualAdd.h"
 #include "DenseLayer.h"
 #include "LayerNormalization.h"
+#include <climits>
 
 class TransformerModel : public Model {
 

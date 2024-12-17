@@ -32,6 +32,10 @@
     <ClCompile Include="Loss.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
+    <ClCompile Include="Matrix2.cpp" />
+    <ClCompile Include="Matrix3D.cpp" />
+    <ClCompile Include="Matrix3DBatch.cpp" />
+    <ClCompile Include="MatrixBatch.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelParser.cpp" />
     <ClCompile Include="MultiHeadAttentionLayer.cpp" />
@@ -56,6 +60,10 @@
     <ClInclude Include="LayerNormalization.h" />
     <ClInclude Include="Loss.h" />
     <ClInclude Include="Matrix.h" />
+    <ClInclude Include="Matrix2.h" />
+    <ClInclude Include="Matrix3D.h" />
+    <ClInclude Include="Matrix3DBatch.h" />
+    <ClInclude Include="MatrixBatch.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelParser.h" />
     <ClInclude Include="MultiHeadAttentionLayer.h" />
@@ -167,7 +175,9 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <BuildStlModules>true</BuildStlModules>
+      <EnableModules>true</EnableModules>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

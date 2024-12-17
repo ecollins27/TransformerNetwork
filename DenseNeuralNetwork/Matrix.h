@@ -9,7 +9,7 @@ using namespace std;
 
 
 
-const class Matrix {
+class Matrix {
 
 public:
 
@@ -18,7 +18,8 @@ public:
 	static FillFunction* UNIT_NORMAL_FILL;
 	static FillFunction* UNIT_UNIFORM_FILL;
 
-	static float dotProduct(int n, float* x, float* y);
+	static float rowRowDotProduct(int n, float* x, float* y);
+	static float rowColumnDotProduct(int n, float* x, float** Y, int column);
 	static float** allocateMatrix(FillFunction* fillFunction, int height, int width);
 	static float*** allocate3DMatrix(FillFunction* fillFunction, int d1, int d2, int d3);
 	static float**** allocate4DMatrix(FillFunction* fillFunction, int d1, int d2, int d3, int d4);
@@ -30,6 +31,7 @@ public:
 	static void scale(int m, int n, float** A, float scalar);
 	static void transpose(int m, int n, float** A, float** At);
 	static void transposeInPlace(int m, float** A);
+	static void naiveMatrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
 	static void matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
 	static void matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
 	//static void rowMultiplyABtC(int n, int p, float** A, float** B, float** C, bool overwrite);
@@ -43,19 +45,19 @@ public:
 	static void copy(int m, int n, float** from, float** to);
 	static void print(int m, int n, float** A);
 
-	static virtual class FillFunction {
+	class FillFunction {
 	public:
 		virtual float get() = 0;
 	};
 
-	static class ConstantFill : public FillFunction {
+	class ConstantFill : public FillFunction {
 	public:
 		float value;
 		ConstantFill(float value);
 		float get();
 	};
 
-	static class NormalFill : public FillFunction {
+	class NormalFill : public FillFunction {
 	public:
 		default_random_engine generator;
 		normal_distribution<float>* distribution;
@@ -64,7 +66,7 @@ public:
 		float get();
 	};
 
-	static class UniformFill : public FillFunction {
+	class UniformFill : public FillFunction {
 	public:
 		default_random_engine generator;
 		uniform_real_distribution<float>* distribution;

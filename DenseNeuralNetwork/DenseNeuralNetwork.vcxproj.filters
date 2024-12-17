@@ -1,0 +1,120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="BatchNormalization.cpp" />
+    <ClCompile Include="BatchMean.cpp" />
+    <ClCompile Include="BytePairTokenizer.cpp" />
+    <ClCompile Include="DenseLayer.cpp" />
+    <ClCompile Include="Dropout.cpp" />
+    <ClCompile Include="GatedLayer.cpp" />
+    <ClCompile Include="InputLayer.cpp" />
+    <ClCompile Include="LayerNormalization.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Matrix.cpp" />
+    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="MultiHeadAttentionLayer.cpp" />
+    <ClCompile Include="NeuralNetwork.cpp" />
+    <ClCompile Include="PositionalEncodingLayer.cpp" />
+    <ClCompile Include="ResidualAdd.cpp" />
+    <ClCompile Include="ResidualSave.cpp" />
+    <ClCompile Include="TransformerModel.cpp" />
+    <ClCompile Include="Matrix2.cpp">
+      <Filter>DNN\Matrix</Filter>
+    </ClCompile>
+    <ClCompile Include="MatrixBatch.cpp">
+      <Filter>DNN\Matrix</Filter>
+    </ClCompile>
+    <ClCompile Include="Layer.cpp">
+      <Filter>DNN\Layers</Filter>
+    </ClCompile>
+    <ClCompile Include="TrainingParams.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Optimizer.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="ModelParser.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Loss.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Activation.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="Matrix3D.cpp">
+      <Filter>DNN\Matrix</Filter>
+    </ClCompile>
+    <ClCompile Include="Matrix3DBatch.cpp">
+      <Filter>DNN\Matrix</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BatchNormalization.h" />
+    <ClInclude Include="BatchMean.h" />
+    <ClInclude Include="BytePairTokenizer.h" />
+    <ClInclude Include="DenseLayer.h" />
+    <ClInclude Include="Dropout.h" />
+    <ClInclude Include="GatedLayer.h" />
+    <ClInclude Include="InputLayer.h" />
+    <ClInclude Include="LayerNormalization.h" />
+    <ClInclude Include="Matrix.h" />
+    <ClInclude Include="Model.h" />
+    <ClInclude Include="MultiHeadAttentionLayer.h" />
+    <ClInclude Include="NeuralNetwork.h" />
+    <ClInclude Include="PositionalEncodingLayer.h" />
+    <ClInclude Include="ResidualAdd.h" />
+    <ClInclude Include="ResidualSave.h" />
+    <ClInclude Include="TransformerModel.h" />
+    <ClInclude Include="Matrix2.h">
+      <Filter>DNN\Matrix</Filter>
+    </ClInclude>
+    <ClInclude Include="MatrixBatch.h">
+      <Filter>DNN\Matrix</Filter>
+    </ClInclude>
+    <ClInclude Include="Layer.h">
+      <Filter>DNN\Layers</Filter>
+    </ClInclude>
+    <ClInclude Include="TrainingParams.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Optimizer.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelParser.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Loss.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Activation.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="Matrix3D.h">
+      <Filter>DNN\Matrix</Filter>
+    </ClInclude>
+    <ClInclude Include="Matrix3DBatch.h">
+      <Filter>DNN\Matrix</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="DNN">
+      <UniqueIdentifier>{c24338ac-e8cc-4817-9c4d-125b208a962a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DNN\Matrix">
+      <UniqueIdentifier>{df18ea18-c69c-4f17-b23b-2a25d9a25b48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DNN\Layers">
+      <UniqueIdentifier>{73cf361a-6603-4628-a5f2-14f64a4ca0dc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DNN\Layers\Layers1D">
+      <UniqueIdentifier>{f85db8e7-9e19-4400-bfba-ca0b8b2e12bc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DNN\Layers\Layers2D">
+      <UniqueIdentifier>{1113ca9f-b2ae-4977-b20c-9d94832b459f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DNN\Util">
+      <UniqueIdentifier>{ddf43f54-63ab-42c3-b347-e1b64d24cdb2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

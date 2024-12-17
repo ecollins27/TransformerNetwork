@@ -84,6 +84,23 @@ public:
 		}
 		return 0;
 	};
+	virtual void summary() {
+		string className = typeid(*this).name();
+		className = className.substr(6, className.length());
+		printf("%s", className.c_str());
+		for (int i = className.length(); i < 30; i++) {
+			printf(" ");
+		}
+		if (nextLayer != NULL) {
+			printf("NumParameters:%d\n", getNumParameters() - nextLayer->getNumParameters());
+		}
+		else {
+			printf("NumParameters:%d\n", getNumParameters());
+		}
+		if (nextLayer != NULL) {
+			nextLayer->summary();
+		}
+	}
 	virtual void setMaxBatchSize(int maxBatchSize) {
 		if (maxBatchSize > 0) {
 			if (neurons != NULL && batchSize > 0) {

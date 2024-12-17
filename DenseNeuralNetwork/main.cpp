@@ -69,12 +69,15 @@ void getData(string fileName, float** X, float** y, int num) {
 	file.close();
 }
 
-void getIMDBData(string fileName, string* X, float** y, int num) {
+void getIMDBData(string fileName, string* X, float** y, int start, int num) {
 	string line;
 	int sentiment;
 	int commaIndex1, commaIndex2;
 	ifstream file(fileName);
 	getline(file, line);
+	for (int i = 0; i < start; i++) {
+		getline(file, line);
+	}
 	for (int i = 0; i < num; i++) {
 		getline(file, line);
 		commaIndex1 = line.find_first_of(",");
@@ -87,24 +90,6 @@ void getIMDBData(string fileName, string* X, float** y, int num) {
 	}
 	printf("\n");
 	file.close();
-}
-
-int main1() {
-	float** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 784);
-	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 10);
-	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-train.csv", X, y, 60000);
-	NeuralNetwork* dnn = { new NeuralNetwork(784) };
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 500) });
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 300) });
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 100) });
-	dnn->addLayer({ new LayerNormalization() });
-	dnn->addLayer({ new DenseLayer(Activation::SWISH, 50) });
-	dnn->addLayer({ new DenseLayer(Activation::SOFTMAX, 10) });
-	printf("%d\n", dnn->getNumParameters());
-	dnn->fit(Loss::CATEGORICAL_CROSS_ENTROPY, 60000, X, y, 1, &Loss::ACCURACY, TrainingParams::DEFAULT);
-	Matrix::deallocateMatrix(X, 60000, 784);
-	Matrix::deallocateMatrix(y, 60000, 10);
-	return 0;
 }
 
 float calculateNaiveAccuracy(int numData, float** y) {
@@ -125,7 +110,7 @@ int main() {
 	int numData = 100000;
 	string* reviews = new string[numData];
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
-	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, numData);
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, 0, numData);
 	BytePairTokenizer tokenizer("tokenizer.txt");
 
 	int* numTokens = (int*)malloc(numData * sizeof(int));
@@ -136,32 +121,46 @@ int main() {
 	model->addLayer({ new DenseLayer(Activation::NONE, 300) });
 	model->addLayer({ new DenseLayer(Activation::NONE, 100) });
 	model->addLayer({ new PositionalEncodingLayer() });
-//	model->addTransformerBlock(20, 200, 20);
-//	model->addTransformerBlock(20, 200, 20);
-	model->addTransformerBlock(10, 100, 10);
-	model->addTransformerBlock(10, 100, 10);
+	model->addTransformerBlock(10, 100, 50);
+	model->addTransformerBlock(10, 100, 50);
+	model->addTransformerBlock(10, 100, 50);
+	model->addTransformerBlock(10, 100, 50);
 	model->addLayer({ new DenseLayer(Activation::SWISH, 75) });
 	model->addLayer({ new DenseLayer(Activation::SWISH, 20) });
-	model->addLayer({ new DenseLayer(Activation::SOFTMAX, 2) });
+	model->addLayer({ new DenseLayer(Activation::SWISH, 2) });
 	model->addLayer({ new BatchMean(Activation::SOFTMAX) });
 	
 	printf("NumParameters: %d\n", model->getNumParameters());
 	printf("NaiveAccuracy: %f\n", calculateNaiveAccuracy(numData, y));
 	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 10)->with(TrainingParams::LEARNING_RATE, 0.00001f);
-	model->fit(Loss::CATEGORICAL_CROSS_ENTROPY, numData, numTokens, X, y, 1, &Loss::ACCURACY, params, "transformer_model_best.txt");
-	model->save("transformer_model.txt");
+	Optimizer* optimizer = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0.0001) };
+	params = params->with(TrainingParams::OPTIMIZER, optimizer);
+	model->fit(Loss::CATEGORICAL_CROSS_ENTROPY, numData, numTokens, X, y, 1, &Loss::ACCURACY, params, "transformer4_regular.txt");
+	return 0;
 }
 
-int main2() {
-	int numData = 1000;
+int main3() {
+	int numData = 100000;
 	string* reviews = new string[numData];
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
-	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, numData);
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, 0, numData);
 	BytePairTokenizer tokenizer("tokenizer.txt");
 
 	int* numTokens = (int*)malloc(numData * sizeof(int));
 	float*** X = tokenizer.toTokens(numData, reviews, numTokens);
 
-	TransformerModel* model = (TransformerModel*)ModelParser::parseModel("transformer_model_best.txt");
+	TransformerModel* model = (TransformerModel*)ModelParser::parseModel("transformer4.txt");
+	float naiveAccuracy = calculateNaiveAccuracy(numData, y);
+	printf("NaiveAccuracy: %f\n", naiveAccuracy);
+	printf("NumParameters: %d\n", model->getNumParameters());
 	model->test(Loss::CATEGORICAL_CROSS_ENTROPY, numData, numTokens, X, y, 1, &Loss::ACCURACY);
+	return 0;
 }
+
+// TODO:
+// Optimize as much as possible - consider using better hardware acceleration and/or actual matrix library
+// Use mini-batch gradient descent instead of stochastic
+// 
+// 
+// Implement RNNs
+// Attempt generative model?

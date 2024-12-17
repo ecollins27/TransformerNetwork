@@ -11,7 +11,7 @@ public:
 	static Optimizer* ADEMAMIX;
 
 	int height, width;
-	float weightDecay;
+	float regConstant;
 
 	virtual void applyGradient(float** weightGradient, float** weights, float t, float learningRate) = 0;
 	virtual Optimizer* clone() = 0;

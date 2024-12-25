@@ -48,6 +48,63 @@
     <ClCompile Include="Matrix3DBatch.cpp">
       <Filter>DNN\Matrix</Filter>
     </ClCompile>
+    <ClCompile Include="Layer1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Input1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Dense1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Dropout1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Gated1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="ResidualSave1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="ResidualAdd1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="BatchNormalization1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Layer2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Dense2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Dropout2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Gated2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Input2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="LayerNormalization2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="PositionalEncoding2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="ResidualSave2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="ResidualAdd2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="SequenceMean.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="MultiHeadAttention.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BatchNormalization.h" />
@@ -95,6 +152,63 @@
     </ClInclude>
     <ClInclude Include="Matrix3DBatch.h">
       <Filter>DNN\Matrix</Filter>
+    </ClInclude>
+    <ClInclude Include="Layer1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Input1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Dense1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Dropout1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Gated1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="ResidualSave1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="ResidualAdd1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="BatchNormalization1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Layer2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Dense2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Dropout2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Gated2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Input2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="LayerNormalization2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="PositionalEncoding2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="ResidualSave2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="ResidualAdd2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="SequenceMean.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="MultiHeadAttention.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -18,6 +18,7 @@ public:
 	float** matrix;
 	float** matrixTrans;
 	bool saveTranspose;
+	bool transposeUpdated = true;
 
 	Matrix2(){}
 	Matrix2(FillFunction* fillFunction, int height, int width, bool saveTranspose);
@@ -30,7 +31,10 @@ public:
 	void copy(int height, int width, Matrix2& to);
 	void fill(FillFunction* fillFunction, int height, int width);
 	void print(int height, int width);
+	Matrix2 subMatrix(int i, int j, int height, int width);
 
+	static Matrix2* allocateMatrixArray(Matrix2::FillFunction* fillFunction, int x1, int x2, int x3, bool saveTranspose);
+	static Matrix2** allocateMatrixArray2D(Matrix2::FillFunction* fillFunction, int x1, int x2, int x3, int x4, bool saveTranspose);
 	static float dotProduct(int n, float* a, float* b);
 	static void multiplyABC(int m, int n, int p, Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite);
 	static void multiplyAtBC(int m, int n, int p, Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite);

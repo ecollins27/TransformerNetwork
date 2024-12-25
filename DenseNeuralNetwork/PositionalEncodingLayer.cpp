@@ -4,7 +4,7 @@ PositionalEncodingLayer::PositionalEncodingLayer() {
 	L = 10000;
 }
 
-PositionalEncodingLayer::PositionalEncodingLayer(int L) {
+PositionalEncodingLayer::PositionalEncodingLayer(int L = 10000) {
 	this->L = L;
 }
 

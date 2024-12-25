@@ -8,9 +8,11 @@ public:
 	bool saveTranspose;
 	int batchSize;
 
-	MatrixBatch(bool saveTranspose);
+	MatrixBatch(){}
+	MatrixBatch(int batchSize);
+	MatrixBatch(Matrix2::FillFunction* fillFunction, int batchSize, int height, int width, bool saveTranspose);
 
 	float& operator()(int i, int j, int k);
-	void setBatchSize(Matrix2::FillFunction* fillFunction, int batchSize, int height, int width);
+	Matrix2& operator[](int i);
 };
 

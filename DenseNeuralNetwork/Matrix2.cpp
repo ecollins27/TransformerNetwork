@@ -31,6 +31,7 @@ Matrix2::Matrix2(float** matrix, float** matrixTrans) {
 }
 
 float& Matrix2::operator()(int i, int j) {
+	transposeUpdated = false;
 	return matrix[i][j];
 }
 
@@ -40,6 +41,7 @@ void Matrix2::calculateTranspose(int height, int width) {
 			matrixTrans[j][i] = matrix[i][j];
 		}
 	}
+	transposeUpdated = true;
 }
 
 void Matrix2::calculateMatrix(int height, int width) {
@@ -83,6 +85,41 @@ void Matrix2::print(int height, int width) {
 	}
 }
 
+Matrix2 Matrix2::subMatrix(int i, int j, int height, int width) {
+	Matrix2 sub;
+	sub.saveTranspose = saveTranspose;
+	sub.matrix = new float* [height];
+	for (int a = 0; a < height; a++) {
+		sub.matrix[a] = &matrix[i + a][j];
+	}
+	if (saveTranspose) {
+		sub.matrixTrans = new float* [width];
+		for (int a = 0; a < width; a++) {
+			sub.matrixTrans[a] = &matrix[j + a][i];
+		}
+	}
+	return sub;
+}
+
+Matrix2* Matrix2::allocateMatrixArray(Matrix2::FillFunction* fillFunction, int x1, int x2, int x3, bool saveTranspose) {
+	Matrix2* array = new Matrix2[x1];
+	for (int i = 0; i < x1; i++) {
+		array[i] = Matrix2(fillFunction, x2, x3, saveTranspose);
+	}
+	return array;
+}
+
+Matrix2** Matrix2::allocateMatrixArray2D(Matrix2::FillFunction* fillFunction, int x1, int x2, int x3, int x4, bool saveTranspose) {
+	Matrix2** array = new Matrix2 * [x1];
+	for (int i = 0; i < x1; i++) {
+		array[i] = new Matrix2[x2];
+		for (int j = 0; j < x2; j++) {
+			array[i][j] = Matrix2(fillFunction, x3, x4, saveTranspose);
+		}
+	}
+	return array;
+}
+
 float Matrix2::dotProduct(int n, float* a, float* b) {
 	int i, n8 = n >> 3 << 3;
 	__m128 vs1, vs2;
@@ -109,6 +146,8 @@ float Matrix2::dotProduct(int n, float* a, float* b) {
 void Matrix2::multiplyABC(int m, int n, int p, Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 	if (!B.saveTranspose) {
 		throw std::invalid_argument("B matrix must save transpose");
+	} if (!B.transposeUpdated) {
+		B.calculateTranspose(n, p);
 	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
@@ -128,6 +167,11 @@ void Matrix2::multiplyAtBC(int m, int n, int p, Matrix2& A, Matrix2& B, Matrix2&
 	} else if (!B.saveTranspose) {
 		throw std::invalid_argument("B matrix must save transpose");
 	}
+	if (!A.transposeUpdated) {
+		A.calculateTranspose(n, m);
+	} if (!B.transposeUpdated) {
+		B.calculateTranspose(n, p);
+	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
@@ -143,6 +187,8 @@ void Matrix2::multiplyAtBC(int m, int n, int p, Matrix2& A, Matrix2& B, Matrix2&
 void Matrix2::multiplyAtBtC(int m, int n, int p, Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 	if (!A.saveTranspose) {
 		throw std::invalid_argument("A matrix must save transpose");
+	} if (!A.transposeUpdated) {
+		A.calculateTranspose(n, m);
 	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {

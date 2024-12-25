@@ -7,6 +7,7 @@
 #include "BytePairTokenizer.h"
 #include <typeinfo>
 #include <thread>
+#include "Layer1D.h"
 
 using namespace std::chrono;
 

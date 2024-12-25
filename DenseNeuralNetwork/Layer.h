@@ -1,6 +1,10 @@
 #pragma once
-#include "Matrix.h"
 #include "TrainingParams.h"
+#include "Optimizer.h"
+#include "Activation.h"
+#include "Matrix3D.h"
+#include "MatrixBatch.h"
+#include "Matrix3DBatch.h"
 #include <fstream>
 
 class InputLayer;
@@ -13,57 +17,34 @@ public:
 	//includes bias
 	int prevSize;
 	int batchSize;
-	float** neurons;
-	float** neuronsTranspose;
-	float** neuronGradient;
-	bool trainable = true;
-	int maxBatchSize = -1;
+	int index;
 
-	Optimizer* optimizer;
-
-	Layer* prevLayer;
 	Layer* nextLayer;
 
-	virtual void propagateLayer() = 0;
-	virtual void predict() {
-		propagateLayer();
-		if (nextLayer != NULL) {
-			nextLayer->predict();
-		}
-	}
-	virtual void forwardPropagate() {
-		propagateLayer();
-		if (nextLayer != NULL) {
-			nextLayer->forwardPropagate();
-		}
-	}
-	virtual void backPropagate() = 0;
+	template<class T, class A>
+	bool instanceOf(A l);
 
+	virtual void propagateLayer(int num) = 0;
+	virtual void backPropagate(int num) = 0;
 	virtual void setPrevLayer(Layer* prevLayer) = 0;
+	virtual void setBatchSize(int batchSize) = 0;
+	virtual void save(ofstream& file) = 0;
+
+	virtual void predict(int num) {
+		propagateLayer(num);
+		if (nextLayer != NULL) {
+			nextLayer->predict(num);
+		}
+	}
+	virtual void forwardPropagate(int num) {
+		propagateLayer(num);
+		if (nextLayer != NULL) {
+			nextLayer->forwardPropagate(num);
+		}
+	}
+
 	virtual void setNextLayer(Layer* nextLayer) {
 		this->nextLayer = nextLayer;
-	}
-	virtual void setBatchSize(int batchSize) {
-		if (maxBatchSize > 0) {
-			this->batchSize = batchSize;
-		} else {
-			if (neurons != NULL) {
-				Matrix::deallocateMatrix(neurons, this->batchSize, size + 1);
-				Matrix::deallocateMatrix(neuronsTranspose, size + 1, this->batchSize);
-				Matrix::deallocateMatrix(neuronGradient, this->batchSize, size + 1);
-			}
-			this->batchSize = batchSize;
-			neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-			neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, batchSize);
-			neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, batchSize, size + 1);
-			for (int i = 0; i < batchSize; i++) {
-				neurons[i][size] = 1;
-				neuronGradient[i][size] = 0;
-			}
-		}
-		if (nextLayer != NULL) {
-			nextLayer->setBatchSize(batchSize);
-		}
 	}
 	virtual void applyGradients(float learningRate, int t) {
 		if (nextLayer != NULL) {
@@ -75,9 +56,6 @@ public:
 			nextLayer->setOptimizer(optimizer);
 		}
 	}
-	void setTrainable(bool trainable);
-
-	virtual void save(ofstream& file) = 0;
 	virtual int getNumParameters() {
 		if (nextLayer != NULL) {
 			return nextLayer->getNumParameters();
@@ -101,24 +79,5 @@ public:
 			nextLayer->summary();
 		}
 	}
-	virtual void setMaxBatchSize(int maxBatchSize) {
-		if (maxBatchSize > 0) {
-			if (neurons != NULL && batchSize > 0) {
-				Matrix::deallocateMatrix(neurons, this->maxBatchSize, size + 1);
-				Matrix::deallocateMatrix(neuronGradient, this->maxBatchSize, size + 1);
-				Matrix::deallocateMatrix(neuronsTranspose, size + 1, this->maxBatchSize);
-			}
-			this->maxBatchSize = maxBatchSize;
-			neurons = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size + 1);
-			neuronGradient = Matrix::allocateMatrix(Matrix::ZERO_FILL, maxBatchSize, size + 1);
-			neuronsTranspose = Matrix::allocateMatrix(Matrix::ZERO_FILL, size + 1, maxBatchSize);
-		} else {
-			this->maxBatchSize = maxBatchSize;
-		}
-		if (nextLayer != NULL) {
-			nextLayer->setMaxBatchSize(maxBatchSize);
-		}
-	}
-	int getLayerIndex();
 };
 

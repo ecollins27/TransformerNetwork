@@ -7,8 +7,10 @@ public:
 	Matrix3D* matrices;
 
 	Matrix3DBatch(){}
+	Matrix3DBatch(Matrix2::FillFunction* fillFunction, int batchSize, int depth, int height, int width);
 
 	float& operator()(int i, int j, int k, int l);
-	void setBatchSize(Matrix2::FillFunction* fillFunction, int batchSize, int depth, int height, int width);
+
+	Matrix3D& operator[](int i);
 };
 

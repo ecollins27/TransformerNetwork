@@ -5,18 +5,18 @@ ResidualAdd1D::ResidualAdd1D(ResidualSave1D* residualLayer) {
 }
 
 void ResidualAdd1D::propagateLayer(int num) {
-	Matrix2::elementAdd(batchSize, size, prevLayer->neurons, residual->neurons, neurons, 1, 1, true);
+	Matrix::elementAdd(batchSize, size, prevLayer->neurons, residual->neurons, neurons, 1, 1, true);
 }
 
 void ResidualAdd1D::backPropagate(int num) {
 	neuronGradient.copy(batchSize, size, prevLayer->neuronGradient);
 	prevLayer->backPropagate(num);
-	Matrix2::elementAdd(batchSize, size, neuronGradient, residual->neuronGradient, residual->neuronGradient, 1, 1, true);
+	Matrix::elementAdd(batchSize, size, neuronGradient, residual->neuronGradient, residual->neuronGradient, 1, 1, true);
 	residual->backPropagateWithResidual(num);
 }
 
 void ResidualAdd1D::setPrevLayer(Layer* prevLayer) {
-	if (!instanceOf<Layer1D*>(prevLayer)) {
+	if (!instanceOf<Layer1D>(prevLayer)) {
 		throw invalid_argument("Previous layer must be instance Layer1D");
 	}
 	index = prevLayer->index + 1;

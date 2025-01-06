@@ -1,22 +1,30 @@
 #pragma once
-#include "Layer.h"
 #include <fstream>
 #include "Activation.h"
-#include "Model.h"
-#include "BatchNormalization.h"
-#include "GatedLayer.h"
-#include "NeuralNetwork.h"
-#include "TransformerModel.h"
-#include "LayerNormalization.h"
-#include "MultiHeadAttentionLayer.h"
-#include "ResidualAdd.h"
-#include "ResidualSave.h"
-#include "PositionalEncodingLayer.h"
-#include "BatchMean.h"
+#include "BatchNormalization1D.h"
+#include "Dense1D.h"
+#include "Dropout1D.h"
+#include "Gated1D.h"
+#include "Input1D.h"
+#include "ResidualAdd1D.h"
+#include "ResidualSave1D.h"
+#include "SequenceMean.h"
+
+#include "Dense2D.h"
+#include "Dropout2D.h"
+#include "Gated2D.h"
+#include "Input2D.h"
+#include "LayerNormalization2D.h"
+#include "MultiHeadAttention.h"
+#include "PositionalEncoding2D.h"
+#include "ResidualAdd2D.h"
+#include "ResidualSave2D.h"
+#include "Model1D.h"
+#include "Model2D.h"
 
 class ModelParser {
 
 public:
-	static Model* parseModel(string fileName);
+	static void* parseModel(string fileName);
 };
 

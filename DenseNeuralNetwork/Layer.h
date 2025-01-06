@@ -3,8 +3,6 @@
 #include "Optimizer.h"
 #include "Activation.h"
 #include "Matrix3D.h"
-#include "MatrixBatch.h"
-#include "Matrix3DBatch.h"
 #include <fstream>
 
 class InputLayer;
@@ -21,8 +19,10 @@ public:
 
 	Layer* nextLayer;
 
-	template<class T, class A>
-	bool instanceOf(A l);
+	template<typename T, typename A>
+	static bool instanceOf(A l) {
+		return dynamic_cast<T*>(l) != NULL;
+	}
 
 	virtual void propagateLayer(int num) = 0;
 	virtual void backPropagate(int num) = 0;

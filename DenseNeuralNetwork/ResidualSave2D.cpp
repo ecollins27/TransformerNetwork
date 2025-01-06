@@ -1,7 +1,7 @@
 #include "ResidualSave2D.h"
 
 void ResidualSave2D::propagateLayer(int num) {
-	prevLayer->neurons[num].copy(numTokens, size, neurons[num]);
+	prevLayer->neurons[num].copy(numTokens[num], size, neurons[num]);
 }
 
 void ResidualSave2D::backPropagate(int num) {
@@ -9,7 +9,7 @@ void ResidualSave2D::backPropagate(int num) {
 }
 
 void ResidualSave2D::setPrevLayer(Layer* prevLayer) {
-	if (!instanceOf<Layer2D*>(prevLayer)) {
+	if (!instanceOf<Layer2D>(prevLayer)) {
 		throw invalid_argument("Previous layer must be instance Layer2D");
 	}
 	index = prevLayer->index + 1;

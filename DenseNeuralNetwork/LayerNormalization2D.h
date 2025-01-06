@@ -6,9 +6,9 @@ class LayerNormalization2D : public Layer2D {
 public:
 	Layer2D* prevLayer;
 
-	Matrix2 mean;
-	Matrix2 variance;
-	Matrix2 std;
+	Matrix mean;
+	Matrix variance;
+	Matrix std;
 
 	void propagateLayer(int num);
 	void backPropagate(int num);

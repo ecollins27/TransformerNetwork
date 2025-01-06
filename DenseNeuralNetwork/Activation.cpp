@@ -1,5 +1,4 @@
 #include "Activation.h"
-#include "DenseLayer.h"
 
 Activation* Activation::NONE{new None()};
 Activation* Activation::SIGMOID{ new Sigmoid() };
@@ -11,12 +10,12 @@ Activation* Activation::SWISH{ new Swish() };
 Activation* Activation::SOFTMAX{ new Softmax() };
 Activation* Activation::ALL_ACTIVATIONS[Activation::NUM_ACTIVATIONS] = {NONE, SIGMOID, RELU, ELU, SELU, TANH, SWISH, SOFTMAX };
 
-void None::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
+void None::operate(int batchSize, int size, Matrix input, Matrix output) {
 	input.copy(batchSize, size, output);
 	return;
 }
 
-void None::differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) {
+void None::differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			if (condenseGradient) {
@@ -32,7 +31,7 @@ Activation* None::clone() {
 	return { new None() };
 }
 
-void Sigmoid::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
+void Sigmoid::operate(int batchSize, int size, Matrix input, Matrix output) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float value = input(i, j);
@@ -41,7 +40,7 @@ void Sigmoid::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
 	}
 }
 
-void Sigmoid::differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) {
+void Sigmoid::differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float value = neurons(i, j);
@@ -58,7 +57,7 @@ Activation* Sigmoid::clone() {
 	return { new Sigmoid() };
 }
 
-void Relu::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
+void Relu::operate(int batchSize, int size, Matrix input, Matrix output) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float value = input(i, j);
@@ -72,7 +71,7 @@ void Relu::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
 	}
 }
 
-void Relu::differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) {
+void Relu::differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float& value = neurons(i, j);
@@ -95,7 +94,7 @@ Elu::Elu(float alpha) {
 	this->alpha = alpha;
 }
 
-void Elu::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
+void Elu::operate(int batchSize, int size, Matrix input, Matrix output) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float value = input(i, j);
@@ -109,7 +108,7 @@ void Elu::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
 	}
 }
 
-void Elu::differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) {
+void Elu::differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float& value = neurons(i, j);
@@ -131,7 +130,7 @@ void Elu::save(ofstream& file) {
 	file << "Elu" << "," << alpha << ",";
 }
 
-void Selu::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
+void Selu::operate(int batchSize, int size, Matrix input, Matrix output) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float value = input(i, j);
@@ -145,7 +144,7 @@ void Selu::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
 	}
 }
 
-void Selu::differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) {
+void Selu::differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float& value = neurons(i, j);
@@ -162,7 +161,7 @@ Activation* Selu::clone() {
 	return { new Selu() };
 }
 
-void Tanh::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
+void Tanh::operate(int batchSize, int size, Matrix input, Matrix output) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float value = input(i, j);
@@ -173,7 +172,7 @@ void Tanh::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
 	}
 }
 
-void Tanh::differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) {
+void Tanh::differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float& value = neurons(i, j);
@@ -190,7 +189,7 @@ Activation* Tanh::clone() {
 	return { new Tanh() };
 }
 
-void Swish::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
+void Swish::operate(int batchSize, int size, Matrix input, Matrix output) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			float value = input(i, j);
@@ -199,13 +198,13 @@ void Swish::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
 	}
 }
 
-void Swish::differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) {
+void Swish::differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			if (condenseGradient) {
-				activationGradient(0, i, j) = activations(i, j) == 0? 0.5:(neurons(i, j) * (activations(i, j) - neurons(i, j) + 1) / activations(i, j));
+				activationGradient(0, i, j) = activations(i, j) == 0 ? 0.5 : ((neurons(i, j) * (activations(i, j) - neurons(i, j) + 1) / activations(i, j)));
 			} else {
-				activationGradient(i, j, j) = activations(i, j) == 0 ? 0.5 : (neurons(i, j) * (activations(i, j) - neurons(i, j) + 1) / activations(i, j));
+				activationGradient(i, j, j) = activations(i, j) == 0 ? 0.5 : ((neurons(i, j) * (activations(i, j) - neurons(i, j) + 1) / activations(i, j)));
 			}
 		}
 	}
@@ -215,7 +214,7 @@ Activation* Swish::clone() {
 	return { new Swish() };
 }
 
-void Softmax::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
+void Softmax::operate(int batchSize, int size, Matrix input, Matrix output) {
 	for (int i = 0; i < batchSize; i++) {
 		int max = INT_MIN;
 		for (int j = 0; j < size; j++) {
@@ -225,7 +224,7 @@ void Softmax::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
 		}
 		float sum = 0;
 		for (int j = 0; j < size; j++) {
-			output(i, j) = exp(output(i, j) - max + 16);
+			output(i, j) = exp(input(i, j) - max + 10);
 			sum += output(i, j);
 		}
 		for (int j = 0; j < size; j++) {
@@ -234,7 +233,7 @@ void Softmax::operate(int batchSize, int size, Matrix2 input, Matrix2 output) {
 	}
 }
 
-void Softmax::differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) {
+void Softmax::differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			for (int k = 0; k < size; k++) {

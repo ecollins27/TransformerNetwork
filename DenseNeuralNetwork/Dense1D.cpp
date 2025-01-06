@@ -6,27 +6,25 @@ Dense1D::Dense1D(Activation* activation, int size) {
 }
 
 void Dense1D::propagateLayer(int num) {
-	Matrix2::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, linearCombo, true);
+	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, linearCombo, true);
 	activation->operate(batchSize, size, linearCombo, neurons);
 }
 
 void Dense1D::backPropagate(int num) {
 	activation->differentiate(batchSize, size, linearCombo, neurons, activationGradient);
 	if (activation->isDiagonal()) {
-		Matrix2::elementMultiply(batchSize, size, neuronGradient, activationGradientMatrix, backPropIntermediate, true);
+		Matrix::elementMultiply(batchSize, size, neuronGradient, activationGradientMatrix, backPropIntermediate, true);
 	}
 	else {
 		Matrix3D::matrixTensorMultiply(batchSize, size, size, neuronGradient, activationGradient, backPropIntermediate, true);
 	}
-	Matrix2::multiplyABC(batchSize, size, prevSize, backPropIntermediate, weights, prevLayer->neuronGradient, true);
-	backPropIntermediate.calculateTranspose(batchSize, size);
-	prevLayer->neurons.calculateTranspose(batchSize, prevSize - 1);
-	Matrix2::multiplyAtBC(size, batchSize, prevSize, backPropIntermediate, prevLayer->neurons, weightGradient, true);
+	Matrix::multiplyABC(batchSize, size, prevSize, backPropIntermediate, weights, prevLayer->neuronGradient, true);
+	Matrix::multiplyAtBC(size, batchSize, prevSize, backPropIntermediate, prevLayer->neurons, weightGradient, true);
 	prevLayer->backPropagate(num);
 }
 
 void Dense1D::setPrevLayer(Layer* prevLayer) {
-	if (!instanceOf<Layer1D*>(prevLayer)) {
+	if (!instanceOf<Layer1D>(prevLayer)) {
 		throw invalid_argument("Previous layer must be instance Layer1D");
 	}
 	index = prevLayer->index + 1;
@@ -39,19 +37,19 @@ void Dense1D::setPrevLayer(Layer* prevLayer) {
 	else if (instanceOf<Selu>(activation)) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
-	weights = Matrix2(new Matrix2::NormalFill(0, stdDeviation), size, prevSize, true);
+	weights = Matrix(new Matrix::NormalFill(0, stdDeviation), size, prevSize, true);
 }
 
 void Dense1D::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
-	linearCombo = Matrix2(Matrix2::ZERO_FILL, batchSize, size + 1, false);
-	backPropIntermediate = Matrix2(Matrix2::ZERO_FILL, batchSize, size, true);
+	linearCombo = Matrix(Matrix::ZERO_FILL, batchSize, size + 1, false);
+	backPropIntermediate = Matrix(Matrix::ZERO_FILL, batchSize, size, true);
 	if (activation->isDiagonal()) {
-		activationGradient = Matrix3D(Matrix2::ZERO_FILL, 1, batchSize, size);
-		activationGradientMatrix = Matrix2(activationGradient.matrix[0], NULL);
+		activationGradient = Matrix3D(Matrix::ZERO_FILL, 1, batchSize, size);
+		activationGradientMatrix = Matrix(activationGradient.matrix[0], NULL);
 	}
 	else {
-		activationGradient = Matrix3D(Matrix2::ZERO_FILL, batchSize, size, size);
+		activationGradient = Matrix3D(Matrix::ZERO_FILL, batchSize, size, size);
 	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
@@ -75,7 +73,6 @@ void Dense1D::save(ofstream& file) {
 
 void Dense1D::applyGradients(float learningRate, int t) {
 	optimizer->applyGradient(weights, t, learningRate, batchSize);
-	weights.calculateTranspose(size, prevSize);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);
 	}

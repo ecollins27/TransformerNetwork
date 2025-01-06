@@ -7,6 +7,7 @@ BatchNormalization1D::BatchNormalization1D(float momentum) {
 void BatchNormalization1D::propagateLayer(int num) {
 	for (int j = 0; j < size; j++) {
 		float& meanSum = batchMean(0, j);
+		meanSum = 0;
 		for (int i = 0; i < batchSize; i++) {
 			meanSum += prevLayer->neurons(i, j);
 		}
@@ -14,6 +15,7 @@ void BatchNormalization1D::propagateLayer(int num) {
 		mean(0, j) = momentum * mean(0, j) + (1 - momentum) * meanSum;
 
 		float& varianceSum = batchVariance(0, j);
+		varianceSum = 0;
 		for (int i = 0; i < batchSize; i++) {
 			varianceSum += (prevLayer->neurons(i, j) - meanSum) * (prevLayer->neurons(i, j) - meanSum);
 		}
@@ -34,16 +36,16 @@ void BatchNormalization1D::propagateLayer(int num) {
 
 void BatchNormalization1D::backPropagate(int num) {
 	float c = (1 - momentum) / batchSize;
-	prevLayer->neuronGradient.fill(Matrix2::ZERO_FILL, batchSize, size);
+	prevLayer->neuronGradient.fill(Matrix::ZERO_FILL, batchSize, size);
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			parameterGradient(0, j) += neuronGradient(i, j);
 			if (std(0, j) != 0) {
 				parameterGradient(1, j) += (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
 				for (int k = 0; k < batchSize; k++) {
-					float grad = ((k == i ? 1 : 0) - c) - c * (prevLayer->neurons(k, j) - batchMean(0, j)) * (prevLayer->neurons(i, j) - mean(0, j)) / variance(0, j);
+					float grad = ((k == i ? 1 : 0) - c) - c * (prevLayer->neurons(i, j) - batchMean(0, j)) * (prevLayer->neurons(k, j) - mean(0, j)) / variance(0, j);
 					grad /= std(0, j);
-					prevLayer->neuronGradient(k, j) += parameters(1, j) * neuronGradient(k, j) * grad;
+					prevLayer->neuronGradient(i, j) += parameters(1, j) * neuronGradient(k, j) * grad;
 				}
 			}
 		}
@@ -52,19 +54,19 @@ void BatchNormalization1D::backPropagate(int num) {
 }
 
 void BatchNormalization1D::setPrevLayer(Layer* prevLayer) {
-	if (!instanceOf<Layer1D*>(prevLayer)) {
+	if (!instanceOf<Layer1D>(prevLayer)) {
 		throw invalid_argument("Previous layer must be instance Layer1D");
 	}
 	index = prevLayer->index + 1;
 	this->prevLayer = (Layer1D*)prevLayer;
 	size = prevLayer->size;
 	prevSize = size + 1;
-	parameters = Matrix2(Matrix2::UNIT_NORMAL_FILL, 2, size, false);
-	mean = Matrix2(Matrix2::ZERO_FILL, 1, size, false);
-	batchMean = Matrix2(Matrix2::ZERO_FILL, 1, size, false);
-	variance = Matrix2(Matrix2::ZERO_FILL, 1, size, false);
-	batchVariance = Matrix2(Matrix2::ZERO_FILL, 1, size, false);
-	std = Matrix2(Matrix2::ZERO_FILL, 1, size, false);
+	parameters = Matrix(Matrix::UNIT_NORMAL_FILL, 2, size, false);
+	mean = Matrix(Matrix::ZERO_FILL, 1, size, false);
+	batchMean = Matrix(Matrix::ZERO_FILL, 1, size, false);
+	variance = Matrix(Matrix::ZERO_FILL, 1, size, false);
+	batchVariance = Matrix(Matrix::ZERO_FILL, 1, size, false);
+	std = Matrix(Matrix::ZERO_FILL, 1, size, false);
 }
 
 void BatchNormalization1D::setBatchSize(int batchSize) {

@@ -6,12 +6,12 @@ class Dense2D : public Layer2D {
 public:
 	Layer2D* prevLayer;
 
-	Matrix2 weights;
-	MatrixBatch weightGradient;
-	MatrixBatch linearCombo;
-	Matrix3DBatch activationGradient;
-	MatrixBatch activationGradientMatrix;
-	MatrixBatch backPropIntermediate;
+	Matrix weights;
+	Matrix* weightGradient;
+	Matrix* linearCombo;
+	Matrix3D* activationGradient;
+	Matrix* activationGradientMatrix;
+	Matrix* backPropIntermediate;
 
 	Activation* activation;
 	Optimizer* optimizer;

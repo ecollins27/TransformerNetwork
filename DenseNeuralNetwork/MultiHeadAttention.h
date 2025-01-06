@@ -8,32 +8,32 @@ public:
 
 	int numHeads, keySize, valueSize;
 
-	Matrix2* Wq;
-	Matrix2** WqGrad;
-	Matrix2* Wk;
-	Matrix2** WkGrad;
-	Matrix2* Wv;
-	Matrix2** WvGrad;
-	Matrix2 Wo;
-	Matrix2* WoGrad;
+	Matrix* Wq;
+	Matrix** WqGrad;
+	Matrix* Wk;
+	Matrix** WkGrad;
+	Matrix* Wv;
+	Matrix** WvGrad;
+	Matrix Wo;
+	Matrix* WoGrad;
 
-	Matrix2** Q;
-	Matrix2** QGrad;
-	Matrix2** K;
-	Matrix2** KGrad;
-	Matrix2** V;
-	Matrix2** VGrad;
+	Matrix** Q;
+	Matrix** QGrad;
+	Matrix** K;
+	Matrix** KGrad;
+	Matrix** V;
+	Matrix** VGrad;
 
-	Matrix2** A;
-	Matrix2** AGrad;
+	Matrix** A;
+	Matrix** AGrad;
 
-	Matrix2** Ao;
-	Matrix2** AoGrad;
+	Matrix** Ao;
+	Matrix** AoGrad;
 
-	Matrix2* Ac;
-	Matrix2** AcSub;
-	Matrix2* AcGrad;
-	Matrix2* AcSubGrad;
+	Matrix* Ac;
+	Matrix** AcSub;
+	Matrix* AcGrad;
+	Matrix** AcSubGrad;
 
 	Matrix3D** activationGradients;
 

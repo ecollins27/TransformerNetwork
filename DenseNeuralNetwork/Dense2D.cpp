@@ -6,28 +6,26 @@ Dense2D::Dense2D(Activation* activation, int size) {
 }
 
 void Dense2D::propagateLayer(int num) {
-	Matrix2::multiplyABtC(numTokens, prevSize, size, prevLayer->neurons[num], weights, linearCombo[num], true);
-	activation->operate(numTokens, size, linearCombo[num], neurons[num]);
+	Matrix::multiplyABtC(numTokens[num], prevSize, size, prevLayer->neurons[num], weights, linearCombo[num], true);
+	activation->operate(numTokens[num], size, linearCombo[num], neurons[num]);
 }
 
 void Dense2D::backPropagate(int num) {
-	activation->differentiate(numTokens, size, linearCombo[num], neurons[num], activationGradient[num]);
+	activation->differentiate(numTokens[num], size, linearCombo[num], neurons[num], activationGradient[num]);
 	if (activation->isDiagonal()) {
-		Matrix2::elementMultiply(numTokens, size, neuronGradient[num], activationGradientMatrix[num], backPropIntermediate[num], true);
+		Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], activationGradientMatrix[num], backPropIntermediate[num], true);
 	}
 	else {
-		Matrix3D::matrixTensorMultiply(numTokens, size, size, neuronGradient[num], activationGradient[num], backPropIntermediate[num], true);
+		Matrix3D::matrixTensorMultiply(numTokens[num], size, size, neuronGradient[num], activationGradient[num], backPropIntermediate[num], true);
 	}
-	Matrix2::multiplyABC(numTokens, size, prevSize, backPropIntermediate[num], weights, prevLayer->neuronGradient[num], true);
-	backPropIntermediate[num].calculateTranspose(numTokens, size);
-	prevLayer->neurons[num].calculateTranspose(numTokens, prevSize - 1);
-	Matrix2::multiplyAtBC(size, numTokens, prevSize, backPropIntermediate[num], prevLayer->neurons[num], weightGradient[num], true);
+	Matrix::multiplyABC(numTokens[num], size, prevSize, backPropIntermediate[num], weights, prevLayer->neuronGradient[num], true);
+	Matrix::multiplyAtBC(size, numTokens[num], prevSize, backPropIntermediate[num], prevLayer->neurons[num], weightGradient[num], true);
 	optimizer->addGradient(weightGradient[num]);
 	prevLayer->backPropagate(num);
 }
 
 void Dense2D::setPrevLayer(Layer* prevLayer) {
-	if (!instanceOf<Layer2D*>(prevLayer)) {
+	if (!instanceOf<Layer2D>(prevLayer)) {
 		throw invalid_argument("Previous layer must be instance Layer2D");
 	}
 	index = prevLayer->index + 1;
@@ -40,23 +38,23 @@ void Dense2D::setPrevLayer(Layer* prevLayer) {
 	else if (instanceOf<Selu>(activation)) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
-	weights = Matrix2(new Matrix2::NormalFill(0, stdDeviation), size, prevSize, true);
+	weights = Matrix(new Matrix::NormalFill(0, stdDeviation), size, prevSize, true);
 }
 
 void Dense2D::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	weightGradient = MatrixBatch(Matrix2::ZERO_FILL, batchSize, size, prevSize, false);
-	linearCombo = MatrixBatch(Matrix2::ZERO_FILL, batchSize, maxNumTokens, size + 1, false);
-	backPropIntermediate = MatrixBatch(Matrix2::ZERO_FILL, batchSize, maxNumTokens, size, true);
+	weightGradient = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, prevSize, false);
+	linearCombo = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size + 1, false);
+	backPropIntermediate = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, true);
 	if (activation->isDiagonal()) {
-		activationGradient = Matrix3DBatch(Matrix2::ZERO_FILL, batchSize, 1, maxNumTokens, size);
-		activationGradientMatrix = MatrixBatch(batchSize);
+		activationGradient = Matrix3D::allocateMatrix3DArray(Matrix::ZERO_FILL, batchSize, 1, maxNumTokens, size);
+		activationGradientMatrix = new Matrix[batchSize];
 		for (int i = 0; i < batchSize; i++) {
-			activationGradientMatrix[i] = Matrix2(activationGradient[i].matrix[0], NULL);
+			activationGradientMatrix[i] = Matrix(activationGradient[i].matrix[0], NULL);
 		}
 	}
 	else {
-		activationGradient = Matrix3DBatch(Matrix2::ZERO_FILL, batchSize, maxNumTokens, size, size);
+		activationGradient = Matrix3D::allocateMatrix3DArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, size);
 	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);

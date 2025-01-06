@@ -2,7 +2,7 @@
 #include "Optimizer.h"
 
 
-TrainingParams* TrainingParams::DEFAULT = { new TrainingParams(0.0001, 32, 10, 0.1, Optimizer::ADEMAMIX) };
+TrainingParams* TrainingParams::DEFAULT = { new TrainingParams(0.00001, 32, 10, 0.1, Optimizer::ADEMAMIX) };
 
 
 TrainingParams::TrainingParams(float learningRate, int batchSize, int numEpochs, float valSplit, Optimizer* optimizer) {

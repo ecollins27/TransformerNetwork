@@ -6,12 +6,12 @@ class Dense1D : public Layer1D {
 public:
 	Layer1D* prevLayer;
 
-	Matrix2 weights;
-	Matrix2 weightGradient;
-	Matrix2 linearCombo;
+	Matrix weights;
+	Matrix weightGradient;
+	Matrix linearCombo;
 	Matrix3D activationGradient;
-	Matrix2 activationGradientMatrix;
-	Matrix2 backPropIntermediate;
+	Matrix activationGradientMatrix;
+	Matrix backPropIntermediate;
 
 	Activation* activation;
 	Optimizer* optimizer;

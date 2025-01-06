@@ -4,8 +4,6 @@
 #include <climits>
 #include "Matrix3D.h"
 
-class DenseLayer;
-
 class Activation {
 	public:
 		const static int NUM_ACTIVATIONS = 8;
@@ -20,8 +18,8 @@ class Activation {
 		static Activation* ALL_ACTIVATIONS[NUM_ACTIVATIONS];
 
 		bool condenseGradient = true;
-		virtual void operate(int batchSize, int size, Matrix2 input, Matrix2 output) = 0;
-		virtual void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient) = 0;
+		virtual void operate(int batchSize, int size, Matrix input, Matrix output) = 0;
+		virtual void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient) = 0;
 		virtual Activation* clone() = 0;
 		virtual bool isDiagonal() { return true; };
 		virtual void save(ofstream& file) {
@@ -34,24 +32,24 @@ class Activation {
 class None : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix2 input, Matrix2 output);
-	void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient);
+	void operate(int batchSize, int size, Matrix input, Matrix output);
+	void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient);
 	Activation* clone();
 };
 
 class Sigmoid : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix2 input, Matrix2 output);
-	void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient);
+	void operate(int batchSize, int size, Matrix input, Matrix output);
+	void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient);
 	Activation* clone();
 };
 
 class Relu : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix2 input, Matrix2 output);
-	void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient);
+	void operate(int batchSize, int size, Matrix input, Matrix output);
+	void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient);
 	Activation* clone();
 };
 
@@ -60,40 +58,40 @@ class Elu : public Activation {
 public:
 	float alpha;
 	Elu(float alpha);
-	void operate(int batchSize, int size, Matrix2 input, Matrix2 output);
-	void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient);
+	void operate(int batchSize, int size, Matrix input, Matrix output);
+	void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient);
 	Activation* clone();
 	void save(ofstream& file);
 };
 
 class Selu : public Activation {
 public:
-	void operate(int batchSize, int size, Matrix2 input, Matrix2 output);
-	void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient);
+	void operate(int batchSize, int size, Matrix input, Matrix output);
+	void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient);
 	Activation* clone();
 };
 
 class Tanh : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix2 input, Matrix2 output);
-	void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient);
+	void operate(int batchSize, int size, Matrix input, Matrix output);
+	void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient);
 	Activation* clone();
 };
 
 class Swish : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix2 input, Matrix2 output);
-	void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient);
+	void operate(int batchSize, int size, Matrix input, Matrix output);
+	void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient);
 	Activation* clone();
 };
 
 class Softmax : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix2 input, Matrix2 output);
-	void differentiate(int batchSize, int size, Matrix2 activations, Matrix2 neurons, Matrix3D activationGradient);
+	void operate(int batchSize, int size, Matrix input, Matrix output);
+	void differentiate(int batchSize, int size, Matrix activations, Matrix neurons, Matrix3D activationGradient);
 	Activation* clone();
 	bool isDiagonal();
 };

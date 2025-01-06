@@ -37,7 +37,7 @@ void Dropout1D::backPropagate(int num) {
 }
 
 void Dropout1D::setPrevLayer(Layer* prevLayer) {
-	if (!instanceOf<Layer1D*>(prevLayer)) {
+	if (!instanceOf<Layer1D>(prevLayer)) {
 		throw invalid_argument("Previous layer must be instance Layer1D");
 	}
 	index = prevLayer->index + 1;
@@ -52,8 +52,11 @@ void Dropout1D::setBatchSize(int batchSize) {
 	for (int i = 0; i < batchSize; i++) {
 		dropped[i] = new bool[size];
 		for (int j = 0; j < size; j++) {
-			dropped[i] = false;
+			dropped[i][j] = false;
 		}
+	}
+	if (nextLayer != NULL) {
+		nextLayer->setBatchSize(batchSize);
 	}
 }
 

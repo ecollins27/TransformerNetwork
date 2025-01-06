@@ -4,22 +4,23 @@
 class Layer2D : public Layer {
 
 public:
-	int numTokens, maxNumTokens;
+	int maxNumTokens;
+	int* numTokens;
 
-	MatrixBatch neurons;
-	MatrixBatch neuronGradient;
+	Matrix* neurons;
+	Matrix* neuronGradient;
 
-	virtual void setNumTokens(int numTokens) {
+	virtual void setNumTokens(int* numTokens) {
 		this->numTokens = numTokens;
-		if (nextLayer != NULL && instanceOf<Layer2D*>(nextLayer)){
+		if (nextLayer != NULL && instanceOf<Layer2D>(nextLayer)){
 			((Layer2D*)nextLayer)->setNumTokens(numTokens);
 		}
 	}
 
 	virtual void setMaxNumTokens(int maxNumTokens) {
 		this->maxNumTokens = maxNumTokens;
-		if (nextLayer != NULL && instanceOf<Layer2D*>(nextLayer)) {
-			((Layer2D*)nextLayer)->setMaxNumTokens(numTokens);
+		if (nextLayer != NULL && instanceOf<Layer2D>(nextLayer)) {
+			((Layer2D*)nextLayer)->setMaxNumTokens(maxNumTokens);
 		}
 	}
 

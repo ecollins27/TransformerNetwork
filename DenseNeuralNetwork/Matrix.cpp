@@ -4,106 +4,119 @@ Matrix::FillFunction* Matrix::ZERO_FILL{ new ConstantFill(0) };
 Matrix::FillFunction* Matrix::UNIT_NORMAL_FILL{ new NormalFill(0,1) };
 Matrix::FillFunction* Matrix::UNIT_UNIFORM_FILL{ new UniformFill(0,1) };
 
-float Matrix::rowRowDotProduct(int n, float* x, float* y) {
-	int i, n8 = n >> 3 << 3;
-	__m128 vs1, vs2;
-	float s, t[4];
-	vs1 = _mm_setzero_ps();
-	vs2 = _mm_setzero_ps();
-	for (i = 0; i < n8; i += 8) {
-		__m128 vx1, vx2, vy1, vy2;
-		vx1 = _mm_loadu_ps(&x[i]);
-		vx2 = _mm_loadu_ps(&x[i + 4]);
-		vy1 = _mm_loadu_ps(&y[i]);
-		vy2 = _mm_loadu_ps(&y[i + 4]);
-		vs1 = _mm_add_ps(vs1, _mm_mul_ps(vx1, vy1));
-		vs2 = _mm_add_ps(vs2, _mm_mul_ps(vx2, vy2));
-	}
-	for (s = 0.0f; i < n; ++i) s += x[i] * y[i];
-	_mm_storeu_ps(t, vs1);
-	s += t[0] + t[1] + t[2] + t[3];
-	_mm_storeu_ps(t, vs2);
-	s += t[0] + t[1] + t[2] + t[3];
-	return s;
-}
-
-float Matrix::rowColumnDotProduct(int n, float* x, float** Y, int column) {
-	int i, n8 = n >> 3 << 3;
-	__m128 vs;
-	float s, t[4];
-	vs = _mm_setzero_ps();
-	for (i = 0; i < n8; i += 8) {
-		__m128 vx1, vx2, vy1, vy2;
-		vx1 = _mm_loadu_ps(&x[i]);
-		vx2 = _mm_loadu_ps(&x[i + 4]);
-		vy1 = _mm_set_ps(Y[i + 3][column], Y[i + 2][column], Y[i + 1][column], Y[i][column]);
-		vy2 = _mm_set_ps(Y[i + 7][column], Y[i + 6][column], Y[i + 5][column], Y[i + 4][column]);
-		vs = _mm_add_ps(vs, _mm_mul_ps(vx1, vy1));
-		vs = _mm_add_ps(vs, _mm_mul_ps(vx2, vy2));
-	}
-	for (s = 0.0f; i < n; i++) {
-		s += x[i] * Y[i][column];
-	}
-	_mm_storeu_ps(t, vs);
-	s += t[0] + t[1] + t[2] + t[3];
-	return s;
-}
-
-float** Matrix::allocateMatrix(FillFunction* fillFunction, int height, int width) {
-	float** matrix = (float**)malloc(height * sizeof(float*));
+Matrix::Matrix(FillFunction* fillFunction, int height, int width, bool saveTranspose) {
+	this->saveTranspose = saveTranspose;
+	matrix = new float* [height];
 	for (int i = 0; i < height; i++) {
-		matrix[i] = (float*)malloc(width * sizeof(float));
+		matrix[i] = new float[width];
 		for (int j = 0; j < width; j++) {
-			matrix[i][j] = fillFunction->get();
+			matrix[i][j] = fillFunction->operator()();
 		}
 	}
-	return matrix;
-}
-
-float*** Matrix::allocate3DMatrix(FillFunction* fillFunction, int d1, int d2, int d3) {
-	float*** array = (float***)malloc(d1 * sizeof(float**));
-	for (int i = 0; i < d1; i++) {
-		array[i] = allocateMatrix(fillFunction, d2, d3);
+	if (saveTranspose) {
+		matrixTrans = new float* [width];
+		for (int i = 0; i < width; i++) {
+			matrixTrans[i] = new float[height];
+			for (int j = 0; j < height; j++) {
+				matrixTrans[i][j] = matrix[j][i];
+			}
+		}
 	}
-	return array;
 }
 
-float**** Matrix::allocate4DMatrix(FillFunction* fillFunction, int d1, int d2, int d3, int d4){
-	float**** array = (float****)malloc(d1 * sizeof(float***));
-	for (int i = 0; i < d1; i++) {
-		array[i] = allocate3DMatrix(fillFunction, d2, d3, d4);
-	}
-	return array;
+Matrix::Matrix(float** matrix, float** matrixTrans) {
+	this->matrix = matrix;
+	this->matrixTrans = matrixTrans;
+	saveTranspose = matrixTrans != NULL;
 }
 
-void Matrix::deallocateMatrix(float** A, int height, int width) {
-	for (int i = 0; i < height; i++) {
-		free(A[i]);
-	}
-	free(A);
+float& Matrix::operator()(int i, int j) {
+	transposeUpdated = false;
+	return matrix[i][j];
 }
 
-void Matrix::deallocate3DMatrix(float*** A, int d1, int d2, int d3) {
-	for (int i = 0; i < d1; i++) {
-		deallocateMatrix(A[i], d2, d3);
-	}
-	free(A);
-}
-
-void Matrix::deallocate4DMatrix(float**** A, int d1, int d2, int d3, int d4) {
-	for (int i = 0; i < d1; i++) {
-		deallocate3DMatrix(A[i], d2, d3, d4);
-	}
-	free(A);
-}
-
-bool Matrix::containsNaN(int height, int width, float** A) {
+void Matrix::calculateTranspose(int height, int width) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
-			if (A[i][j] != A[i][j]) {
-				return true;
-			}
-			else if (isinf(A[i][j])) {
+			matrixTrans[j][i] = matrix[i][j];
+		}
+	}
+	transposeUpdated = true;
+}
+
+void Matrix::calculateMatrix(int height, int width) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			matrix[i][j] = matrixTrans[j][i];
+		}
+	}
+}
+
+void Matrix::scale(int height, int width, float c) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			matrix[i][j] *= c;
+		}
+	}
+}
+
+void Matrix::copy(int height, int width, Matrix& to) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			to.matrix[i][j] = matrix[i][j];
+		}
+	}
+	to.transposeUpdated = false;
+}
+
+void Matrix::fill(FillFunction* fillFunction, int height, int width) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			matrix[i][j] = fillFunction->operator()();
+		}
+	}
+}
+
+void Matrix::print(int height, int width) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			printf("%f ", matrix[i][j]);
+		}
+		printf("\n");
+	}
+}
+
+Matrix Matrix::subMatrix(int i, int j, int height, int width) {
+	Matrix sub;
+	sub.saveTranspose = saveTranspose;
+	sub.matrix = new float* [height];
+	for (int a = 0; a < height; a++) {
+		sub.matrix[a] = &matrix[i + a][j];
+	}
+	if (saveTranspose) {
+		sub.matrixTrans = new float* [width];
+		for (int a = 0; a < width; a++) {
+			sub.matrixTrans[a] = &matrix[j + a][i];
+		}
+	}
+	return sub;
+}
+
+float** Matrix::allocateMatrix(Matrix::FillFunction* fillFunction, int height, int width) {
+	float** array = new float* [height];
+	for (int i = 0; i < height; i++) {
+		array[i] = new float[width];
+		for (int j = 0; j < width; j++) {
+			array[i][j] = fillFunction->operator()();
+		}
+	}
+	return array;
+}
+
+bool Matrix::containsIllegalValue(int height, int width) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			if (matrix[i][j] != matrix[i][j] || isinf(matrix[i][j])) {
 				return true;
 			}
 		}
@@ -111,174 +124,166 @@ bool Matrix::containsNaN(int height, int width, float** A) {
 	return false;
 }
 
-void Matrix::add(int m, int n, float** A, float** B, float** C, float scalar1, float scalar2) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			C[i][j] = scalar1 * A[i][j] + scalar2 * B[i][j];
-		}
+float*** Matrix::allocateMatrix3D(Matrix::FillFunction* fillFunction, int depth, int height, int width) {
+	float*** array = new float** [depth];
+	for (int i = 0; i < depth; i++) {
+		array[i] = allocateMatrix(fillFunction, height, width);
 	}
+	return array;
 }
 
-void Matrix::scale(int m, int n, float** A, float scalar) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			A[i][j] *= scalar;
-		}
+Matrix* Matrix::allocateMatrixArray(Matrix::FillFunction* fillFunction, int x1, int x2, int x3, bool saveTranspose) {
+	Matrix* array = new Matrix[x1];
+	for (int i = 0; i < x1; i++) {
+		array[i] = Matrix(fillFunction, x2, x3, saveTranspose);
 	}
+	return array;
 }
 
-void Matrix::transpose(int m, int n, float** A, float** At) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			At[j][i] = A[i][j];
+Matrix** Matrix::allocateMatrixArray2D(Matrix::FillFunction* fillFunction, int x1, int x2, int x3, int x4, bool saveTranspose) {
+	Matrix** array = new Matrix * [x1];
+	for (int i = 0; i < x1; i++) {
+		array[i] = new Matrix[x2];
+		for (int j = 0; j < x2; j++) {
+			array[i][j] = Matrix(fillFunction, x3, x4, saveTranspose);
 		}
 	}
+	return array;
 }
 
-void Matrix::transposeInPlace(int m, float** A) {
-	float temp;
-	for (int i = 0; i < m; i++) {
-		for (int j = i + 1; j < m; j++) {
-			temp = A[i][j];
-			A[i][j] = A[j][i];
-			A[j][i] = temp;
-		}
+float Matrix::dotProduct(int n, float* a, float* b) {
+	int i, n8 = n >> 3 << 3;
+	__m128 vs1, vs2;
+	float s, t[4];
+	vs1 = _mm_setzero_ps();
+	vs2 = _mm_setzero_ps();
+	for (i = 0; i < n8; i += 8) {
+		__m128 vx1, vx2, vy1, vy2;
+		vx1 = _mm_loadu_ps(&a[i]);
+		vx2 = _mm_loadu_ps(&a[i + 4]);
+		vy1 = _mm_loadu_ps(&b[i]);
+		vy2 = _mm_loadu_ps(&b[i + 4]);
+		vs1 = _mm_add_ps(vs1, _mm_mul_ps(vx1, vy1));
+		vs2 = _mm_add_ps(vs2, _mm_mul_ps(vx2, vy2));
 	}
+	for (s = 0.0f; i < n; ++i) s += a[i] * b[i];
+	_mm_storeu_ps(t, vs1);
+	s += t[0] + t[1] + t[2] + t[3];
+	_mm_storeu_ps(t, vs2);
+	s += t[0] + t[1] + t[2] + t[3];
+	return s;
 }
 
-void Matrix::naiveMatrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
+void Matrix::multiplyABC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
+	if (!B.saveTranspose) {
+		throw std::invalid_argument("B matrix must save transpose");
+	} if (!B.transposeUpdated) {
+		B.calculateTranspose(n, p);
+	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[i][j] = 0;
-			}
-			for (int k = 0; k < n; k++) {
-				C[i][j] += A[i][k] * B[k][j];
-			}
-		}
-	}
-}
-
-void Matrix::matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < p; j++) {
-			if (overwrite) {
-				C[i][j] = rowColumnDotProduct(n, A[i], B, j);
+				C(i, j) = dotProduct(n, A.matrix[i], B.matrixTrans[j]);
 			}
 			else {
-				C[i][j] += rowColumnDotProduct(n, A[i], B, j);
+				C(i, j) += dotProduct(n, A.matrix[i], B.matrixTrans[j]);
 			}
 		}
 	}
 }
 
-void Matrix::matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < p; j++) {
-			if (overwrite) {
-				C[i][j] = 0;
-			}
-			for (int k = 0; k < n; k++) {
-				C[i][j] += A[k][i] * B[k][j];
-			}
-		}
+void Matrix::multiplyAtBC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
+	if (!A.saveTranspose) {
+		throw std::invalid_argument("A matrix must save transpose");
+	} else if (!B.saveTranspose) {
+		throw std::invalid_argument("B matrix must save transpose");
 	}
-}
-
-void Matrix::subMatrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite, int startY) {
+	if (!A.transposeUpdated) {
+		A.calculateTranspose(n, m);
+	} if (!B.transposeUpdated) {
+		B.calculateTranspose(n, p);
+	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[i][j] = rowRowDotProduct(n, &A[i][startY], B[j]);
+				C(i, j) = dotProduct(n, A.matrixTrans[i], B.matrixTrans[j]);
 			}
 			else {
-				C[i][j] += rowRowDotProduct(n, &A[i][startY], B[j]);
+				C(i, j) += dotProduct(n, A.matrixTrans[i], B.matrixTrans[j]);
 			}
 		}
 	}
 }
 
-void Matrix::matrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite){
+void Matrix::multiplyAtBtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
+	if (!A.saveTranspose) {
+		throw std::invalid_argument("A matrix must save transpose");
+	} if (!A.transposeUpdated) {
+		A.calculateTranspose(n, m);
+	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[i][j] = rowRowDotProduct(n, A[i], B[j]);
+				C(i, j) = dotProduct(n, A.matrixTrans[i], B.matrix[j]);
 			}
 			else {
-				C[i][j] += rowRowDotProduct(n, A[i], B[j]);
+				C(i, j) += dotProduct(n, A.matrixTrans[i], B.matrix[j]);
 			}
 		}
 	}
 }
 
-void Matrix::matrixMultiplyABtCt(int m, int n, int p, float** A, float** B, float** C, bool overwrite) {
+void Matrix::multiplyABtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C[j][i] = rowRowDotProduct(n, A[i], B[j]);
+				C(i, j) = dotProduct(n, A.matrix[i], B.matrix[j]);
 			}
 			else {
-				C[j][i] += rowRowDotProduct(n, A[i], B[j]);
+				C(i, j) += dotProduct(n, A.matrix[i], B.matrix[j]);
 			}
 		}
 	}
 }
 
-void Matrix::matrixTensorMultiply(int m, int n, int p, float** A, float*** B, float** C, bool overwrite) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < p; j++) {
-			if (overwrite) {
-				C[i][j] = rowRowDotProduct(n, A[i], B[i][j]);
-			} else {
-				C[i][j] += rowRowDotProduct(n, A[i], B[i][j]);
-			}
-		}
-	}
-}
-
-void Matrix::elementMultiply(int m, int n, float** A, float** B, float** C, bool overwrite) {
+void Matrix::elementAdd(int m, int n, Matrix& A, Matrix& B, Matrix& C, float c1, float c2, bool overwrite) {
+	bool tA = A.transposeUpdated;
+	bool tB = B.transposeUpdated;
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			if (overwrite) {
-				C[i][j] = A[i][j] * B[i][j];
+				C(i, j) = A(i, j) + B(i, j);
 			}
 			else {
-				C[i][j] += A[i][j] * B[i][j];
+				C(i, j) += A(i, j) + B(i, j);
 			}
 		}
 	}
+	A.transposeUpdated = tA;
+	B.transposeUpdated = tB;
 }
-
-void Matrix::fill(FillFunction* fillFunction, int m, int n, float** A) {
+void Matrix::elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
+	bool tA = A.transposeUpdated;
+	bool tB = B.transposeUpdated;
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
-			A[i][j] = fillFunction->get();
+			if (overwrite) {
+				C(i, j) = A(i, j) * B(i, j);
+			}
+			else {
+				C(i, j) += A(i, j) * B(i, j);
+			}
 		}
 	}
+	A.transposeUpdated = tA;
+	B.transposeUpdated = tB;
 }
 
-void Matrix::copy(int m, int n, float** from, float** to) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			to[i][j] = from[i][j];
-		}
-	}
-}
-
-void Matrix::print(int m, int n, float** A) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			printf("%f  ", A[i][j]);
-		}
-		printf("\n");
-	}
-}
-
-Matrix::ConstantFill::ConstantFill(float value){
+Matrix::ConstantFill::ConstantFill(float value) {
 	this->value = value;
 }
 
-float Matrix::ConstantFill::get() {
+float Matrix::ConstantFill::operator()() {
 	return value;
 }
 
@@ -286,14 +291,14 @@ Matrix::NormalFill::NormalFill(float mean, float stdDeviation) {
 	distribution = { new normal_distribution<float>(mean, stdDeviation) };
 }
 
-float Matrix::NormalFill::get() {
+float Matrix::NormalFill::operator()() {
 	return (*distribution)(generator);
 }
 
-Matrix::UniformFill::UniformFill(float lowerBound, float upperBound){
+Matrix::UniformFill::UniformFill(float lowerBound, float upperBound) {
 	distribution = { new uniform_real_distribution<float>(lowerBound, upperBound) };
 }
 
-float Matrix::UniformFill::get() {
+float Matrix::UniformFill::operator()() {
 	return (*distribution)(generator);
 }

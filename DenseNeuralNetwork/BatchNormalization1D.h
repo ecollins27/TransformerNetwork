@@ -8,11 +8,11 @@ public:
 	Layer1D* prevLayer;
 
 	float momentum;
-	Matrix2 mean, batchMean;
-	Matrix2 variance, batchVariance;
-	Matrix2 std;
-	Matrix2 parameters;
-	Matrix2 parameterGradient;
+	Matrix mean, batchMean;
+	Matrix variance, batchVariance;
+	Matrix std;
+	Matrix parameters;
+	Matrix parameterGradient;
 
 	Optimizer* optimizer;
 

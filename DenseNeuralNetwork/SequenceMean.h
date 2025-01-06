@@ -7,14 +7,14 @@ class SequenceMean : public Layer1D {
 public:
 	Layer2D* prevLayer;
 
-	int forwardThreadCount, backThreadCount, numTokens;
+	int forwardThreadCount, backThreadCount;
 
 	Activation* activation;
 
-	Matrix2 means;
-	Matrix2 backPropIntermediate;
+	Matrix means;
+	Matrix backPropIntermediate;
 	Matrix3D activationGradient;
-	Matrix2 activationGradientMatrix;
+	Matrix activationGradientMatrix;
 
 	SequenceMean(Activation* activation);
 

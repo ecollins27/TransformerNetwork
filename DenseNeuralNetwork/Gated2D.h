@@ -6,20 +6,20 @@ class Gated2D : public Layer2D {
 public:
 	Layer2D* prevLayer;
 
-	Matrix2 weights1;
-	MatrixBatch weightGradient1;
-	Matrix2 weights2;
-	MatrixBatch weightGradient2;
+	Matrix weights1;
+	Matrix* weightGradient1;
+	Matrix weights2;
+	Matrix* weightGradient2;
 
-	MatrixBatch A1;
-	MatrixBatch A1Grad;
-	MatrixBatch A2;
-	MatrixBatch A2Grad;
-	MatrixBatch Ao;
-	MatrixBatch AoGrad;
+	Matrix* A1;
+	Matrix* A1Grad;
+	Matrix* A2;
+	Matrix* A2Grad;
+	Matrix* Ao;
+	Matrix* AoGrad;
 
-	Matrix3DBatch activationGradient;
-	MatrixBatch activationGradientMatrix;
+	Matrix3D* activationGradient;
+	Matrix* activationGradientMatrix;
 
 	Optimizer* optimizer1;
 	Optimizer* optimizer2;

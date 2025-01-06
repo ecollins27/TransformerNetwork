@@ -1,5 +1,7 @@
 #pragma once
-#include "InputLayer.h"
+#include "Layer1D.h"
+#include "Layer2D.h"
+
 class Loss {
 
 public:
@@ -11,48 +13,48 @@ public:
 	static Loss* BINARY_ACCURACY;
 	static Loss* ALL_LOSSES[NUM_LOSSES];
 
-	virtual float loss(Layer* layer, float** yTrue) = 0;
-	virtual void differentiate(Layer* layer, float** yTrue) = 0;
+	virtual float loss(Layer* layer, float** yTrue, int thread, bool layer1D) = 0;
+	virtual void differentiate(Layer* layer, float** yTrue, int thread, bool layer1D) = 0;
 	virtual string toString() = 0;
 
 };
 
-class MeanSquaredError : public Loss {
+class MeanSquaredError1D : public Loss {
 
 public:
-	float loss(Layer* layer, float** yTrue);
-	void differentiate(Layer* layer, float** yTrue);
+	float loss(Layer* layer, float** yTrue, int thread, bool layer1D);
+	void differentiate(Layer* layer, float** yTrue, int thread, bool layer1D);
 	string toString();
 };
 
-class BinaryCrossEntropy : public Loss {
+class BinaryCrossEntropy1D : public Loss {
 
 public:
-	float loss(Layer* layer, float** yTrue);
-	void differentiate(Layer* layer, float** yTrue);
+	float loss(Layer* layer, float** yTrue, int thread, bool layer1D);
+	void differentiate(Layer* layer, float** yTrue, int thread, bool layer1D);
 	string toString();
 };
 
-class CategoricalCrossEntropy : public Loss {
+class CategoricalCrossEntropy1D : public Loss {
 
 public:
-	float loss(Layer* layer, float** yTrue);
-	void differentiate(Layer* layer, float** yTrue);
+	float loss(Layer* layer, float** yTrue, int thread, bool layer1D);
+	void differentiate(Layer* layer, float** yTrue, int thread, bool layer1D);
 	string toString();
 };
 
-class Accuracy : public Loss {
+class Accuracy1D : public Loss {
 
 public:
-	float loss(Layer* layer, float** yTrue);
-	void differentiate(Layer* layer, float** yTrue);
+	float loss(Layer* layer, float** yTrue, int thread, bool layer1D);
+	void differentiate(Layer* layer, float** yTrue, int thread, bool layer1D);
 	string toString();
 };
 
-class BinaryAccuracy : public Loss {
+class BinaryAccuracy1D : public Loss {
 
 public:
-	float loss(Layer* layer, float** yTrue);
-	void differentiate(Layer* layer, float** yTrue);
+	float loss(Layer* layer, float** yTrue, int thread, bool layer1D);
+	void differentiate(Layer* layer, float** yTrue, int thread, bool layer1D);
 	string toString();
 };

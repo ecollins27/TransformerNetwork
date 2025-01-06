@@ -5,15 +5,15 @@ Optimizer* Optimizer::MOMENTUM = { new Momentum(0.9, 0) };
 Optimizer* Optimizer::ADAM = { new Adam(0.9,0.999, 0) };
 Optimizer* Optimizer::ADEMAMIX = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0) };
 
-void Optimizer::addGradient(Matrix2 gradient) {
-	Matrix2::elementAdd(height, width, weightGradient, gradient, weightGradient, 1, 1, true);
+void Optimizer::addGradient(Matrix gradient) {
+	Matrix::elementAdd(height, width, weightGradient, gradient, weightGradient, 1, 1, true);
 }
 
 GradientDescent::GradientDescent(float regConstant) {
 	this->regConstant = regConstant;
 }
 
-void GradientDescent::applyGradient(Matrix2 weights, float t, float learningRate, int batchSize) {
+void GradientDescent::applyGradient(Matrix weights, float t, float learningRate, int batchSize) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
 			weightGradient(i, j) /= batchSize;
@@ -30,7 +30,7 @@ Optimizer* GradientDescent::clone() {
 void GradientDescent::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	weightGradient = Matrix2(Matrix2::ZERO_FILL, height, width, false);
+	weightGradient = Matrix(Matrix::ZERO_FILL, height, width, false);
 }
 
 Momentum::Momentum(float beta, float regConstant) {
@@ -38,7 +38,7 @@ Momentum::Momentum(float beta, float regConstant) {
 	this->regConstant = regConstant;
 }
 
-void Momentum::applyGradient(Matrix2 weights, float t, float learningRate, int batchSize) {
+void Momentum::applyGradient(Matrix weights, float t, float learningRate, int batchSize) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
 			weightGradient(i, j) /= batchSize;
@@ -56,8 +56,8 @@ Optimizer* Momentum::clone() {
 void Momentum::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	M = Matrix2(Matrix2::ZERO_FILL, height, width, false);
-	weightGradient = Matrix2(Matrix2::ZERO_FILL, height, width, false);
+	M = Matrix(Matrix::ZERO_FILL, height, width, false);
+	weightGradient = Matrix(Matrix::ZERO_FILL, height, width, false);
 }
 
 Adam::Adam(float beta1, float beta2, float regConstant) {
@@ -66,7 +66,7 @@ Adam::Adam(float beta1, float beta2, float regConstant) {
 	this->regConstant = regConstant;
 }
 
-void Adam::applyGradient(Matrix2 weights, float t, float learningRate, int batchSize) {
+void Adam::applyGradient(Matrix weights, float t, float learningRate, int batchSize) {
 	float mScalar = 1.0 / (1 - pow(beta1, t));
 	float sScalar = 1.0 / (1 - pow(beta2, t));
 	float fullGradient;
@@ -89,9 +89,9 @@ Optimizer* Adam::clone() {
 void Adam::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	M = Matrix2(Matrix2::ZERO_FILL, height, width, false);
-	S = Matrix2(Matrix2::ZERO_FILL, height, width, false);
-	weightGradient = Matrix2(Matrix2::ZERO_FILL, height, width, false);
+	M = Matrix(Matrix::ZERO_FILL, height, width, false);
+	S = Matrix(Matrix::ZERO_FILL, height, width, false);
+	weightGradient = Matrix(Matrix::ZERO_FILL, height, width, false);
 }
 
 AdEMAMix::AdEMAMix(float beta1, float beta2, float beta3, float alpha, float regConstant) {
@@ -102,7 +102,7 @@ AdEMAMix::AdEMAMix(float beta1, float beta2, float beta3, float alpha, float reg
 	this->regConstant = regConstant;
 }
 
-void AdEMAMix::applyGradient(Matrix2 weights, float t, float learningRate, int batchSize) {
+void AdEMAMix::applyGradient(Matrix weights, float t, float learningRate, int batchSize) {
 	float mScalar = 1.0 / (1 - pow(beta1, t));
 	float sScalar = 1.0 / (1 - pow(beta2, t));
 	float fullGradient;
@@ -126,8 +126,8 @@ Optimizer* AdEMAMix::clone(){
 void AdEMAMix::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	M1 =Matrix2(Matrix2::ZERO_FILL, height, width, false);
-	M2 = Matrix2(Matrix2::ZERO_FILL, height, width, false);
-	S = Matrix2(Matrix2::ZERO_FILL, height, width, false);
-	weightGradient = Matrix2(Matrix2::ZERO_FILL, height, width, false);
+	M1 =Matrix(Matrix::ZERO_FILL, height, width, false);
+	M2 = Matrix(Matrix::ZERO_FILL, height, width, false);
+	S = Matrix(Matrix::ZERO_FILL, height, width, false);
+	weightGradient = Matrix(Matrix::ZERO_FILL, height, width, false);
 }

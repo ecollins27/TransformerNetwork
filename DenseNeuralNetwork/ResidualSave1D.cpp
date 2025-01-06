@@ -9,7 +9,7 @@ void ResidualSave1D::backPropagate(int num) {
 }
 
 void ResidualSave1D::setPrevLayer(Layer* prevLayer) {
-	if (!instanceOf<Layer1D*>(prevLayer)) {
+	if (!instanceOf<Layer1D>(prevLayer)) {
 		throw invalid_argument("Previous layer must be instance Layer1D");
 	}
 	index = prevLayer->index + 1;

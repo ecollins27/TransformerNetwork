@@ -8,10 +8,10 @@ void PositionalEncoding2D::propagateLayer(int num) {
 	for (int i = 0; i < numTokens[num]; i++) {
 		for (int j = 0; j < size; j++) {
 			if (j % 2 == 0) {
-				neurons[num](i, j) = prevLayer->neurons[num](i, j) + sin(i / (pow(L, (float)j / size)));
+				neurons[num].r(i, j) = prevLayer->neurons[num](i, j) + sin(i / (pow(L, (float)j / size)));
 			}
 			else {
-				neurons[num](i, j) = prevLayer->neurons[num](i, j) + cos(i / (pow(L, (float)(j - 1) / size)));
+				neurons[num].r(i, j) = prevLayer->neurons[num](i, j) + cos(i / (pow(L, (float)(j - 1) / size)));
 			}
 		}
 	}

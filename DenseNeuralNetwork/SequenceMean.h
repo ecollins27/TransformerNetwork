@@ -13,8 +13,6 @@ public:
 
 	Matrix means;
 	Matrix backPropIntermediate;
-	Matrix3D activationGradient;
-	Matrix activationGradientMatrix;
 
 	SequenceMean(Activation* activation);
 

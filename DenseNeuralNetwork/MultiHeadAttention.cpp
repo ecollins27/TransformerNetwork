@@ -4,6 +4,7 @@ MultiHeadAttention::MultiHeadAttention(int numHeads, int keySize, int valueSize)
 	this->numHeads = numHeads;
 	this->keySize = keySize;
 	this->valueSize = valueSize;
+	softmax = Activation::SOFTMAX->clone();
 }
 
 void MultiHeadAttention::propagateLayer(int num) {
@@ -14,10 +15,9 @@ void MultiHeadAttention::propagateLayer(int num) {
 		Matrix::multiplyABtC(numTokens[num], keySize, numTokens[num], Q[num][i], K[num][i], A[num][i], true);
 		A[num][i].scale(numTokens[num], numTokens[num], scalar);
 		softmax->operate(numTokens[num], numTokens[num], A[num][i], Ao[num][i]);
-		Matrix::multiplyABtC(valueSize, prevSize, numTokens[num], prevLayer->neurons[num], Wv[i], V[num][i], true);
+		Matrix::multiplyABtC(valueSize, prevSize, numTokens[num], Wv[i], prevLayer->neurons[num], V[num][i], true);
 		Matrix::multiplyABtC(numTokens[num], numTokens[num], valueSize, Ao[num][i], V[num][i], AcSub[num][i], true);
 	}
-	Ac[num].calculateMatrix(numTokens[num], numHeads * valueSize);
 	Matrix::multiplyABtC(numTokens[num], numHeads * valueSize, size, Ac[num], Wo, neurons[num], true);
 }
 
@@ -34,8 +34,7 @@ void MultiHeadAttention::backPropagate(int num) {
 		valueOptimizers[i]->addGradient(WvGrad[num][i]);
 		Matrix::multiplyAtBC(numTokens[num], valueSize, prevSize, VGrad[num][i], Wv[i], prevLayer->neuronGradient[num], false);
 
-		softmax->differentiate(numTokens[num], numTokens[num], A[num][i], Ao[num][i], activationGradients[num][i]);
-		Matrix3D::matrixTensorMultiply(numTokens[num], numTokens[num], numTokens[num], AoGrad[num][i], activationGradients[num][i], AGrad[num][i], true);
+		softmax->differentiate(numTokens[num], numTokens[num], A[num][i], Ao[num][i], AGrad[num][i], AoGrad[num][i]);
 		Matrix::multiplyABC(numTokens[num], numTokens[num], keySize, AGrad[num][i], K[num][i], QGrad[num][i], true);
 		QGrad[num][i].scale(numTokens[num], keySize, scalar);
 		Matrix::multiplyAtBC(numTokens[num], numTokens[num], keySize, AGrad[num][i], Q[num][i], KGrad[num][i], true);
@@ -68,24 +67,23 @@ void MultiHeadAttention::setPrevLayer(Layer* prevLayer) {
 }
 
 void MultiHeadAttention::setBatchSize(int batchSize) {
-	Layer2D::setBatchSize(batchSize);
+	Layer2D::initNeurons(batchSize);
 	WqGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, keySize, prevSize, false);
 	WkGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, keySize, prevSize, false);
 	WvGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, valueSize, prevSize, false);
 	WoGrad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, numHeads * valueSize, false);
-	K = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, false);
-	KGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, false);
-	Q = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, false);
-	QGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, false);
-	V = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, valueSize, false);
-	VGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, valueSize, false);
+	K = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, true);
+	KGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, true);
+	Q = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, true);
+	QGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, true);
+	V = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, valueSize, maxNumTokens, true);
+	VGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, valueSize, maxNumTokens, true);
 	A = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, false);
-	AGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, false);
-	Ao = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, false);
+	AGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, true);
+	Ao = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, true);
 	AoGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, false);
-	activationGradients = Matrix3D::allocateMatrix3DArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, maxNumTokens);
-	Ac = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, numHeads * valueSize, false);
-	AcGrad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, numHeads * valueSize, false);
+	Ac = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, numHeads * valueSize, true);
+	AcGrad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, numHeads * valueSize, true);
 	AcSub = new Matrix * [batchSize];
 	AcSubGrad = new Matrix * [batchSize];
 	for (int i = 0; i < batchSize; i++) {

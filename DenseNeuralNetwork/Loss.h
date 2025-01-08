@@ -5,13 +5,6 @@
 class Loss {
 
 public:
-	const static int NUM_LOSSES = 3;
-	static Loss* MEAN_SQUARED_ERROR;
-	static Loss* BINARY_CROSS_ENTROPY;
-	static Loss* CATEGORICAL_CROSS_ENTROPY;
-	static Loss* ACCURACY;
-	static Loss* BINARY_ACCURACY;
-	static Loss* ALL_LOSSES[NUM_LOSSES];
 
 	virtual float loss(Layer* layer, float** yTrue, int thread, bool layer1D) = 0;
 	virtual void differentiate(Layer* layer, float** yTrue, int thread, bool layer1D) = 0;

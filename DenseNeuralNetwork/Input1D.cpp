@@ -8,7 +8,7 @@ Input1D::Input1D(int size) {
 void Input1D::setInput(float** input) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
-			neurons(i, j) = input[i][j];
+			neurons.r(i, j) = input[i][j];
 		}
 	}
 }

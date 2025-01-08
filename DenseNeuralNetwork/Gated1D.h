@@ -23,9 +23,6 @@ public:
 	Matrix Ao;
 	Matrix AoGrad;
 
-	Matrix3D activationGradient;
-	Matrix activationGradientMatrix;
-
 	Optimizer* optimizer1;
 	Optimizer* optimizer2;
 

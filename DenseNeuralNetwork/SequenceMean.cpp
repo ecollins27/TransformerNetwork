@@ -6,7 +6,7 @@ SequenceMean::SequenceMean(Activation* activation) {
 
 void SequenceMean::propagateLayer(int num) {
 	for (int j = 0; j < size; j++) {
-		float& mean = means(num, j);
+		float& mean = means.r(num, j);
 		mean = 0;
 		for (int i = 0; i < prevLayer->numTokens[num]; i++) {
 			mean += prevLayer->neurons[num](i, j);
@@ -15,7 +15,7 @@ void SequenceMean::propagateLayer(int num) {
 	}
 	forwardThreadCount++;
 	if (num == batchSize - 1) {
-		while (forwardThreadCount != batchSize){}
+		while (forwardThreadCount < batchSize){}
 		activation->operate(batchSize, size, means, neurons);
 		forwardThreadCount = 0;
 		if (nextLayer != NULL) {
@@ -26,23 +26,17 @@ void SequenceMean::propagateLayer(int num) {
 
 void SequenceMean::backPropagate(int num) {
 	if (num == 0) {
-		activation->differentiate(batchSize, size, means, neurons, activationGradient);
-		if (activation->isDiagonal()) {
-			Matrix::elementMultiply(batchSize, size, neuronGradient, activationGradientMatrix, backPropIntermediate, true);
-		}
-		else {
-			Matrix3D::matrixTensorMultiply(batchSize, size, size, neuronGradient, activationGradient, backPropIntermediate, true);
-		}
+		activation->differentiate(batchSize, size, means, neurons, backPropIntermediate, neuronGradient);
 		backThreadCount++;
 	}
 	else {
 		while (backThreadCount < 1){}
 		backThreadCount++;
 	}
-	float inverseBatchSize = 1.0 / batchSize;
+	float c = 1.0 / prevLayer->numTokens[num];
 	for (int i = 0; i < prevLayer->numTokens[num]; i++) {
 		for (int j = 0; j < size; j++) {
-			prevLayer->neuronGradient[num](i, j) = inverseBatchSize * neuronGradient(num, j);
+			prevLayer->neuronGradient[num].r(i, j) = c * neuronGradient(num, j);
 		}
 	}
 	if (backThreadCount >= batchSize) {
@@ -63,15 +57,8 @@ void SequenceMean::setPrevLayer(Layer* prevLayer) {
 
 void SequenceMean::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
-	means = Matrix(Matrix::ZERO_FILL, batchSize, size + 1, false);
+	means = Matrix(Matrix::ZERO_FILL, batchSize, size, false);
 	backPropIntermediate = Matrix(Matrix::ZERO_FILL, batchSize, size, true);
-	if (activation->isDiagonal()) {
-		activationGradient = Matrix3D(Matrix::ZERO_FILL, 1, batchSize, size);
-		activationGradientMatrix = Matrix(activationGradient.matrix[0], NULL);
-	}
-	else {
-		activationGradient = Matrix3D(Matrix::ZERO_FILL, batchSize, size, size);
-	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}

@@ -33,6 +33,10 @@ void ResidualSave1D::save(ofstream& file) {
 }
 
 void ResidualSave1D::backPropagateWithResidual(int num) {
+	if (num != 0) {
+		prevLayer->backPropagate(num);
+		return;
+	}
 	neuronGradient.copy(batchSize, size, prevLayer->neuronGradient);
 	prevLayer->backPropagate(num);
 }

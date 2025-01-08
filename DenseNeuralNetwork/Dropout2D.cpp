@@ -9,11 +9,11 @@ void Dropout2D::propagateLayer(int num) {
 		for (int j = 0; j < size; j++) {
 			float randValue = (float)rand() / (RAND_MAX + 1);
 			if (randValue < dropoutRate) {
-				neurons[num](i, j) = 0;
+				neurons[num].r(i, j) = 0;
 				dropped[num][i][j] = true;
 			}
 			else {
-				neurons[num](i, j) = prevLayer->neurons[num](i, j) / dropoutRate;
+				neurons[num].r(i, j) = prevLayer->neurons[num](i, j) / dropoutRate;
 				dropped[num][i][j] = false;
 			}
 		}
@@ -24,10 +24,10 @@ void Dropout2D::backPropagate(int num) {
 	for (int i = 0; i < numTokens[num]; i++) {
 		for (int j = 0; j < size; j++) {
 			if (!dropped[num][i][j]) {
-				prevLayer->neuronGradient[num](i, j) = neuronGradient[num](i, j) / dropoutRate;
+				prevLayer->neuronGradient[num].r(i, j) = neuronGradient[num](i, j) / dropoutRate;
 			}
 			else {
-				prevLayer->neuronGradient[num](i, j) = 0;
+				prevLayer->neuronGradient[num].r(i, j) = 0;
 			}
 		}
 	}

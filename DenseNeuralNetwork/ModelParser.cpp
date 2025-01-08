@@ -64,7 +64,7 @@ void addDenseLayer(void* nn, ifstream& file, string& line, int* commaIndex, int*
 		for (int i = 0; i < size; i++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int j = 0; j < *prevSize; j++) {
-				denseLayer->weights(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+				denseLayer->weights.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 	}
@@ -74,7 +74,7 @@ void addDenseLayer(void* nn, ifstream& file, string& line, int* commaIndex, int*
 		for (int i = 0; i < size; i++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int j = 0; j < *prevSize; j++) {
-				denseLayer->weights(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+				denseLayer->weights.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 	}
@@ -87,17 +87,17 @@ void addBatchNormalization(void* nn, ifstream& file, string& line, int* commaInd
 	for (int i = 0; i < 2; i++) {
 		getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize - 1; j++) {
-			batchNormalization->parameters(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+			batchNormalization->parameters.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	getNextLine(file, line, commaIndex, newCommaIndex);
 	for (int j = 0; j < *prevSize - 1; j++) {
-		batchNormalization->mean(0, j) = getNextFloat(line, commaIndex, newCommaIndex);
+		batchNormalization->mean.r(0, j) = getNextFloat(line, commaIndex, newCommaIndex);
 	}
 	getNextLine(file, line, commaIndex, newCommaIndex);
 	for (int j = 0; j < *prevSize - 1; j++) {
-		batchNormalization->variance(0, j) = getNextFloat(line, commaIndex, newCommaIndex);
-		batchNormalization->std(0, j) = sqrt(batchNormalization->variance(0, j) + 0.0000001);
+		batchNormalization->variance.r(0, j) = getNextFloat(line, commaIndex, newCommaIndex);
+		batchNormalization->std.r(0, j) = sqrt(batchNormalization->variance(0, j) + 0.0000001);
 	}
 }
 
@@ -121,13 +121,13 @@ void addGatedLayer(void* nn, ifstream& file, string& line, int* commaIndex, int*
 		for (int i = 0; i < size; i++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int j = 0; j < *prevSize; j++) {
-				gatedLayer->weights1(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+				gatedLayer->weights1.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 		for (int i = 0; i < size; i++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int j = 0; j < *prevSize; j++) {
-				gatedLayer->weights2(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+				gatedLayer->weights2.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 	}
@@ -137,13 +137,13 @@ void addGatedLayer(void* nn, ifstream& file, string& line, int* commaIndex, int*
 		for (int i = 0; i < size; i++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int j = 0; j < *prevSize; j++) {
-				gatedLayer->weights1(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+				gatedLayer->weights1.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 		for (int i = 0; i < size; i++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int j = 0; j < *prevSize; j++) {
-				gatedLayer->weights2(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+				gatedLayer->weights2.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 	}
@@ -165,26 +165,26 @@ void addMultiHeadAttentionLayer(void* nn, ifstream& file, string& line, int* com
 		for (int j = 0; j < keySize; j++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wq[i](j, k) = getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wq[i].r(j, k) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 		for (int j = 0; j < keySize; j++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wk[i](j, k) = getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wk[i].r(j, k) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 		for (int j = 0; j < valueSize; j++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wv[i](j, k) = getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wv[i].r(j, k) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 	}
 	for (int i = 0; i < *prevSize - 1; i++) {
 		getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < numHeads * valueSize; j++) {
-			multiHeadAttentionLayer->Wo(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+			multiHeadAttentionLayer->Wo.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
 }

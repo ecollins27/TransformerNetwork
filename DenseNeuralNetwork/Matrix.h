@@ -18,13 +18,14 @@ public:
 	float** matrix;
 	float** matrixTrans;
 	bool saveTranspose;
-	bool transposeUpdated = true;
+	bool* transposeUpdated;
 
 	Matrix(){}
 	Matrix(FillFunction* fillFunction, int height, int width, bool saveTranspose);
 	Matrix(float** matrix, float** matrixTrans);
 
-	float& operator()(int i, int j);
+	float operator()(int i, int j);
+	float& r(int i, int j);
 	void calculateTranspose(int height, int width);
 	void calculateMatrix(int height, int width);
 	void scale(int height, int width, float c);

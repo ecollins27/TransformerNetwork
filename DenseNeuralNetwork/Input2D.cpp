@@ -6,9 +6,9 @@ Input2D::Input2D(int size) {
 }
 
 void Input2D::setInput(int num, float** input) {
-	for (int i = 0; i < batchSize; i++) {
+	for (int i = 0; i < numTokens[num]; i++) {
 		for (int j = 0; j < size; j++) {
-			neurons[num](i, j) = input[i][j];
+			neurons[num].r(i, j) = input[i][j];
 		}
 	}
 }

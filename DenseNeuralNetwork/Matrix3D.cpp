@@ -54,10 +54,10 @@ void Matrix3D::matrixTensorMultiply(int m, int n, int p, Matrix A, Matrix3D B, M
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C(i, j) = Matrix::dotProduct(n, A.matrix[i], B.matrix[i][j]);
+				C.r(i, j) = Matrix::dotProduct(n, A.matrix[i], B.matrix[i][j]);
 			}
 			else {
-				C(i, j) += Matrix::dotProduct(n, A.matrix[i], B.matrix[i][j]);
+				C.r(i, j) += Matrix::dotProduct(n, A.matrix[i], B.matrix[i][j]);
 			}
 		}
 	}

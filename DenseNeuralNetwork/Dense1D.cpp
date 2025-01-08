@@ -11,13 +11,11 @@ void Dense1D::propagateLayer(int num) {
 }
 
 void Dense1D::backPropagate(int num) {
-	activation->differentiate(batchSize, size, linearCombo, neurons, activationGradient);
-	if (activation->isDiagonal()) {
-		Matrix::elementMultiply(batchSize, size, neuronGradient, activationGradientMatrix, backPropIntermediate, true);
+	if (num != 0) {
+		prevLayer->backPropagate(num);
+		return;
 	}
-	else {
-		Matrix3D::matrixTensorMultiply(batchSize, size, size, neuronGradient, activationGradient, backPropIntermediate, true);
-	}
+	activation->differentiate(batchSize, size, linearCombo, neurons, backPropIntermediate, neuronGradient);
 	Matrix::multiplyABC(batchSize, size, prevSize, backPropIntermediate, weights, prevLayer->neuronGradient, true);
 	Matrix::multiplyAtBC(size, batchSize, prevSize, backPropIntermediate, prevLayer->neurons, weightGradient, true);
 	prevLayer->backPropagate(num);
@@ -44,13 +42,6 @@ void Dense1D::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
 	linearCombo = Matrix(Matrix::ZERO_FILL, batchSize, size + 1, false);
 	backPropIntermediate = Matrix(Matrix::ZERO_FILL, batchSize, size, true);
-	if (activation->isDiagonal()) {
-		activationGradient = Matrix3D(Matrix::ZERO_FILL, 1, batchSize, size);
-		activationGradientMatrix = Matrix(activationGradient.matrix[0], NULL);
-	}
-	else {
-		activationGradient = Matrix3D(Matrix::ZERO_FILL, batchSize, size, size);
-	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}

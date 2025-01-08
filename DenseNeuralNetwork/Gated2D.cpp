@@ -15,13 +15,7 @@ void Gated2D::propagateLayer(int num) {
 void Gated2D::backPropagate(int num) {
 	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A2[num], A1Grad[num], true);
 	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A1[num], A2Grad[num], true);
-	activation->differentiate(numTokens[num], size, A1[num], Ao[num], activationGradient[num]);
-	if (activation->isDiagonal()) {
-		Matrix::elementMultiply(numTokens[num], size, AoGrad[num], activationGradientMatrix[num], A1Grad[num], true);
-	}
-	else {
-		Matrix3D::matrixTensorMultiply(numTokens[num], size, size, AoGrad[num], activationGradient[num], A1Grad[num], true);
-	}
+	activation->differentiate(numTokens[num], size, A1[num], Ao[num], A1Grad[num], AoGrad[num]);
 	Matrix::multiplyABC(numTokens[num], size, prevSize, A1Grad[num], weights1, prevLayer->neuronGradient[num], true);
 	Matrix::multiplyABC(numTokens[num], size, prevSize, A2Grad[num], weights2, prevLayer->neuronGradient[num], false);
 	Matrix::multiplyAtBC(size, numTokens[num], prevSize, A1Grad[num], prevLayer->neurons[num], weightGradient1[num], true);
@@ -62,17 +56,6 @@ void Gated2D::setBatchSize(int batchSize) {
 	A2Grad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, true);
 	Ao = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
 	Ao = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
-
-	if (activation->isDiagonal()) {
-		activationGradient = Matrix3D::allocateMatrix3DArray(Matrix::ZERO_FILL, batchSize, 1, maxNumTokens, size);
-		activationGradientMatrix = new Matrix[batchSize];
-		for (int i = 0; i < batchSize; i++) {
-			activationGradientMatrix[i] = Matrix(activationGradient[i].matrix[0], NULL);
-		}
-	}
-	else {
-		activationGradient = Matrix3D::allocateMatrix3DArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, size);
-	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}

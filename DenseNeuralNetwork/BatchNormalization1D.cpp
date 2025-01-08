@@ -6,46 +6,50 @@ BatchNormalization1D::BatchNormalization1D(float momentum) {
 
 void BatchNormalization1D::propagateLayer(int num) {
 	for (int j = 0; j < size; j++) {
-		float& meanSum = batchMean(0, j);
+		float& meanSum = batchMean.r(0, j);
 		meanSum = 0;
 		for (int i = 0; i < batchSize; i++) {
 			meanSum += prevLayer->neurons(i, j);
 		}
 		meanSum /= batchSize;
-		mean(0, j) = momentum * mean(0, j) + (1 - momentum) * meanSum;
+		mean.r(0, j) = momentum * mean(0, j) + (1 - momentum) * meanSum;
 
-		float& varianceSum = batchVariance(0, j);
+		float& varianceSum = batchVariance.r(0, j);
 		varianceSum = 0;
 		for (int i = 0; i < batchSize; i++) {
 			varianceSum += (prevLayer->neurons(i, j) - meanSum) * (prevLayer->neurons(i, j) - meanSum);
 		}
 		varianceSum /= batchSize;
-		variance(0, j) = momentum * variance(0, j) + (1 - momentum) * varianceSum;
-		std(0, j) = sqrt(variance(0, j));
+		variance.r(0, j) = momentum * variance(0, j) + (1 - momentum) * varianceSum;
+		std.r(0, j) = sqrt(variance(0, j));
 
 		for (int i = 0; i < batchSize; i++) {
 			if (std(0, j) == 0) {
-				neurons(i, j) = parameters(0, j);
+				neurons.r(i, j) = parameters(0, j);
 			}
 			else {
-				neurons(i, j) = parameters(0, j) + parameters(1, j) * (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
+				neurons.r(i, j) = parameters(0, j) + parameters(1, j) * (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
 			}
 		}
 	}
 }
 
 void BatchNormalization1D::backPropagate(int num) {
+	if (num != 0) {
+		prevLayer->backPropagate(num);
+		return;
+	}
 	float c = (1 - momentum) / batchSize;
 	prevLayer->neuronGradient.fill(Matrix::ZERO_FILL, batchSize, size);
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
-			parameterGradient(0, j) += neuronGradient(i, j);
+			parameterGradient.r(0, j) += neuronGradient(i, j);
 			if (std(0, j) != 0) {
-				parameterGradient(1, j) += (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
+				parameterGradient.r(1, j) += neuronGradient(i,j) * (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
 				for (int k = 0; k < batchSize; k++) {
 					float grad = ((k == i ? 1 : 0) - c) - c * (prevLayer->neurons(i, j) - batchMean(0, j)) * (prevLayer->neurons(k, j) - mean(0, j)) / variance(0, j);
 					grad /= std(0, j);
-					prevLayer->neuronGradient(i, j) += parameters(1, j) * neuronGradient(k, j) * grad;
+					prevLayer->neuronGradient.r(i, j) += parameters(1, j) * neuronGradient(k, j) * grad;
 				}
 			}
 		}
@@ -101,10 +105,10 @@ void BatchNormalization1D::predict(int num) {
 	for (int j = 0; j < size; j++) {
 		for (int i = 0; i < batchSize; i++) {
 			if (std(0, j) == 0) {
-				neurons(i, j) = parameters(0, j);
+				neurons.r(i, j) = parameters(0, j);
 			}
 			else {
-				neurons(i, j) = parameters(0, j) + parameters(1, j) * (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
+				neurons.r(i, j) = parameters(0, j) + parameters(1, j) * (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
 			}
 		}
 	}

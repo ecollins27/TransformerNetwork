@@ -9,6 +9,10 @@ void ResidualAdd1D::propagateLayer(int num) {
 }
 
 void ResidualAdd1D::backPropagate(int num) {
+	if (num != 0) {
+		residual->backPropagateWithResidual(num);
+		return;
+	}
 	neuronGradient.copy(batchSize, size, prevLayer->neuronGradient);
 	prevLayer->backPropagate(num);
 	Matrix::elementAdd(batchSize, size, neuronGradient, residual->neuronGradient, residual->neuronGradient, 1, 1, true);

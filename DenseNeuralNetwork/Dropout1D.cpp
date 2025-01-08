@@ -9,11 +9,11 @@ void Dropout1D::propagateLayer(int num) {
 		for (int j = 0; j < size; j++) {
 			float randValue = (float)rand() / (RAND_MAX + 1);
 			if (randValue < dropoutRate) {
-				neurons(i, j) = 0;
+				neurons.r(i, j) = 0;
 				dropped[i][j] = true;
 			}
 			else {
-				neurons(i, j) = prevLayer->neurons(i, j) / dropoutRate;
+				neurons.r(i, j) = prevLayer->neurons(i, j) / dropoutRate;
 				dropped[i][j] = false;
 			}
 		}
@@ -21,13 +21,17 @@ void Dropout1D::propagateLayer(int num) {
 }
 
 void Dropout1D::backPropagate(int num) {
+	if (num != 0) {
+		prevLayer->backPropagate(num);
+		return;
+	}
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			if (!dropped[i][j]) {
-				prevLayer->neuronGradient(i, j) = neuronGradient(i, j) / dropoutRate;
+				prevLayer->neuronGradient.r(i, j) = neuronGradient(i, j) / dropoutRate;
 			}
 			else {
-				prevLayer->neuronGradient(i, j) = 0;
+				prevLayer->neuronGradient.r(i, j) = 0;
 			}
 		}
 	}

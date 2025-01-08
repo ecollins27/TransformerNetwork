@@ -22,16 +22,24 @@ Matrix::Matrix(FillFunction* fillFunction, int height, int width, bool saveTrans
 			}
 		}
 	}
+	transposeUpdated = new bool(true);
 }
 
 Matrix::Matrix(float** matrix, float** matrixTrans) {
 	this->matrix = matrix;
 	this->matrixTrans = matrixTrans;
 	saveTranspose = matrixTrans != NULL;
+	if (saveTranspose) {
+		transposeUpdated = new bool(true);
+	}
 }
 
-float& Matrix::operator()(int i, int j) {
-	transposeUpdated = false;
+float Matrix::operator()(int i, int j) {
+	return matrix[i][j];
+}
+
+float& Matrix::r(int i, int j) {
+	*transposeUpdated = false;
 	return matrix[i][j];
 }
 
@@ -41,7 +49,7 @@ void Matrix::calculateTranspose(int height, int width) {
 			matrixTrans[j][i] = matrix[i][j];
 		}
 	}
-	transposeUpdated = true;
+	*transposeUpdated = true;
 }
 
 void Matrix::calculateMatrix(int height, int width) {
@@ -63,10 +71,9 @@ void Matrix::scale(int height, int width, float c) {
 void Matrix::copy(int height, int width, Matrix& to) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
-			to.matrix[i][j] = matrix[i][j];
+			to.r(i,j) = matrix[i][j];
 		}
 	}
-	to.transposeUpdated = false;
 }
 
 void Matrix::fill(FillFunction* fillFunction, int height, int width) {
@@ -96,8 +103,9 @@ Matrix Matrix::subMatrix(int i, int j, int height, int width) {
 	if (saveTranspose) {
 		sub.matrixTrans = new float* [width];
 		for (int a = 0; a < width; a++) {
-			sub.matrixTrans[a] = &matrix[j + a][i];
+			sub.matrixTrans[a] = &matrixTrans[j + a][i];
 		}
+		sub.transposeUpdated = transposeUpdated;
 	}
 	return sub;
 }
@@ -177,16 +185,16 @@ float Matrix::dotProduct(int n, float* a, float* b) {
 void Matrix::multiplyABC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
 	if (!B.saveTranspose) {
 		throw std::invalid_argument("B matrix must save transpose");
-	} if (!B.transposeUpdated) {
+	} if (!*B.transposeUpdated) {
 		B.calculateTranspose(n, p);
 	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C(i, j) = dotProduct(n, A.matrix[i], B.matrixTrans[j]);
+				C.r(i, j) = dotProduct(n, A.matrix[i], B.matrixTrans[j]);
 			}
 			else {
-				C(i, j) += dotProduct(n, A.matrix[i], B.matrixTrans[j]);
+				C.r(i, j) += dotProduct(n, A.matrix[i], B.matrixTrans[j]);
 			}
 		}
 	}
@@ -198,18 +206,18 @@ void Matrix::multiplyAtBC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, 
 	} else if (!B.saveTranspose) {
 		throw std::invalid_argument("B matrix must save transpose");
 	}
-	if (!A.transposeUpdated) {
+	if (!*A.transposeUpdated) {
 		A.calculateTranspose(n, m);
-	} if (!B.transposeUpdated) {
+	} if (!*B.transposeUpdated) {
 		B.calculateTranspose(n, p);
 	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C(i, j) = dotProduct(n, A.matrixTrans[i], B.matrixTrans[j]);
+				C.r(i, j) = dotProduct(n, A.matrixTrans[i], B.matrixTrans[j]);
 			}
 			else {
-				C(i, j) += dotProduct(n, A.matrixTrans[i], B.matrixTrans[j]);
+				C.r(i, j) += dotProduct(n, A.matrixTrans[i], B.matrixTrans[j]);
 			}
 		}
 	}
@@ -218,16 +226,16 @@ void Matrix::multiplyAtBC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, 
 void Matrix::multiplyAtBtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
 	if (!A.saveTranspose) {
 		throw std::invalid_argument("A matrix must save transpose");
-	} if (!A.transposeUpdated) {
+	} if (!*A.transposeUpdated) {
 		A.calculateTranspose(n, m);
 	}
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C(i, j) = dotProduct(n, A.matrixTrans[i], B.matrix[j]);
+				C.r(i, j) = dotProduct(n, A.matrixTrans[i], B.matrix[j]);
 			}
 			else {
-				C(i, j) += dotProduct(n, A.matrixTrans[i], B.matrix[j]);
+				C.r(i, j) += dotProduct(n, A.matrixTrans[i], B.matrix[j]);
 			}
 		}
 	}
@@ -237,46 +245,38 @@ void Matrix::multiplyABtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, 
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
 			if (overwrite) {
-				C(i, j) = dotProduct(n, A.matrix[i], B.matrix[j]);
+				C.r(i, j) = dotProduct(n, A.matrix[i], B.matrix[j]);
 			}
 			else {
-				C(i, j) += dotProduct(n, A.matrix[i], B.matrix[j]);
+				C.r(i, j) += dotProduct(n, A.matrix[i], B.matrix[j]);
 			}
 		}
 	}
 }
 
 void Matrix::elementAdd(int m, int n, Matrix& A, Matrix& B, Matrix& C, float c1, float c2, bool overwrite) {
-	bool tA = A.transposeUpdated;
-	bool tB = B.transposeUpdated;
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			if (overwrite) {
-				C(i, j) = A(i, j) + B(i, j);
+				C.r(i, j) = A(i, j) + B(i, j);
 			}
 			else {
-				C(i, j) += A(i, j) + B(i, j);
+				C.r(i, j) += A(i, j) + B(i, j);
 			}
 		}
 	}
-	A.transposeUpdated = tA;
-	B.transposeUpdated = tB;
 }
 void Matrix::elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
-	bool tA = A.transposeUpdated;
-	bool tB = B.transposeUpdated;
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < n; j++) {
 			if (overwrite) {
-				C(i, j) = A(i, j) * B(i, j);
+				C.r(i, j) = A(i, j) * B(i, j);
 			}
 			else {
-				C(i, j) += A(i, j) * B(i, j);
+				C.r(i, j) += A(i, j) * B(i, j);
 			}
 		}
 	}
-	A.transposeUpdated = tA;
-	B.transposeUpdated = tB;
 }
 
 Matrix::ConstantFill::ConstantFill(float value) {

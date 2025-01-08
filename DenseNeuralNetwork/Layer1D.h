@@ -13,7 +13,7 @@ public:
 		neurons = Matrix(Matrix::ZERO_FILL, batchSize, size + 1, true);
 		neuronGradient = Matrix(Matrix::ZERO_FILL, batchSize, size + 1, false);
 		for (int i = 0; i < batchSize; i++) {
-			neurons(i, size) = 1;
+			neurons.r(i, size) = 1;
 		}
 	}
 };

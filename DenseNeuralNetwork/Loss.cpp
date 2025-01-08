@@ -1,12 +1,5 @@
 #include "Loss.h"
 
-Loss* Loss::MEAN_SQUARED_ERROR = { new MeanSquaredError1D() };
-Loss* Loss::BINARY_CROSS_ENTROPY = { new BinaryCrossEntropy1D() };
-Loss* Loss::CATEGORICAL_CROSS_ENTROPY = { new CategoricalCrossEntropy1D() };
-Loss* Loss::ACCURACY = { new Accuracy1D() };
-Loss* Loss::BINARY_ACCURACY = { new BinaryAccuracy1D() };
-Loss* Loss::ALL_LOSSES[Loss::NUM_LOSSES] = {MEAN_SQUARED_ERROR, BINARY_CROSS_ENTROPY, CATEGORICAL_CROSS_ENTROPY};
-
 float MeanSquaredError1D::loss(Layer* layer, float** yTrue, int thread, bool layer1D) {
 	float sum = 0;
 	int height;
@@ -42,7 +35,7 @@ void MeanSquaredError1D::differentiate(Layer* layer, float** yTrue, int thread, 
 	}
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < layer->size; j++) {
-			neuronGradient(i, j) = 2 * (neurons(i, j) - yTrue[i][j]) / layer->size;
+			neuronGradient.r(i, j) = 2 * (neurons(i, j) - yTrue[i][j]) / layer->size;
 		}
 	}
 }
@@ -91,7 +84,7 @@ void BinaryCrossEntropy1D::differentiate(Layer* layer, float** yTrue, int thread
 	}
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < layer->size; j++) {
-			neuronGradient(i, j) = (-yTrue[i][j] / (neurons(i, j) + 0.0000001) + (1 - yTrue[i][j]) / (1 - neurons(i, j) + 0.0000001)) / layer->size;
+			neuronGradient.r(i, j) = (-yTrue[i][j] / (neurons(i, j) + 0.0000001) + (1 - yTrue[i][j]) / (1 - neurons(i, j) + 0.0000001)) / layer->size;
 		}
 	}
 }
@@ -139,10 +132,10 @@ void CategoricalCrossEntropy1D::differentiate(Layer* layer, float** yTrue, int t
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < layer->size; j++) {
 			if (yTrue[i][j] != 0) {
-				neuronGradient(i, j) = -yTrue[i][j] / (layer->size * neurons(i, j) + 0.0000001);
+				neuronGradient.r(i, j) = -yTrue[i][j] / (layer->size * neurons(i, j) + 0.0000001);
 			}
 			else {
-				neuronGradient(i, j) = 0;
+				neuronGradient.r(i, j) = 0;
 			}
 		}
 	}

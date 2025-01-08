@@ -35,8 +35,6 @@ public:
 	Matrix* AcGrad;
 	Matrix** AcSubGrad;
 
-	Matrix3D** activationGradients;
-
 	Activation* softmax;
 
 	Optimizer* outputOptimizer;

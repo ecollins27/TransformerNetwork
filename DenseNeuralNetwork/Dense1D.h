@@ -9,8 +9,6 @@ public:
 	Matrix weights;
 	Matrix weightGradient;
 	Matrix linearCombo;
-	Matrix3D activationGradient;
-	Matrix activationGradientMatrix;
 	Matrix backPropIntermediate;
 
 	Activation* activation;

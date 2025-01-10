@@ -226,7 +226,6 @@ void addSequenceMean(void* nn, ifstream& file, string& line, int* commaIndex, in
 
 void addSavedLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {
 	string layerName = getNextString(line, commaIndex, newCommaIndex);
-	printf("\n%s\n", layerName.c_str());
 	if (layerName.compare("DenseLayer") == 0) {
 		addDenseLayer(nn, file, line, commaIndex, newCommaIndex, prevSize, layer1D);
 	}
@@ -275,7 +274,7 @@ void* ModelParser::parseModel(string filename) {
 		model = { new Model1D(inputSize) };
 	}
 	else {
-		model = { new Model1D(inputSize) };
+		model = { new Model2D(inputSize) };
 		*layer1D = false;
 	}
 	int prevSize = inputSize + 1;

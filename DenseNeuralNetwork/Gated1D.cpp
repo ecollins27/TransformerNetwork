@@ -9,7 +9,7 @@ void Gated1D::propagateLayer(int num) {
 	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights1, A1, true);
 	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights2, A2, true);
 	activation->operate(batchSize, size, A1, Ao);
-	Matrix::elementMultiply(batchSize, size, Ao, A2, neurons, true);
+	Matrix::elementMultiply(batchSize, size, Ao, A2, neurons);
 }
 
 void Gated1D::backPropagate(int num) {
@@ -17,8 +17,8 @@ void Gated1D::backPropagate(int num) {
 		prevLayer->backPropagate(num);
 		return;
 	}
-	Matrix::elementMultiply(batchSize, size, neuronGradient, A2, AoGrad, true);
-	Matrix::elementMultiply(batchSize, size, neuronGradient, Ao, A2Grad, true);
+	Matrix::elementMultiply(batchSize, size, neuronGradient, A2, AoGrad);
+	Matrix::elementMultiply(batchSize, size, neuronGradient, Ao, A2Grad);
 	activation->differentiate(batchSize, size, A1, Ao, A1Grad, AoGrad);
 	Matrix::multiplyABC(batchSize, size, prevSize, A1Grad, weights1, prevLayer->neuronGradient, true);
 	Matrix::multiplyABC(batchSize, size, prevSize, A2Grad, weights2, prevLayer->neuronGradient, false);

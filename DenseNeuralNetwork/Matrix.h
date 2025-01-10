@@ -45,8 +45,9 @@ public:
 	static void multiplyAtBtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite);
 	static void multiplyABtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite);
 
-	static void elementAdd(int m, int n, Matrix& A, Matrix& B, Matrix& C, float c1, float c2, bool overwrite);
-	static void elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C, bool overwrite);
+	static void add(int m, int n, Matrix& A, Matrix& B, Matrix& C);
+	static void linearCombo(int m, int n, float c1, Matrix& A, float c2, Matrix& B, Matrix& C);
+	static void elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C);
 
 	virtual class FillFunction {
 	public:

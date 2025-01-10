@@ -15,6 +15,7 @@ void ResidualSave2D::setPrevLayer(Layer* prevLayer) {
 	index = prevLayer->index + 1;
 	this->prevLayer = (Layer2D*)prevLayer;
 	prevSize = prevLayer->size + 1;
+	size = prevLayer->size;
 }
 
 void ResidualSave2D::save(ofstream& file) {
@@ -25,6 +26,6 @@ void ResidualSave2D::save(ofstream& file) {
 }
 
 void ResidualSave2D::backPropagateWithResidual(int num) {
-	neuronGradient[num].copy(batchSize, size, prevLayer->neuronGradient[num]);
+	neuronGradient[num].copy(numTokens[num], size, prevLayer->neuronGradient[num]);
 	prevLayer->backPropagate(num);
 }

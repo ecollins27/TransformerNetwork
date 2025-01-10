@@ -15,7 +15,7 @@ public:
 	const static int FREQUENCY_THRESHOLD = 1500;
 	vector<string> tokenValues;
 
-	BytePairTokenizer(int numStrings, string* strings);
+	BytePairTokenizer(int numStrings, string* strings, int maxTokens);
 	BytePairTokenizer(string fileName);
 	float*** toTokens(int numStrings, string* strings, int* numTokens);
 	void save(string filename);

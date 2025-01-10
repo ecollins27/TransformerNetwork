@@ -5,7 +5,7 @@ ResidualAdd1D::ResidualAdd1D(ResidualSave1D* residualLayer) {
 }
 
 void ResidualAdd1D::propagateLayer(int num) {
-	Matrix::elementAdd(batchSize, size, prevLayer->neurons, residual->neurons, neurons, 1, 1, true);
+	Matrix::add(batchSize, size, prevLayer->neurons, residual->neurons, neurons);
 }
 
 void ResidualAdd1D::backPropagate(int num) {
@@ -15,7 +15,7 @@ void ResidualAdd1D::backPropagate(int num) {
 	}
 	neuronGradient.copy(batchSize, size, prevLayer->neuronGradient);
 	prevLayer->backPropagate(num);
-	Matrix::elementAdd(batchSize, size, neuronGradient, residual->neuronGradient, residual->neuronGradient, 1, 1, true);
+	Matrix::add(batchSize, size, neuronGradient, residual->neuronGradient, residual->neuronGradient);
 	residual->backPropagateWithResidual(num);
 }
 

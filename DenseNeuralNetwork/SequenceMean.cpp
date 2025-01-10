@@ -36,7 +36,7 @@ void SequenceMean::backPropagate(int num) {
 	float c = 1.0 / prevLayer->numTokens[num];
 	for (int i = 0; i < prevLayer->numTokens[num]; i++) {
 		for (int j = 0; j < size; j++) {
-			prevLayer->neuronGradient[num].r(i, j) = c * neuronGradient(num, j);
+			prevLayer->neuronGradient[num].r(i, j) = c * backPropIntermediate(num, j);
 		}
 	}
 	if (backThreadCount >= batchSize) {

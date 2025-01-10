@@ -8,6 +8,8 @@ class Model2D {
 
 public:
 
+	static int NUM_CORES;
+
 	Input2D* inputLayer;
 	Layer* outputLayer;
 	int t;

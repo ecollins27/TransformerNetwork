@@ -68,7 +68,7 @@ void Dropout2D::save(ofstream& file) {
 }
 
 void Dropout2D::predict(int num) {
-	prevLayer->neurons[num].copy(batchSize, size, neurons[num]);
+	prevLayer->neurons[num].copy(numTokens[num], size, neurons[num]);
 	if (nextLayer != NULL) {
 		nextLayer->predict(num);
 	}

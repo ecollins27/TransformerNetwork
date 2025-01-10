@@ -6,7 +6,7 @@ Optimizer* Optimizer::ADAM = { new Adam(0.9,0.999, 0) };
 Optimizer* Optimizer::ADEMAMIX = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0) };
 
 void Optimizer::addGradient(Matrix gradient) {
-	Matrix::elementAdd(height, width, weightGradient, gradient, weightGradient, 1, 1, true);
+	Matrix::add(height, width, weightGradient, gradient, weightGradient);
 }
 
 GradientDescent::GradientDescent(float regConstant) {

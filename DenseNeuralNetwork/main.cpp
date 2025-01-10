@@ -106,7 +106,7 @@ float calculateNaiveAccuracy(int numData, float*** y) {
 	return mean[1];
 }
 
-int main() {
+int main1() {
 	int numData = 100000;
 	string* reviews = new string[numData];
 	float*** y = Matrix::allocateMatrix3D(Matrix::ZERO_FILL, 1, numData, 2);
@@ -132,30 +132,45 @@ int main() {
 	printf("NumParameters: %d\n", model->getNumParameters());
 	printf("NaiveAccuracy: %f\n", calculateNaiveAccuracy(numData, y));
 	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 10)->with(TrainingParams::LEARNING_RATE, 0.00001f);
-	Optimizer* optimizer = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0.0001) };
+	printf("%f\n", params->get<float>(TrainingParams::LEARNING_RATE));
+	Optimizer* optimizer = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0) };
 	params = params->with(TrainingParams::OPTIMIZER, optimizer)->with(TrainingParams::BATCH_SIZE, 12);
 	model->oneThreadFit(new CategoricalCrossEntropy1D(), numData, numTokens, X, y, 1, new Loss*[1]{ new Accuracy1D() }, params, "transformer4_regular.txt");
 	return 0;
 }
 
-int main1() {
-	float** X = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 784);
-	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, 60000, 10);
-	getMNIST("C:\\Users\\Owner\\OneDrive\\Desktop\\EMNIST_Data\\emnist-mnist-train.csv", X, y, 60000);
+int main2() {
+	int numData = 10000;
+	string* reviews = new string[numData];
+	float*** y = Matrix::allocateMatrix3D(Matrix::ZERO_FILL, 1, numData, 2);
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, 100000, numData);
+	BytePairTokenizer tokenizer("tokenizer.txt");
 
-	Model1D* model{ new Model1D(784) };
-	model->addLayer(new Gated1D(Activation::SWISH, 500));
-	model->addLayer(new Gated1D(Activation::SWISH, 300));
-	model->addLayer(new Dropout1D(0.5));
-	model->addLayer(new Gated1D(Activation::SWISH, 100));
-	model->addLayer(new Dense1D(Activation::SOFTMAX, 10));
-	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 20);
-	model->fit(new CategoricalCrossEntropy1D(), 60000, X, y, 1, new Loss * [1] {new Accuracy1D()}, params);
+	int* numTokens = (int*)malloc(numData * sizeof(int));
+	float*** X = tokenizer.toTokens(numData, reviews, numTokens);
+
+	Model2D* model = (Model2D*)ModelParser::parseModel("transformer4_regular.txt");
+
+	model->test(new CategoricalCrossEntropy1D(), 10000, numTokens, X, y, 1, new Loss * [1] { new Accuracy1D()});
+}
+
+int main3() {
+	int numData = 100000;
+	string* reviews = new string[numData];
+	float*** y = Matrix::allocateMatrix3D(Matrix::ZERO_FILL, 1, numData, 2);
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, 0, numData);
+
+	BytePairTokenizer tokenizer(numData, reviews, 1000);
+	tokenizer.save("tokens1000.txt");
 }
 
 // TODO:
-// Optimize as much as possible - consider using better hardware acceleration and/or actual matrix library
-// Use mini-batch gradient descent instead of stochastic
+// Recreate single thread transformer model
+// Fix Gated2D backprop
+// Use SIMD on Normalization layers
+// Finish multi-thread implementation
+// Rename Loss classes
+// Create separate GenerativeModel2D and DiscriminativeModel2D classes?
 // 
 // 
 // Implement RNNs

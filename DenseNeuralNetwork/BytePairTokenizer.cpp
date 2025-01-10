@@ -79,7 +79,7 @@ void calculateNextToken(int numStrings, string* newStrings, vector<string> token
 	free(frequencyMap);
 }
 
-BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings) {
+BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings, int maxTokens) {
 	for (int i = 0; i < numStrings; i++) {
 		for (int j = 0; j < strings[i].length(); j++) {
 			char c = tolower(strings[i][j]);
@@ -100,7 +100,7 @@ BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings) {
 	}
 	int maxIndex[2];
 	calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);
-	while (maxIndex[0] >= 0 && maxIndex[1] >= 0 && tokenValues.size() < 1000) {
+	while (maxIndex[0] >= 0 && maxIndex[1] >= 0 && tokenValues.size() < maxTokens) {
 		tokenValues.emplace_back(tokenValues[maxIndex[0]] + tokenValues[maxIndex[1]]);
 		replaceStrings(numStrings, newStrings, maxIndex, tokenValues.size() - 1);
 		calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);

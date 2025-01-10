@@ -46,8 +46,8 @@ void MultiHeadAttention::backPropagate(int num) {
 		Matrix::multiplyABC(numTokens[num], keySize, prevSize, KGrad[num][i], Wk[i], prevLayer->neuronGradient[num], false);
 		Matrix::multiplyAtBC(keySize, numTokens[num], prevSize, KGrad[num][i], prevLayer->neuronGradient[num], WkGrad[num][i], true);
 		keyOptimizers[i]->addGradient(WkGrad[num][i]);
-		prevLayer->backPropagate(num);
 	}
+	prevLayer->backPropagate(num);
 }
 
 void MultiHeadAttention::setPrevLayer(Layer* prevLayer) {
@@ -148,9 +148,9 @@ void MultiHeadAttention::applyGradients(float learningRate, int t) {
 void MultiHeadAttention::setOptimizer(Optimizer* optimizer) {
 	outputOptimizer = optimizer->clone();
 	outputOptimizer->setDimensions(size, numHeads * valueSize);
-	queryOptimizers = (Optimizer**)malloc(numHeads * sizeof(Optimizer*));
-	keyOptimizers = (Optimizer**)malloc(numHeads * sizeof(Optimizer*));
-	valueOptimizers = (Optimizer**)malloc(numHeads * sizeof(Optimizer*));
+	queryOptimizers = new Optimizer * [numHeads];
+	keyOptimizers = new Optimizer * [numHeads];
+	valueOptimizers = new Optimizer * [numHeads];
 	for (int i = 0; i < numHeads; i++) {
 		queryOptimizers[i] = optimizer->clone();
 		queryOptimizers[i]->setDimensions(keySize, prevSize);

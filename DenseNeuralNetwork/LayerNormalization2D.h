@@ -14,5 +14,7 @@ public:
 	void backPropagate(int num);
 	void setPrevLayer(Layer* prevLayer);
 	void save(ofstream& file);
+
+	void setBatchSize(int batchSize);
 };
 

@@ -9,12 +9,12 @@ void Gated2D::propagateLayer(int num) {
 	Matrix::multiplyABtC(numTokens[num], prevSize, size, prevLayer->neurons[num], weights1, A1[num], true);
 	Matrix::multiplyABtC(numTokens[num], prevSize, size, prevLayer->neurons[num], weights2, A2[num], true);
 	activation->operate(numTokens[num], size, A1[num], Ao[num]);
-	Matrix::elementMultiply(numTokens[num], size, Ao[num], A2[num], neurons[num], true);
+	Matrix::elementMultiply(numTokens[num], size, Ao[num], A2[num], neurons[num]);
 }
 
 void Gated2D::backPropagate(int num) {
-	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A2[num], A1Grad[num], true);
-	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A1[num], A2Grad[num], true);
+	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A2[num], A1Grad[num]);
+	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A1[num], A2Grad[num]);
 	activation->differentiate(numTokens[num], size, A1[num], Ao[num], A1Grad[num], AoGrad[num]);
 	Matrix::multiplyABC(numTokens[num], size, prevSize, A1Grad[num], weights1, prevLayer->neuronGradient[num], true);
 	Matrix::multiplyABC(numTokens[num], size, prevSize, A2Grad[num], weights2, prevLayer->neuronGradient[num], false);

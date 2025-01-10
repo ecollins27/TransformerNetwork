@@ -63,7 +63,7 @@ void Matrix::calculateMatrix(int height, int width) {
 void Matrix::scale(int height, int width, float c) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
-			matrix[i][j] *= c;
+			r(i,j) *= c;
 		}
 	}
 }
@@ -79,7 +79,7 @@ void Matrix::copy(int height, int width, Matrix& to) {
 void Matrix::fill(FillFunction* fillFunction, int height, int width) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
-			matrix[i][j] = fillFunction->operator()();
+			r(i,j) = fillFunction->operator()();
 		}
 	}
 }
@@ -254,28 +254,67 @@ void Matrix::multiplyABtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, 
 	}
 }
 
-void Matrix::elementAdd(int m, int n, Matrix& A, Matrix& B, Matrix& C, float c1, float c2, bool overwrite) {
+void Matrix::add(int m, int n, Matrix& A, Matrix& B, Matrix& C) {
+	int n8 = n >> 3 << 3;
+	__m128 a1, b1, a2, b2;
 	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			if (overwrite) {
-				C.r(i, j) = A(i, j) + B(i, j);
-			}
-			else {
-				C.r(i, j) += A(i, j) + B(i, j);
-			}
+		for (int j = 0; j < n8; j += 8) {
+			a1 = _mm_loadu_ps(&A.matrix[i][j]);
+			b1 = _mm_loadu_ps(&B.matrix[i][j]);
+			a2 = _mm_loadu_ps(&A.matrix[i][j + 4]);
+			b2 = _mm_loadu_ps(&B.matrix[i][j + 4]);
+			_mm_store_ps(&C.matrix[i][j], _mm_add_ps(a1, b1));
+			_mm_store_ps(&C.matrix[i][j + 4], _mm_add_ps(a2, b2));
+		}
+		for (int j = n8; j < n; j++) {
+			C.matrix[i][j] = A.matrix[i][j] + B.matrix[i][j];
 		}
 	}
+	if (C.saveTranspose) {
+		*C.transposeUpdated = false;
+	}
 }
-void Matrix::elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C, bool overwrite) {
+
+void Matrix::linearCombo(int m, int n, float c1, Matrix& A, float c2, Matrix& B, Matrix& C) {
+	int n8 = n >> 3 << 3;
+	__m128 cv1 = _mm_set1_ps(c1), cv2 = _mm_set1_ps(c2);
+	__m128 a1, b1, a2, b2;
 	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			if (overwrite) {
-				C.r(i, j) = A(i, j) * B(i, j);
-			}
-			else {
-				C.r(i, j) += A(i, j) * B(i, j);
-			}
+		for (int j = 0; j < n8; j += 8) {
+			a1 = _mm_loadu_ps(&A.matrix[i][j]);
+			b1 = _mm_loadu_ps(&B.matrix[i][j]);
+			a2 = _mm_loadu_ps(&A.matrix[i][j + 4]);
+			b2 = _mm_loadu_ps(&B.matrix[i][j + 4]);
+			_mm_store_ps(&C.matrix[i][j], _mm_add_ps(_mm_mul_ps(cv1, a1), _mm_mul_ps(cv2, b1)));
+			_mm_store_ps(&C.matrix[i][j + 4], _mm_add_ps(_mm_mul_ps(cv1, a2), _mm_mul_ps(cv2, b2)));
 		}
+		for (int j = n8; j < n; j++) {
+			C.matrix[i][j] = c1 * A.matrix[i][j] + c2 * B.matrix[i][j];
+		}
+	}
+	if (C.saveTranspose) {
+		*C.transposeUpdated = false;
+	}
+}
+
+void Matrix::elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C) {
+	int n8 = n >> 3 << 3;
+	__m128 a1, b1, a2, b2;
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < n8; j += 8) {
+			a1 = _mm_loadu_ps(&A.matrix[i][j]);
+			b1 = _mm_loadu_ps(&B.matrix[i][j]);
+			a2 = _mm_loadu_ps(&A.matrix[i][j + 4]);
+			b2 = _mm_loadu_ps(&B.matrix[i][j + 4]);
+			_mm_store_ps(&C.matrix[i][j], _mm_mul_ps(a1, b1));
+			_mm_store_ps(&C.matrix[i][j + 4], _mm_mul_ps(a2, b2));
+		}
+		for (int j = n8; j < n; j++) {
+			C.matrix[i][j] = A.matrix[i][j] * B.matrix[i][j];
+		}
+	}
+	if (C.saveTranspose) {
+		*C.transposeUpdated = false;
 	}
 }
 

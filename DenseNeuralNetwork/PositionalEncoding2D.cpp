@@ -29,6 +29,7 @@ void PositionalEncoding2D::setPrevLayer(Layer* prevLayer) {
 	index = prevLayer->index + 1;
 	this->prevLayer = (Layer2D*)prevLayer;
 	prevSize = prevLayer->size + 1;
+	size = prevLayer->size;
 }
 
 void PositionalEncoding2D::save(ofstream& file) {

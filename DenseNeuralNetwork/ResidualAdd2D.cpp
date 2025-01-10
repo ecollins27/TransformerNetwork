@@ -5,13 +5,13 @@ ResidualAdd2D::ResidualAdd2D(ResidualSave2D* residualLayer) {
 }
 
 void ResidualAdd2D::propagateLayer(int num) {
-	Matrix::elementAdd(numTokens[num], size, prevLayer->neurons[num], residual->neurons[num], neurons[num], 1, 1, true);
+	Matrix::add(numTokens[num], size, prevLayer->neurons[num], residual->neurons[num], neurons[num]);
 }
 
 void ResidualAdd2D::backPropagate(int num) {
 	neuronGradient[num].copy(numTokens[num], size, prevLayer->neuronGradient[num]);
 	prevLayer->backPropagate(num);
-	Matrix::elementAdd(numTokens[num], size, residual->neuronGradient[num], neuronGradient[num], residual->neuronGradient[num], 1, 1, true);
+	Matrix::add(numTokens[num], size, residual->neuronGradient[num], neuronGradient[num], residual->neuronGradient[num]);
 	residual->backPropagateWithResidual(num);
 }
 

@@ -62,7 +62,6 @@ void Dense2D::save(ofstream& file) {
 
 void Dense2D::applyGradients(float learningRate, int t) {
 	optimizer->applyGradient(weights, t, learningRate, batchSize);
-	weights.calculateTranspose(size, prevSize);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);
 	}

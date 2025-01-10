@@ -5,6 +5,8 @@
 #include "Dense2D.h"
 #include "MultiHeadAttention.h"
 
+int Model2D::NUM_CORES = 1;
+
 Model2D::Model2D(int inputSize) {
 	inputLayer = new Input2D(inputSize);
 	outputLayer = inputLayer;
@@ -248,9 +250,9 @@ void Model2D::test(Loss* lossFunction, int numData, int* numTokens, float*** X, 
 	for (int i = 0; i < numData; i++) {
 		inputLayer->setNumTokens(&numTokens[i]);
 		predict(X[i], 0);
-		averages[numMetrics] += lossFunction->loss(outputLayer, y[i], 0, output1D);
+		averages[numMetrics] += lossFunction->loss(outputLayer, output1D ? &y[0][i] : y[i], 0, output1D);
 		for (int j = 0; j < numMetrics; j++) {
-			averages[j] += metrics[j]->loss(outputLayer, y[i], 0, output1D);
+			averages[j] += metrics[j]->loss(outputLayer, output1D ? &y[0][i] : y[i], 0, output1D);
 		}
 		printf("\rTest %d/%d  NumTokens:%d  TestLoss:%f  ", i + 1, numData, numTokens[i], averages[numMetrics] / (i + 1));
 		for (int j = 0; j < numMetrics; j++) {

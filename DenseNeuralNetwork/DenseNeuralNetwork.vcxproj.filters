@@ -5,9 +5,6 @@
     <ClCompile Include="Layer.cpp">
       <Filter>DNN\Layers</Filter>
     </ClCompile>
-    <ClCompile Include="TrainingParams.cpp">
-      <Filter>DNN\Util</Filter>
-    </ClCompile>
     <ClCompile Include="Optimizer.cpp">
       <Filter>DNN\Util</Filter>
     </ClCompile>
@@ -83,7 +80,7 @@
     <ClCompile Include="Model1D.cpp">
       <Filter>DNN\Models</Filter>
     </ClCompile>
-    <ClCompile Include="Model2D.cpp">
+    <ClCompile Include="Model2DTo1D.cpp">
       <Filter>DNN\Models</Filter>
     </ClCompile>
     <ClCompile Include="Loss.cpp">
@@ -92,13 +89,13 @@
     <ClCompile Include="BytePairTokenizer.cpp">
       <Filter>DNN\Util</Filter>
     </ClCompile>
+    <ClCompile Include="TrainingParams.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Layer.h">
       <Filter>DNN\Layers</Filter>
-    </ClInclude>
-    <ClInclude Include="TrainingParams.h">
-      <Filter>DNN\Util</Filter>
     </ClInclude>
     <ClInclude Include="Optimizer.h">
       <Filter>DNN\Util</Filter>
@@ -175,13 +172,16 @@
     <ClInclude Include="Model1D.h">
       <Filter>DNN\Models</Filter>
     </ClInclude>
-    <ClInclude Include="Model2D.h">
+    <ClInclude Include="Model2DTo1D.h">
       <Filter>DNN\Models</Filter>
     </ClInclude>
     <ClInclude Include="Loss.h">
       <Filter>DNN\Util</Filter>
     </ClInclude>
     <ClInclude Include="BytePairTokenizer.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="TrainingParams.h">
       <Filter>DNN\Util</Filter>
     </ClInclude>
   </ItemGroup>

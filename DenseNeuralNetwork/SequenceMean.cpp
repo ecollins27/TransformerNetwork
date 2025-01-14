@@ -2,6 +2,9 @@
 
 SequenceMean::SequenceMean(Activation* activation) {
 	this->activation = activation;
+	forwardThreadCount = { 0 };
+	backThreadCount = { 0 };
+	gradientCalculated = { false };
 }
 
 void SequenceMean::propagateLayer(int num) {
@@ -13,11 +16,11 @@ void SequenceMean::propagateLayer(int num) {
 		}
 		mean /= prevLayer->numTokens[num];
 	}
-	forwardThreadCount++;
-	if (num == batchSize - 1) {
-		while (forwardThreadCount < batchSize){}
+	forwardThreadCount.fetch_add(1);
+	if (forwardThreadCount.load() >= batchSize) {
+		forwardThreadCount.store(0);
 		activation->operate(batchSize, size, means, neurons);
-		forwardThreadCount = 0;
+		gradientCalculated.store(false);
 		if (nextLayer != NULL) {
 			nextLayer->forwardPropagate(num);
 		}
@@ -27,20 +30,14 @@ void SequenceMean::propagateLayer(int num) {
 void SequenceMean::backPropagate(int num) {
 	if (num == 0) {
 		activation->differentiate(batchSize, size, means, neurons, backPropIntermediate, neuronGradient);
-		backThreadCount++;
+		gradientCalculated.store(true);
 	}
-	else {
-		while (backThreadCount < 1){}
-		backThreadCount++;
-	}
+	while (!gradientCalculated.load()){}
 	float c = 1.0 / prevLayer->numTokens[num];
 	for (int i = 0; i < prevLayer->numTokens[num]; i++) {
 		for (int j = 0; j < size; j++) {
 			prevLayer->neuronGradient[num].r(i, j) = c * backPropIntermediate(num, j);
 		}
-	}
-	if (backThreadCount >= batchSize) {
-		backThreadCount = 0;
 	}
 	prevLayer->backPropagate(num);
 }

@@ -54,11 +54,11 @@ void Model1D::shuffle(int numData, float** X, float** y) {
 }
 
 void Model1D::fit(Loss* lossFunction, int numData, float** X, float** y, int numMetrics, Loss** metrics, TrainingParams* params) {
-	float valSplit = params->get<float>(TrainingParams::VAL_SPLIT);
-	int batchSize = params->get<int>(TrainingParams::BATCH_SIZE);
-	int numEpochs = params->get<int>(TrainingParams::NUM_EPOCHS);
-	float learningRate = params->get<float>(TrainingParams::LEARNING_RATE);
-	inputLayer->setOptimizer(params->get<Optimizer*>(TrainingParams::OPTIMIZER));
+	float valSplit = params->get<TrainingParams::VAL_SPLIT, float>();
+	int batchSize = params->get<TrainingParams::BATCH_SIZE, int>();
+	int numEpochs = params->get<TrainingParams::NUM_EPOCHS, int>();
+	float learningRate = params->get<TrainingParams::LEARNING_RATE, float>();
+	inputLayer->setOptimizer(params->get<TrainingParams::OPTIMIZER, Optimizer*>());
 	float* averages = NULL;
 	averages = new float[numMetrics + 1];
 	int trainingNum = (int)(numData * (1 - valSplit));

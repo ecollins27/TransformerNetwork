@@ -69,7 +69,7 @@ void getData(string fileName, float** X, float** y, int num) {
 	file.close();
 }
 
-void getIMDBData(string fileName, string* X, float*** y, int start, int num) {
+void getIMDBData(string fileName, string* X, float** y, int start, int num) {
 	string line;
 	int sentiment;
 	int commaIndex1, commaIndex2;
@@ -84,19 +84,19 @@ void getIMDBData(string fileName, string* X, float*** y, int start, int num) {
 		commaIndex2 = line.find_first_of(",", commaIndex1 + 1);
 		X[i] = line.substr(commaIndex2 + 1, line.length());
 		sentiment = stoi(line.substr(commaIndex1 + 1, commaIndex2 - commaIndex1));
-		y[0][i][sentiment] = 1;
-		y[0][i][1 - sentiment] = 0;
+		y[i][sentiment] = 1;
+		y[i][1 - sentiment] = 0;
 		printf("\r%f", 100.0 * i / num);
 	}
 	printf("\n");
 	file.close();
 }
 
-float calculateNaiveAccuracy(int numData, float*** y) {
+float calculateNaiveAccuracy(int numData, float** y) {
 	float mean[2] = { 0, 0 };
 	for (int i = 0; i < numData; i++) {
-		mean[0] += y[0][i][0];
-		mean[1] += y[0][i][1];
+		mean[0] += y[i][0];
+		mean[1] += y[i][1];
 	}
 	mean[0] /= numData;
 	mean[1] /= numData;
@@ -106,24 +106,33 @@ float calculateNaiveAccuracy(int numData, float*** y) {
 	return mean[1];
 }
 
-int main1() {
+int main() {
 	int numData = 100000;
 	string* reviews = new string[numData];
-	float*** y = Matrix::allocateMatrix3D(Matrix::ZERO_FILL, 1, numData, 2);
+	string* valReviews = new string[10000];
+	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
+	float** yVal = Matrix::allocateMatrix(Matrix::ZERO_FILL, 10000, 2);
 	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, 0, numData);
-	BytePairTokenizer tokenizer("tokenizer.txt");
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", valReviews, yVal, numData, 10000);
+	BytePairTokenizer tokenizer("tokens1000.txt");
 
-	int* numTokens = (int*)malloc(numData * sizeof(int));
+	int* numTokens = new int[numData];
+	int* valNumTokens = new int[10000];
 	float*** X = tokenizer.toTokens(numData, reviews, numTokens);
+	float*** XVal = tokenizer.toTokens(10000, valReviews, valNumTokens);
 
-	Model2D* model{ new Model2D(1000) };
+	Model2DTo1D* model{ new Model2DTo1D(1000) };
 	model->addLayer({ new Dense2D(Activation::NONE, 750) });
 	model->addLayer({ new Dense2D(Activation::NONE, 300) });
 	model->addLayer({ new Dense2D(Activation::NONE, 100) });
 	model->addLayer({ new PositionalEncoding2D() });
-	model->addTransformerBlock(10, 100, 50);
-	model->addTransformerBlock(10, 100, 50);
-	model->addTransformerBlock(10, 100, 50);
+	model->addTransformerBlock(20, 100, 50);
+	model->addLayer(new Dropout2D(0.75));
+	model->addTransformerBlock(20, 100, 30);
+	model->addLayer(new Dropout2D(0.75));
+	model->addTransformerBlock(20, 100, 20);
+	model->addLayer(new Dropout2D(0.75));
+	model->addTransformerBlock(20, 100, 10);
 	model->addLayer({ new Dense2D(Activation::SWISH, 75) });
 	model->addLayer({ new Dense2D(Activation::SWISH, 20) });
 	model->addLayer({ new Dense2D(Activation::SWISH, 2) });
@@ -131,33 +140,31 @@ int main1() {
 	
 	printf("NumParameters: %d\n", model->getNumParameters());
 	printf("NaiveAccuracy: %f\n", calculateNaiveAccuracy(numData, y));
-	TrainingParams* params = TrainingParams::DEFAULT->with(TrainingParams::NUM_EPOCHS, 10)->with(TrainingParams::LEARNING_RATE, 0.00001f);
-	printf("%f\n", params->get<float>(TrainingParams::LEARNING_RATE));
-	Optimizer* optimizer = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0) };
-	params = params->with(TrainingParams::OPTIMIZER, optimizer)->with(TrainingParams::BATCH_SIZE, 12);
-	model->oneThreadFit(new CategoricalCrossEntropy1D(), numData, numTokens, X, y, 1, new Loss*[1]{ new Accuracy1D() }, params, "transformer4_regular.txt");
+	TrainingParams* params = new TrainingParams(0.00001f, 12, 10, 0.1f, Optimizer::ADEMAMIX, 10000, valNumTokens, XVal, yVal);
+	model->fit(new CategoricalCrossEntropy1D(), numData, numTokens, X, y, 1, new Loss*[1]{ new Accuracy1D() }, params);
+	model->save("transformer4_regular.txt");
 	return 0;
 }
 
 int main2() {
 	int numData = 10000;
 	string* reviews = new string[numData];
-	float*** y = Matrix::allocateMatrix3D(Matrix::ZERO_FILL, 1, numData, 2);
+	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
 	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, 100000, numData);
-	BytePairTokenizer tokenizer("tokenizer.txt");
+	BytePairTokenizer tokenizer("tokens1000.txt");
 
-	int* numTokens = (int*)malloc(numData * sizeof(int));
+	int* numTokens = new int[numData];
 	float*** X = tokenizer.toTokens(numData, reviews, numTokens);
 
-	Model2D* model = (Model2D*)ModelParser::parseModel("transformer4_regular.txt");
+	Model2DTo1D* model = (Model2DTo1D*)ModelParser::parseModel("transformer4_regular.txt");
 
-	model->test(new CategoricalCrossEntropy1D(), 10000, numTokens, X, y, 1, new Loss * [1] { new Accuracy1D()});
+	model->test(new CategoricalCrossEntropy1D(), numData, numTokens, X, y, 1, new Loss * [1] { new Accuracy1D()});
 }
 
 int main3() {
-	int numData = 100000;
+	int numData = 200000;
 	string* reviews = new string[numData];
-	float*** y = Matrix::allocateMatrix3D(Matrix::ZERO_FILL, 1, numData, 2);
+	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
 	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, 0, numData);
 
 	BytePairTokenizer tokenizer(numData, reviews, 1000);
@@ -165,12 +172,10 @@ int main3() {
 }
 
 // TODO:
-// Recreate single thread transformer model
 // Fix Gated2D backprop
 // Use SIMD on Normalization layers
-// Finish multi-thread implementation
 // Rename Loss classes
-// Create separate GenerativeModel2D and DiscriminativeModel2D classes?
+// Store __m128 objects permanently in matrix class?
 // 
 // 
 // Implement RNNs

@@ -70,7 +70,7 @@ void addDenseLayer(void* nn, ifstream& file, string& line, int* commaIndex, int*
 	}
 	else {
 		Dense2D* denseLayer = new Dense2D(activation, size);
-		((Model2D*)nn)->addLayer(denseLayer);
+		((Model2DTo1D*)nn)->addLayer(denseLayer);
 		for (int i = 0; i < size; i++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int j = 0; j < *prevSize; j++) {
@@ -108,7 +108,7 @@ void addDropout(void* nn, ifstream& file, string& line, int* commaIndex, int* ne
 	}
 	else {
 		Dropout2D* dropout = { new Dropout2D(getNextFloat(line, commaIndex, newCommaIndex)) };
-		((Model2D*)nn)->addLayer(dropout);
+		((Model2DTo1D*)nn)->addLayer(dropout);
 	}
 }
 
@@ -133,7 +133,7 @@ void addGatedLayer(void* nn, ifstream& file, string& line, int* commaIndex, int*
 	}
 	else {
 		Gated2D* gatedLayer = { new Gated2D(activation, size) };
-		((Model2D*)nn)->addLayer(gatedLayer);
+		((Model2DTo1D*)nn)->addLayer(gatedLayer);
 		for (int i = 0; i < size; i++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int j = 0; j < *prevSize; j++) {
@@ -152,7 +152,7 @@ void addGatedLayer(void* nn, ifstream& file, string& line, int* commaIndex, int*
 
 void addLayerNormalization(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	LayerNormalization2D* layerNormalization = { new LayerNormalization2D() };
-	((Model2D*)nn)->addLayer(layerNormalization);
+	((Model2DTo1D*)nn)->addLayer(layerNormalization);
 }
 
 void addMultiHeadAttentionLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
@@ -160,7 +160,7 @@ void addMultiHeadAttentionLayer(void* nn, ifstream& file, string& line, int* com
 	int keySize = getNextInt(line, commaIndex, newCommaIndex);
 	int valueSize = getNextInt(line, commaIndex, newCommaIndex);
 	MultiHeadAttention* multiHeadAttentionLayer = { new MultiHeadAttention(numHeads, keySize, valueSize) };
-	((Model2D*)nn)->addLayer(multiHeadAttentionLayer);
+	((Model2DTo1D*)nn)->addLayer(multiHeadAttentionLayer);
 	for (int i = 0; i < numHeads; i++) {
 		for (int j = 0; j < keySize; j++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
@@ -196,8 +196,8 @@ void addResidualAdd(void* nn, ifstream& file, string& line, int* commaIndex, int
 		((Model1D*)nn)->addLayer(residualAdd);
 	}
 	else {
-		ResidualAdd2D* residualAdd = { new ResidualAdd2D(((Model2D*)nn)->getLayer<ResidualSave2D>(saveIndex)) };
-		((Model2D*)nn)->addLayer(residualAdd);
+		ResidualAdd2D* residualAdd = { new ResidualAdd2D(((Model2DTo1D*)nn)->getLayer<ResidualSave2D>(saveIndex)) };
+		((Model2DTo1D*)nn)->addLayer(residualAdd);
 	}
 }
 
@@ -208,20 +208,20 @@ void addResidualSave(void* nn, ifstream& file, string& line, int* commaIndex, in
 	}
 	else {
 		ResidualSave2D* residualSave = { new ResidualSave2D() };
-		((Model2D*)nn)->addLayer(residualSave);
+		((Model2DTo1D*)nn)->addLayer(residualSave);
 	}
 }
 
 void addPositionalEncodingLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	int L = getNextInt(line, commaIndex, newCommaIndex);
 	PositionalEncoding2D* positionalEncodingLayer = { new PositionalEncoding2D(L) };
-	((Model2D*)nn)->addLayer(positionalEncodingLayer);
+	((Model2DTo1D*)nn)->addLayer(positionalEncodingLayer);
 }
 
 void addSequenceMean(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	Activation* activation = readActivation(line, commaIndex, newCommaIndex);
 	SequenceMean* batchSum = { new SequenceMean(activation) };
-	((Model2D*)nn)->addLayer(batchSum);
+	((Model2DTo1D*)nn)->addLayer(batchSum);
 }
 
 void addSavedLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {
@@ -273,8 +273,8 @@ void* ModelParser::parseModel(string filename) {
 	if (modelType.compare("Model1D") == 0) {
 		model = { new Model1D(inputSize) };
 	}
-	else {
-		model = { new Model2D(inputSize) };
+	else if (modelType.compare("Model2DTo1D")) {
+		model = { new Model2DTo1D(inputSize) };
 		*layer1D = false;
 	}
 	int prevSize = inputSize + 1;

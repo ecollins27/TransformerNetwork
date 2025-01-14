@@ -24,14 +24,12 @@ void MultiHeadAttention::propagateLayer(int num) {
 void MultiHeadAttention::backPropagate(int num) {
 	Matrix::multiplyABC(numTokens[num], size, numHeads * valueSize, neuronGradient[num], Wo, AcGrad[num], true);
 	Matrix::multiplyAtBC(size, numTokens[num], numHeads * valueSize, neuronGradient[num], Ac[num], WoGrad[num], true);
-	outputOptimizer->addGradient(WoGrad[num]);
 	prevLayer->neuronGradient[num].fill(Matrix::ZERO_FILL, numTokens[num], prevSize);
 	float scalar = 1.0 / sqrt(keySize);
 	for (int i = 0; i < numHeads; i++) {
 		Matrix::multiplyABC(numTokens[num], valueSize, numTokens[num], AcSubGrad[num][i], V[num][i], AoGrad[num][i], true);
 		Matrix::multiplyAtBC(valueSize, numTokens[num], numTokens[num], AcSubGrad[num][i], Ao[num][i], VGrad[num][i], true);
 		Matrix::multiplyABC(valueSize, numTokens[num], prevSize, VGrad[num][i], prevLayer->neurons[num], WvGrad[num][i], true);
-		valueOptimizers[i]->addGradient(WvGrad[num][i]);
 		Matrix::multiplyAtBC(numTokens[num], valueSize, prevSize, VGrad[num][i], Wv[i], prevLayer->neuronGradient[num], false);
 
 		softmax->differentiate(numTokens[num], numTokens[num], A[num][i], Ao[num][i], AGrad[num][i], AoGrad[num][i]);
@@ -42,10 +40,8 @@ void MultiHeadAttention::backPropagate(int num) {
 
 		Matrix::multiplyABC(numTokens[num], keySize, prevSize, QGrad[num][i], Wq[i], prevLayer->neuronGradient[num], false);
 		Matrix::multiplyAtBC(keySize, numTokens[num], prevSize, QGrad[num][i], prevLayer->neurons[num], WqGrad[num][i], true);
-		queryOptimizers[i]->addGradient(WqGrad[num][i]);
 		Matrix::multiplyABC(numTokens[num], keySize, prevSize, KGrad[num][i], Wk[i], prevLayer->neuronGradient[num], false);
 		Matrix::multiplyAtBC(keySize, numTokens[num], prevSize, KGrad[num][i], prevLayer->neuronGradient[num], WkGrad[num][i], true);
-		keyOptimizers[i]->addGradient(WkGrad[num][i]);
 	}
 	prevLayer->backPropagate(num);
 }
@@ -134,6 +130,14 @@ void MultiHeadAttention::save(ofstream& file) {
 }
 
 void MultiHeadAttention::applyGradients(float learningRate, int t) {
+	for (int i = 0; i < batchSize; i++) {
+		outputOptimizer->addGradient(WoGrad[i]);
+		for (int j = 0; j < numHeads; j++) {
+			keyOptimizers[j]->addGradient(WkGrad[i][j]);
+			queryOptimizers[j]->addGradient(WqGrad[i][j]);
+			valueOptimizers[j]->addGradient(WvGrad[i][j]);
+		}
+	}
 	outputOptimizer->applyGradient(Wo, t, learningRate, batchSize);
 	for (int i = 0; i < numHeads; i++) {
 		queryOptimizers[i]->applyGradient(Wq[i], t, learningRate, batchSize);

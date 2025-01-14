@@ -13,15 +13,13 @@ void Gated2D::propagateLayer(int num) {
 }
 
 void Gated2D::backPropagate(int num) {
-	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A2[num], A1Grad[num]);
-	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A1[num], A2Grad[num]);
+	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A2[num], AoGrad[num]);
+	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], Ao[num], A2Grad[num]);
 	activation->differentiate(numTokens[num], size, A1[num], Ao[num], A1Grad[num], AoGrad[num]);
 	Matrix::multiplyABC(numTokens[num], size, prevSize, A1Grad[num], weights1, prevLayer->neuronGradient[num], true);
 	Matrix::multiplyABC(numTokens[num], size, prevSize, A2Grad[num], weights2, prevLayer->neuronGradient[num], false);
 	Matrix::multiplyAtBC(size, numTokens[num], prevSize, A1Grad[num], prevLayer->neurons[num], weightGradient1[num], true);
 	Matrix::multiplyAtBC(size, numTokens[num], prevSize, A2Grad[num], prevLayer->neurons[num], weightGradient2[num], true);
-	optimizer1->addGradient(weightGradient1[num]);
-	optimizer2->addGradient(weightGradient2[num]);
 	prevLayer->backPropagate(num);
 }
 
@@ -40,9 +38,7 @@ void Gated2D::setPrevLayer(Layer* prevLayer) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
 	weights1 = Matrix(new Matrix::NormalFill(0, stdDeviation), size, prevSize, true);
-	weights1.calculateTranspose(size, prevSize);
 	weights2 = Matrix(new Matrix::NormalFill(0, stdDeviation), size, prevSize, true);
-	weights2.calculateTranspose(size, prevSize);
 }
 
 void Gated2D::setBatchSize(int batchSize) {
@@ -55,7 +51,7 @@ void Gated2D::setBatchSize(int batchSize) {
 	A2 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
 	A2Grad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, true);
 	Ao = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
-	Ao = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
+	AoGrad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
@@ -83,10 +79,12 @@ void Gated2D::save(ofstream& file) {
 }
 
 void Gated2D::applyGradients(float learningRate, int t) {
+	for (int i = 0; i < batchSize; i++) {
+		optimizer1->addGradient(weightGradient1[i]);
+		optimizer2->addGradient(weightGradient2[i]);
+	}
 	optimizer1->applyGradient(weights1, t, learningRate, batchSize);
-	weights1.calculateTranspose(size, prevSize);
 	optimizer2->applyGradient(weights2, t, learningRate, batchSize);
-	weights2.calculateTranspose(size, prevSize);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);
 	}

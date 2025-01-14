@@ -49,7 +49,7 @@
     <ClCompile Include="ResidualSave2D.cpp" />
     <ClCompile Include="SequenceMean.cpp" />
     <ClCompile Include="TrainingParams.cpp" />
-    <ClCompile Include="Model2D.cpp" />
+    <ClCompile Include="Model2DTo1D.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Activation.h" />
@@ -81,7 +81,7 @@
     <ClInclude Include="ResidualSave2D.h" />
     <ClInclude Include="SequenceMean.h" />
     <ClInclude Include="TrainingParams.h" />
-    <ClInclude Include="Model2D.h" />
+    <ClInclude Include="Model2DTo1D.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

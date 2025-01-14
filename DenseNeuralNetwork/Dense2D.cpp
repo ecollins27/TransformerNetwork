@@ -14,7 +14,6 @@ void Dense2D::backPropagate(int num) {
 	activation->differentiate(numTokens[num], size, linearCombo[num], neurons[num], backPropIntermediate[num], neuronGradient[num]);
 	Matrix::multiplyABC(numTokens[num], size, prevSize, backPropIntermediate[num], weights, prevLayer->neuronGradient[num], true);
 	Matrix::multiplyAtBC(size, numTokens[num], prevSize, backPropIntermediate[num], prevLayer->neurons[num], weightGradient[num], true);
-	optimizer->addGradient(weightGradient[num]);
 	prevLayer->backPropagate(num);
 }
 
@@ -61,6 +60,9 @@ void Dense2D::save(ofstream& file) {
 }
 
 void Dense2D::applyGradients(float learningRate, int t) {
+	for (int i = 0; i < batchSize; i++) {
+		optimizer->addGradient(weightGradient[i]);
+	}
 	optimizer->applyGradient(weights, t, learningRate, batchSize);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);

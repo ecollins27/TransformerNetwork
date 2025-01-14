@@ -20,7 +20,7 @@
 #include "ResidualAdd2D.h"
 #include "ResidualSave2D.h"
 #include "Model1D.h"
-#include "Model2D.h"
+#include "Model2DTo1D.h"
 
 class ModelParser {
 

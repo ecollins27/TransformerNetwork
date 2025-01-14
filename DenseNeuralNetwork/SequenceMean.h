@@ -7,7 +7,8 @@ class SequenceMean : public Layer1D {
 public:
 	Layer2D* prevLayer;
 
-	int forwardThreadCount, backThreadCount;
+	atomic<int> forwardThreadCount, backThreadCount;
+	atomic<bool> gradientCalculated;
 
 	Activation* activation;
 

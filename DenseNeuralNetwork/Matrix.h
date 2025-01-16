@@ -34,8 +34,12 @@ public:
 	void print(int height, int width);
 	Matrix subMatrix(int i, int j, int height, int width);
 	bool containsIllegalValue(int height, int width);
+	void free(int height, int width);
+	void calculateMean(int height, int width, float* means);
+	void calculateDistribution(int height, int width, float* means, float* variance);
 
 	static float** allocateMatrix(Matrix::FillFunction* fillFunction, int height, int width);
+	static void deallocateMatrix(float** matrix, int height, int width);
 	static float*** allocateMatrix3D(Matrix::FillFunction* fillFunction, int depth, int height, int width);
 	static Matrix* allocateMatrixArray(Matrix::FillFunction* fillFunction, int x1, int x2, int x3, bool saveTranspose);
 	static Matrix** allocateMatrixArray2D(Matrix::FillFunction* fillFunction, int x1, int x2, int x3, int x4, bool saveTranspose);
@@ -48,6 +52,7 @@ public:
 	static void add(int m, int n, Matrix& A, Matrix& B, Matrix& C);
 	static void linearCombo(int m, int n, float c1, Matrix& A, float c2, Matrix& B, Matrix& C);
 	static void elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C);
+	static void normalize(int m, int n, Matrix A, Matrix B, float* means, float* std);
 
 	virtual class FillFunction {
 	public:

@@ -110,6 +110,13 @@ Matrix Matrix::subMatrix(int i, int j, int height, int width) {
 	return sub;
 }
 
+void Matrix::free(int height, int width) {
+	deallocateMatrix(matrix, height, width);
+	if (saveTranspose) {
+		deallocateMatrix(matrixTrans, width, height);
+	}
+}
+
 float** Matrix::allocateMatrix(Matrix::FillFunction* fillFunction, int height, int width) {
 	float** array = new float* [height];
 	for (int i = 0; i < height; i++) {
@@ -130,6 +137,58 @@ bool Matrix::containsIllegalValue(int height, int width) {
 		}
 	}
 	return false;
+}
+
+void Matrix::calculateMean(int height, int width, float* means) {
+	if (!saveTranspose) {
+		throw invalid_argument("Matrix must save transpose");
+	}
+	int h4 = height >> 2 << 2;
+	__m128 vs, vm;
+	float t[4];
+	for (int i = 0; i < width; i++) {
+		means[i] = 0;
+		vs = _mm_setzero_ps();
+		for (int j = 0; j < h4; j += 4) {
+			vs = _mm_add_ps(vs, _mm_loadu_ps(&matrixTrans[i][j]));
+		}
+		for (int j = h4; j < height; j++) {
+			means[i] += matrixTrans[i][j];
+		}
+		_mm_storeu_ps(t, vs);
+		means[i] += t[0] + t[1] + t[2] + t[3];
+		means[i] /= height;
+	}
+}
+
+void Matrix::calculateDistribution(int height, int width, float* means, float* variance) {
+	calculateMean(height, width, means);
+	int h4 = height >> 2 << 2;
+	__m128 vs, vm, m, vd;
+	float t[4];
+	for (int i = 0; i < width; i++) {
+		variance[i] = 0;
+		m = _mm_set1_ps(means[i]);
+		vs = _mm_setzero_ps();
+		for (int j = 0; j < h4; j += 4) {
+			vm = _mm_loadu_ps(&matrixTrans[i][j]);
+			vd = _mm_sub_ps(vm, m);
+			vs = _mm_add_ps(vs, _mm_mul_ps(vd, vd));
+		}
+		for (int j = h4; j < height; j++) {
+			variance[i] += (matrixTrans[i][j] - means[j]) * (matrixTrans[i][j] - means[j]);
+		}
+		_mm_storeu_ps(t, vs);
+		variance[i] += t[0] + t[1] + t[2] + t[3];
+		variance[i] /= height;
+	}
+}
+
+void Matrix::deallocateMatrix(float** matrix, int height, int width) {
+	for (int i = 0; i < height; i++) {
+		delete[] matrix[i];
+	}
+	delete[] matrix;
 }
 
 float*** Matrix::allocateMatrix3D(Matrix::FillFunction* fillFunction, int depth, int height, int width) {
@@ -316,6 +375,20 @@ void Matrix::elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C) {
 	if (C.saveTranspose) {
 		*C.transposeUpdated = false;
 	}
+}
+
+void Matrix::normalize(int m, int n, Matrix A, Matrix B, float* means, float* std) {
+	int n4 = n >> 2 << 2;
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < n4; j += 4) {
+			_mm_store_ps(&B.matrix[i][j], _mm_div_ps(_mm_sub_ps(_mm_loadu_ps(&A.matrix[i][j]), _mm_loadu_ps(&means[j])), _mm_loadu_ps(&std[j])));
+		}
+		for (int j = n4; j < n; j++) {
+			B.matrix[i][j] = (A(i, j) - means[j]) / std[j];
+		}
+	}
+	
+	*B.transposeUpdated = false;
 }
 
 Matrix::ConstantFill::ConstantFill(float value) {

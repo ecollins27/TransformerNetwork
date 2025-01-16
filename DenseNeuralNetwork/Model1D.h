@@ -1,6 +1,6 @@
 #pragma once
 #include "Input1D.h"
-#include "Loss.h"
+#include "Loss1D.h"
 
 class Model1D {
 
@@ -20,15 +20,19 @@ public:
 		}
 		return (T*)layer;
 	}
-	void applyGradients(float learningRate);
+
 	int getNumParameters();
+	void fit(Loss1D* lossFunction, int numData, float** X, float** y, int numMetrics, Loss1D** metrics, TrainingParams* params);
+	void test(Loss1D* lossFunction, int numData, float** X, float** y, int numMetrics, Loss1D** metrics);
+	void save(string filename);
+
+private:
+	void updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics);
+	void evaluateValidation(Loss1D* lossFunction, int numData, float** X, float** y, int batchSize, int numMetrics, Loss1D** metrics);
+	void applyGradients(float learningRate);
 	void predict(float** input);
 	void forwardPropagate(float** input);
-	void backPropagate(Loss* lossFunction, float** yTrue);
-	void fit(Loss* lossFunction, float** X, float** y, float* losses, int numMetrics, Loss** metrics, TrainingParams* params);
-	void fit(Loss* lossFunction, int numData, float** X, float** y, int numMetrics, Loss** metrics, TrainingParams* params);
-	void test(Loss* lossFunction, int numData, float** X, float** y, int numMetrics, Loss** metrics);
+	void backPropagate(Loss1D* lossFunction, float** yTrue);
 	void shuffle(int numData, float** X, float** y);
-	void save(string filename);
 };
 

@@ -4,7 +4,7 @@
 
 using namespace std;
 
-class Loss;
+class Loss1D;
 
 class Optimizer;
 

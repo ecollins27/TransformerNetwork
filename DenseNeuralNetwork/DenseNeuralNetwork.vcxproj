@@ -34,7 +34,7 @@
     <ClCompile Include="Layer1D.cpp" />
     <ClCompile Include="Layer2D.cpp" />
     <ClCompile Include="LayerNormalization2D.cpp" />
-    <ClCompile Include="Loss.cpp" />
+    <ClCompile Include="Loss1D.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="Matrix3D.cpp" />
@@ -67,7 +67,7 @@
     <ClInclude Include="Layer1D.h" />
     <ClInclude Include="Layer2D.h" />
     <ClInclude Include="LayerNormalization2D.h" />
-    <ClInclude Include="Loss.h" />
+    <ClInclude Include="Loss1D.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Matrix3D.h" />
     <ClInclude Include="ModelParser.h" />

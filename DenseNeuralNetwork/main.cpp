@@ -39,36 +39,6 @@ void getMNIST(string fileName, float** X, float** y, int num) {
 	file.close();
 }
 
-void getData(string fileName, float** X, float** y, int num) {
-	string line;
-	ifstream file(fileName);
-	getline(file, line);
-	int i = 0;
-	while (i < num && getline(file, line)) {
-		printf("\r%f", 100 * (float)i / (num));
-		istringstream ss(line);
-		int j = 0;
-		string n;
-		for (int k = 0; k < 2; k++) {
-			y[i][k] = 0;
-		}
-		while (getline(ss, n, ',')) {
-			float value = stod(n);
-			if (j == 10) {
-				y[i][(int)value] = 1;
-			}
-			else {
-				X[i][j] = (float)value;
-			}
-			j++;
-		}
-		i++;
-	}
-	printf("\r100.0");
-	printf("\n");
-	file.close();
-}
-
 void getIMDBData(string fileName, string* X, float** y, int start, int num) {
 	string line;
 	int sentiment;
@@ -127,11 +97,8 @@ int main() {
 	model->addLayer({ new Dense2D(Activation::NONE, 100) });
 	model->addLayer({ new PositionalEncoding2D() });
 	model->addTransformerBlock(20, 100, 50);
-	model->addLayer(new Dropout2D(0.75));
 	model->addTransformerBlock(20, 100, 30);
-	model->addLayer(new Dropout2D(0.75));
 	model->addTransformerBlock(20, 100, 20);
-	model->addLayer(new Dropout2D(0.75));
 	model->addTransformerBlock(20, 100, 10);
 	model->addLayer({ new Dense2D(Activation::SWISH, 75) });
 	model->addLayer({ new Dense2D(Activation::SWISH, 20) });
@@ -140,8 +107,9 @@ int main() {
 	
 	printf("NumParameters: %d\n", model->getNumParameters());
 	printf("NaiveAccuracy: %f\n", calculateNaiveAccuracy(numData, y));
-	TrainingParams* params = new TrainingParams(0.00001f, 12, 10, 0.1f, Optimizer::ADEMAMIX, 10000, valNumTokens, XVal, yVal);
-	model->fit(new CategoricalCrossEntropy1D(), numData, numTokens, X, y, 1, new Loss*[1]{ new Accuracy1D() }, params);
+	Optimizer* optimizer = new AdEMAMix(0.9, 0.9999, 0.999, 5, 0.00001);
+	TrainingParams* params = new TrainingParams(0.00001f, 12, 20, 0.1f, Optimizer::ADEMAMIX, 10000, valNumTokens, XVal, yVal);
+	model->fit(new CategoricalCrossEntropy1D(), numData, numTokens, X, y, 1, new Loss1D*[1]{ new Accuracy1D() }, params);
 	model->save("transformer4_regular.txt");
 	return 0;
 }
@@ -158,7 +126,7 @@ int main2() {
 
 	Model2DTo1D* model = (Model2DTo1D*)ModelParser::parseModel("transformer4_regular.txt");
 
-	model->test(new CategoricalCrossEntropy1D(), numData, numTokens, X, y, 1, new Loss * [1] { new Accuracy1D()});
+	model->test(new CategoricalCrossEntropy1D(), numData, numTokens, X, y, 1, new Loss1D * [1] { new Accuracy1D()});
 }
 
 int main3() {
@@ -172,9 +140,8 @@ int main3() {
 }
 
 // TODO:
-// Fix Gated2D backprop
 // Use SIMD on Normalization layers
-// Rename Loss classes
+// Allow Model2D classes to use batch sizes other than NUM_CORES
 // Store __m128 objects permanently in matrix class?
 // 
 // 

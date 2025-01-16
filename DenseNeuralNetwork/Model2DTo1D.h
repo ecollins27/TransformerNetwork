@@ -1,6 +1,6 @@
 #pragma once
 #include "Input2D.h"
-#include "Loss.h"
+#include "Loss1D.h"
 #include <climits>
 #include <thread>
 #include <functional>
@@ -32,17 +32,17 @@ public:
 	int getNumParameters();
 	void addTransformerBlock(int numHeads, int keySize, int valueSize);
 
-	void fit(Loss* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss** metrics, TrainingParams* params);
-	void test(Loss* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss** metrics);
+	void fit(Loss1D* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss1D** metrics, TrainingParams* params);
+	void test(Loss1D* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss1D** metrics);
 	void save(string fileName);
 
 private:
 	void applyGradients(float learningRate);
-	void updateAverages(Loss* lossFunction, float** y, float* averages, int numMetrics, Loss** metrics);
+	void updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics);
 	void predict(float** input, int thread);
-	void evaluateValidation(Loss* lossFunction, int valSize, float*** XVal, float** yVal, int* numTokens, int batchSize, int numMetrics, Loss** metrics);
+	void evaluateValidation(Loss1D* lossFunction, int valSize, float*** XVal, float** yVal, int* numTokens, int batchSize, int numMetrics, Loss1D** metrics);
 	void forwardPropagate(float** input, int thread);
-	void backPropagate(Loss* lossFunction, float** yTrue, int thread);
+	void backPropagate(Loss1D* lossFunction, float** yTrue, int thread);
 	void shuffle(int numData, int* numTokens, float*** X, float** y);
 };
 

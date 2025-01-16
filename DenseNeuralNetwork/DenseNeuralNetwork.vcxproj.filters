@@ -83,7 +83,7 @@
     <ClCompile Include="Model2DTo1D.cpp">
       <Filter>DNN\Models</Filter>
     </ClCompile>
-    <ClCompile Include="Loss.cpp">
+    <ClCompile Include="Loss1D.cpp">
       <Filter>DNN\Util</Filter>
     </ClCompile>
     <ClCompile Include="BytePairTokenizer.cpp">
@@ -175,7 +175,7 @@
     <ClInclude Include="Model2DTo1D.h">
       <Filter>DNN\Models</Filter>
     </ClInclude>
-    <ClInclude Include="Loss.h">
+    <ClInclude Include="Loss1D.h">
       <Filter>DNN\Util</Filter>
     </ClInclude>
     <ClInclude Include="BytePairTokenizer.h">

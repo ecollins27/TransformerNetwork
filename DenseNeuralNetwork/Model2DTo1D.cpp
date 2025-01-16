@@ -37,11 +37,11 @@ void Model2DTo1D::applyGradients(float learningRate) {
 	inputLayer->applyGradients(learningRate, t);
 }
 
-void Model2DTo1D::updateAverages(Loss* lossFunction, float** y, float* averages, int numMetrics, Loss** metrics) {
+void Model2DTo1D::updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics) {
 	for (int j = 0; j < numMetrics; j++) {
-		averages[j] += metrics[j]->loss(outputLayer, y, 0, true);
+		averages[j] += metrics[j]->loss(outputLayer, y);
 	}
-	averages[numMetrics] += lossFunction->loss(outputLayer, y, 0, true);
+	averages[numMetrics] += lossFunction->loss(outputLayer, y);
 }
 
 int Model2DTo1D::getNumParameters() {
@@ -58,11 +58,11 @@ void Model2DTo1D::forwardPropagate(float** input, int thread) {
 	inputLayer->forwardPropagate(thread);
 }
 
-void Model2DTo1D::backPropagate(Loss* lossFunction, float** yTrue, int thread) {
+void Model2DTo1D::backPropagate(Loss1D* lossFunction, float** yTrue, int thread) {
 	outputLayer->backPropagate(thread);
 }
 
-void Model2DTo1D::evaluateValidation(Loss* lossFunction, int valSize, float*** XVal, float** yVal, int* numTokens, int batchSize, int numMetrics, Loss** metrics) {
+void Model2DTo1D::evaluateValidation(Loss1D* lossFunction, int valSize, float*** XVal, float** yVal, int* numTokens, int batchSize, int numMetrics, Loss1D** metrics) {
 	float* averages = new float[numMetrics + 1];
 	for (int i = 0; i < numMetrics + 1; i++) {
 		averages[i] = 0;
@@ -99,7 +99,7 @@ void Model2DTo1D::addTransformerBlock(int numHeads, int keySize, int valueSize) 
 	this->addLayer({ new LayerNormalization2D() });
 }
 
-void Model2DTo1D::fit(Loss* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss** metrics, TrainingParams* params) {
+void Model2DTo1D::fit(Loss1D* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss1D** metrics, TrainingParams* params) {
 	if (outputLayer == NULL) {
 		throw invalid_argument("Model2DTo1D must have 1D output");
 	}
@@ -152,7 +152,7 @@ void Model2DTo1D::fit(Loss* lossFunction, int numData, int* numTokens, float*** 
 			for (int k = 0; k < batchSize; k++) {
 				threads[k].join();
 			}
-			lossFunction->differentiate(outputLayer, &y[i], 0, true);
+			lossFunction->differentiate(outputLayer, &y[i]);
 			for (int k = 0; k < batchSize; k++) {
 				threads[k] = thread(&Model2DTo1D::backPropagate, this, lossFunction, &y[i], k);
 			}
@@ -178,7 +178,7 @@ void Model2DTo1D::fit(Loss* lossFunction, int numData, int* numTokens, float*** 
 	}
 }
 
-void Model2DTo1D::test(Loss* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss** metrics) {
+void Model2DTo1D::test(Loss1D* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss1D** metrics) {
 	int maxTokenSize = 0;
 	for (int i = 0; i < numData; i++) {
 		if (numTokens[i] > maxTokenSize) {
@@ -195,9 +195,9 @@ void Model2DTo1D::test(Loss* lossFunction, int numData, int* numTokens, float***
 	for (int i = 0; i < numData; i++) {
 		inputLayer->setNumTokens(&numTokens[i]);
 		predict(X[i], 0);
-		averages[numMetrics] += lossFunction->loss(outputLayer, &y[i], 0,  true);
+		averages[numMetrics] += lossFunction->loss(outputLayer, &y[i]);
 		for (int j = 0; j < numMetrics; j++) {
-			averages[j] += metrics[j]->loss(outputLayer, &y[i], 0, true);
+			averages[j] += metrics[j]->loss(outputLayer, &y[i]);
 		}
 		printf("\rTest %d/%d  NumTokens:%d  TestLoss:%f  ", i + 1, numData, numTokens[i], averages[numMetrics] / (i + 1));
 		for (int j = 0; j < numMetrics; j++) {

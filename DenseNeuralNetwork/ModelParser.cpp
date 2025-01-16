@@ -55,141 +55,188 @@ Activation* readActivation(string& line, int* commaIndex, int* newCommaIndex) {
 	}
 }
 
-void addDenseLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+void addDenseLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {
 	Activation* activation = readActivation(line, commaIndex, newCommaIndex);
 	int size = getNextInt(line, commaIndex, newCommaIndex);
-	DenseLayer* denseLayer = { new DenseLayer(activation, size) };
-	nn->addLayer(denseLayer);
-	for (int i = 0; i < size; i++) {
-		getNextLine(file, line, commaIndex, newCommaIndex);
-		for (int j = 0; j < *prevSize; j++) {
-			denseLayer->weights[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
+	if (*layer1D) {
+		Dense1D* denseLayer = new Dense1D(activation, size);
+		((Model1D*)nn)->addLayer(denseLayer);
+		for (int i = 0; i < size; i++) {
+			getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int j = 0; j < *prevSize; j++) {
+				denseLayer->weights.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+	}
+	else {
+		Dense2D* denseLayer = new Dense2D(activation, size);
+		((Model2DTo1D*)nn)->addLayer(denseLayer);
+		for (int i = 0; i < size; i++) {
+			getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int j = 0; j < *prevSize; j++) {
+				denseLayer->weights.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+			}
 		}
 	}
 	*prevSize = size + 1;
 }
 
-void addBatchNormalization(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
-	BatchNormalization* batchNormalization = { new BatchNormalization() };
-	nn->addLayer(batchNormalization);
+void addBatchNormalization(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	BatchNormalization1D* batchNormalization = { new BatchNormalization1D(0.9) };
+	((Model1D*)nn)->addLayer(batchNormalization);
 	for (int i = 0; i < 2; i++) {
 		getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize - 1; j++) {
-			batchNormalization->parameters[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
+			batchNormalization->parameters.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	getNextLine(file, line, commaIndex, newCommaIndex);
 	for (int j = 0; j < *prevSize - 1; j++) {
-		batchNormalization->mean[0][j] = getNextFloat(line, commaIndex, newCommaIndex);
+		batchNormalization->mean.r(0, j) = getNextFloat(line, commaIndex, newCommaIndex);
 	}
 	getNextLine(file, line, commaIndex, newCommaIndex);
 	for (int j = 0; j < *prevSize - 1; j++) {
-		batchNormalization->variance[0][j] = getNextFloat(line, commaIndex, newCommaIndex);
-		batchNormalization->std[0][j] = sqrt(batchNormalization->variance[0][j] + 0.0000001);
+		batchNormalization->variance.r(0, j) = getNextFloat(line, commaIndex, newCommaIndex);
+		batchNormalization->std.r(0, j) = sqrt(batchNormalization->variance(0, j) + 0.0000001);
 	}
 }
 
-void addDropout(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
-	Dropout* dropout = { new Dropout(getNextFloat(line, commaIndex, newCommaIndex)) };
-	nn->addLayer(dropout);
+void addDropout(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {
+	if (*layer1D) {
+		Dropout1D* dropout = { new Dropout1D(getNextFloat(line, commaIndex, newCommaIndex)) };
+		((Model1D*)nn)->addLayer(dropout);
+	}
+	else {
+		Dropout2D* dropout = { new Dropout2D(getNextFloat(line, commaIndex, newCommaIndex)) };
+		((Model2DTo1D*)nn)->addLayer(dropout);
+	}
 }
 
-void addGatedLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+void addGatedLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {
 	Activation* activation = readActivation(line, commaIndex, newCommaIndex);
 	int size = getNextInt(line, commaIndex, newCommaIndex);
-	GatedLayer* gatedLayer = { new GatedLayer(activation, size) };
-	nn->addLayer(gatedLayer);
-	for (int i = 0; i < size; i++) {
-		getNextLine(file, line, commaIndex, newCommaIndex);
-		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights1[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
+	if (*layer1D) {
+		Gated1D* gatedLayer = { new Gated1D(activation, size) };
+		((Model1D*)nn)->addLayer(gatedLayer);
+		for (int i = 0; i < size; i++) {
+			getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int j = 0; j < *prevSize; j++) {
+				gatedLayer->weights1.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+		for (int i = 0; i < size; i++) {
+			getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int j = 0; j < *prevSize; j++) {
+				gatedLayer->weights2.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+			}
 		}
 	}
-	for (int i = 0; i < size; i++) {
-		getNextLine(file, line, commaIndex, newCommaIndex);
-		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights2[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
+	else {
+		Gated2D* gatedLayer = { new Gated2D(activation, size) };
+		((Model2DTo1D*)nn)->addLayer(gatedLayer);
+		for (int i = 0; i < size; i++) {
+			getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int j = 0; j < *prevSize; j++) {
+				gatedLayer->weights1.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+		for (int i = 0; i < size; i++) {
+			getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int j = 0; j < *prevSize; j++) {
+				gatedLayer->weights2.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
+			}
 		}
 	}
 	*prevSize = size + 1;
 }
 
-void addLayerNormalization(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
-	LayerNormalization* layerNormalization = { new LayerNormalization() };
-	nn->addLayer(layerNormalization);
+void addLayerNormalization(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	LayerNormalization2D* layerNormalization = { new LayerNormalization2D() };
+	((Model2DTo1D*)nn)->addLayer(layerNormalization);
 }
 
-void addMultiHeadAttentionLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+void addMultiHeadAttentionLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	int numHeads = getNextInt(line, commaIndex, newCommaIndex);
 	int keySize = getNextInt(line, commaIndex, newCommaIndex);
 	int valueSize = getNextInt(line, commaIndex, newCommaIndex);
-	MultiHeadAttentionLayer* multiHeadAttentionLayer = { new MultiHeadAttentionLayer(numHeads, keySize, valueSize) };
-	nn->addLayer(multiHeadAttentionLayer);
+	MultiHeadAttention* multiHeadAttentionLayer = { new MultiHeadAttention(numHeads, keySize, valueSize) };
+	((Model2DTo1D*)nn)->addLayer(multiHeadAttentionLayer);
 	for (int i = 0; i < numHeads; i++) {
 		for (int j = 0; j < keySize; j++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wq[i][j][k] = getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wq[i].r(j, k) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 		for (int j = 0; j < keySize; j++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wk[i][j][k] = getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wk[i].r(j, k) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 		for (int j = 0; j < valueSize; j++) {
 			getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wv[i][j][k] = getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wv[i].r(j, k) = getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 	}
 	for (int i = 0; i < *prevSize - 1; i++) {
 		getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < numHeads * valueSize; j++) {
-			multiHeadAttentionLayer->Wo[i][j] = getNextFloat(line, commaIndex, newCommaIndex);
+			multiHeadAttentionLayer->Wo.r(i, j) = getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
 }
 
-void addResidualAdd(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+void addResidualAdd(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {
 	int saveIndex = getNextInt(line, commaIndex, newCommaIndex);
-	ResidualAdd* residualAdd = { new ResidualAdd(nn->getLayer<ResidualSave>(saveIndex)) };
-	nn->addLayer(residualAdd);
+	if (*layer1D) {
+		ResidualAdd1D* residualAdd = { new ResidualAdd1D(((Model1D*)nn)->getLayer<ResidualSave1D>(saveIndex))};
+		((Model1D*)nn)->addLayer(residualAdd);
+	}
+	else {
+		ResidualAdd2D* residualAdd = { new ResidualAdd2D(((Model2DTo1D*)nn)->getLayer<ResidualSave2D>(saveIndex)) };
+		((Model2DTo1D*)nn)->addLayer(residualAdd);
+	}
 }
 
-void addResidualSave(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
-	ResidualSave* residualSave = { new ResidualSave() };
-	nn->addLayer(residualSave);
+void addResidualSave(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {
+	if (*layer1D) {
+		ResidualSave1D* residualSave = { new ResidualSave1D() };
+		((Model1D*)nn)->addLayer(residualSave);
+	}
+	else {
+		ResidualSave2D* residualSave = { new ResidualSave2D() };
+		((Model2DTo1D*)nn)->addLayer(residualSave);
+	}
 }
 
-void addPositionalEncodingLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+void addPositionalEncodingLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	int L = getNextInt(line, commaIndex, newCommaIndex);
-	PositionalEncodingLayer* positionalEncodingLayer = { new PositionalEncodingLayer(L) };
-	nn->addLayer(positionalEncodingLayer);
+	PositionalEncoding2D* positionalEncodingLayer = { new PositionalEncoding2D(L) };
+	((Model2DTo1D*)nn)->addLayer(positionalEncodingLayer);
 }
 
-void addBatchMean(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+void addSequenceMean(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	Activation* activation = readActivation(line, commaIndex, newCommaIndex);
-	BatchMean* batchSum = { new BatchMean(activation) };
-	nn->addLayer(batchSum);
+	SequenceMean* batchSum = { new SequenceMean(activation) };
+	((Model2DTo1D*)nn)->addLayer(batchSum);
 }
 
-void addSavedLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+void addSavedLayer(void* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {
 	string layerName = getNextString(line, commaIndex, newCommaIndex);
-	printf("\n%s\n", layerName.c_str());
 	if (layerName.compare("DenseLayer") == 0) {
-		addDenseLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
+		addDenseLayer(nn, file, line, commaIndex, newCommaIndex, prevSize, layer1D);
 	}
 	else if (layerName.compare("BatchNormalization") == 0) {
 		addBatchNormalization(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
 	else if (layerName.compare("Dropout") == 0) {
-		addDropout(nn, file, line, commaIndex, newCommaIndex, prevSize);
+		addDropout(nn, file, line, commaIndex, newCommaIndex, prevSize, layer1D);
 	}
 	else if (layerName.compare("GatedLayer") == 0) {
-		addGatedLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
+		addGatedLayer(nn, file, line, commaIndex, newCommaIndex, prevSize, layer1D);
 	}
 	else if (layerName.compare("LayerNormalization") == 0) {
 		addLayerNormalization(nn, file, line, commaIndex, newCommaIndex, prevSize);
@@ -198,35 +245,37 @@ void addSavedLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int
 		addMultiHeadAttentionLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
 	else if (layerName.compare("ResidualAdd") == 0) {
-		addResidualAdd(nn, file, line, commaIndex, newCommaIndex, prevSize);
+		addResidualAdd(nn, file, line, commaIndex, newCommaIndex, prevSize, layer1D);
 	}
 	else if (layerName.compare("ResidualSave") == 0) {
-		addResidualSave(nn, file, line, commaIndex, newCommaIndex, prevSize);
+		addResidualSave(nn, file, line, commaIndex, newCommaIndex, prevSize, layer1D);
 	}
 	else if (layerName.compare("PositionalEncodingLayer") == 0) {
 		addPositionalEncodingLayer(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
-	else if (layerName.compare("BatchMean") == 0) {
-		addBatchMean(nn, file, line, commaIndex, newCommaIndex, prevSize);
+	else if (layerName.compare("SequenceMean") == 0) {
+		addSequenceMean(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	}
 	else {
 		printf("\nFailed to Parse");
 	}
 }
 
-Model* ModelParser::parseModel(string filename) {
+void* ModelParser::parseModel(string filename) {
 	string line;
 	ifstream file(filename);
 	getline(file, line);
 	string modelType = line;
 	getline(file, line);
 	int inputSize = stoi(line);
-	Model* model = NULL;
-	if (modelType.compare("NeuralNetwork") == 0) {
-		model = { new NeuralNetwork(inputSize) };
+	void* model = NULL;
+	bool* layer1D = new bool[1] {true};
+	if (modelType.compare("Model1D") == 0) {
+		model = { new Model1D(inputSize) };
 	}
-	else {
-		model = { new TransformerModel(inputSize) };
+	else if (modelType.compare("Model2DTo1D")) {
+		model = { new Model2DTo1D(inputSize) };
+		*layer1D = false;
 	}
 	int prevSize = inputSize + 1;
 	int commaIndex;
@@ -234,7 +283,7 @@ Model* ModelParser::parseModel(string filename) {
 	while (getline(file, line)) {
 		commaIndex = -1;
 		newCommaIndex = line.find_first_of(",", commaIndex + 1);
-		addSavedLayer(model, file, line, &commaIndex, &newCommaIndex, &prevSize);
+		addSavedLayer(model, file, line, &commaIndex, &newCommaIndex, &prevSize, layer1D);
 	}
 	return model;
 }

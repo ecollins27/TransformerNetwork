@@ -4,7 +4,7 @@
 
 using namespace std;
 
-class Loss;
+class Loss1D;
 
 class Optimizer;
 
@@ -13,30 +13,34 @@ class TrainingParams {
 public:
 
 	static TrainingParams* DEFAULT;
-	const static int NUM_PARAMETERS = 5;
-	const static int LEARNING_RATE = 0, BATCH_SIZE = 1, NUM_EPOCHS = 2, VAL_SPLIT = 3, OPTIMIZER = 4;
+	const static int LEARNING_RATE = 0, BATCH_SIZE = 1, NUM_EPOCHS = 2, VAL_SPLIT = 3, OPTIMIZER = 4, VAL_SIZE = 5, VAL_NUM_TOKENS = 6, X_VAL = 7, Y_VAL = 8;
 
-	void** data;
+	tuple<float, int, int, float, Optimizer*, int, int*, void*, void*> data;
 
-	TrainingParams(float learningRate, int batchSize, int numEpochs, float valSplit, Optimizer* optimizer);
-	TrainingParams(void** data);
+	TrainingParams(float learningRate, int batchSize, int numEpochs, float valSplit, Optimizer* optimizer, int valSize, int* valNumTokens, void* XVal, void* yVal);
+	TrainingParams(tuple<float, int, int, float, Optimizer*, int, int*, void*, void*> data);
 
-	template<typename T>
-	TrainingParams* with(const int index, T value) {
+	template<int I = 0, typename T>
+	TrainingParams* with(T value) {
 		TrainingParams* params = { new TrainingParams(data) };
-		params->edit(index, value);
+		params->edit<I>(value);
 		return params;
 	}
 	
-	template<typename T>
-	T get(const int index) {
-		return *((T*)data[index]);
+	template<int I = 0, typename T>
+	T get() {
+		return (T)std::get<I>(data);
 	}
 
+	TrainingParams* withValData(int valSize, int* valNumTokens, void* X, void* y);
+
 private:
-	template<typename T>
-	void edit(const int index, T value) {
-		*((T*)data[index]) = value;
+	template<int I = 0, typename T>
+	void edit(T value) {
+		if (I >= 5 && I <= 8) {
+			throw invalid_argument("Cannot edit VAL_SIZE, X_VAL, or Y_VAL directly.  Use withValData() instead");
+		}
+		std::get<I>(data) = value;
 	}
 
 };

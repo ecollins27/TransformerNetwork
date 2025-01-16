@@ -61,7 +61,7 @@ void replaceStrings(int numStrings, string* strings, int maxIndex[2], int tokenN
 	}
 }
 
-void calculateNextToken(int numStrings, string* newStrings, vector<string> tokenValues, int maxIndex[2]) {
+int calculateNextToken(int numStrings, string* newStrings, vector<string> tokenValues, int maxIndex[2]) {
 	int** frequencyMap = (int**)malloc(tokenValues.size() * sizeof(int*));
 	for (int i = 0; i < tokenValues.size(); i++) {
 		frequencyMap[i] = (int*)malloc(tokenValues.size() * sizeof(int));
@@ -73,19 +73,22 @@ void calculateNextToken(int numStrings, string* newStrings, vector<string> token
 	maxIndex[1] = -1;
 	fillFrequencyMap(numStrings, newStrings, tokenValues, frequencyMap);
 	setNextToken(tokenValues, frequencyMap, maxIndex);
+	int frequency = frequencyMap[maxIndex[0]][maxIndex[1]];
 	for (int i = 0; i < tokenValues.size() - 1; i++) {
 		free(frequencyMap[i]);
 	}
 	free(frequencyMap);
+	return frequency;
 }
 
-BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings) {
+BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings, int maxTokens) {
 	for (int i = 0; i < numStrings; i++) {
 		for (int j = 0; j < strings[i].length(); j++) {
 			char c = tolower(strings[i][j]);
 			string token(1,c);
 			if (!contains(tokenValues, token)) {
 				tokenValues.emplace_back(token);
+				printf("Token %d:\"%s\"\n", tokenValues.size(), token.c_str());
 			}
 		}
 	}
@@ -99,12 +102,14 @@ BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings) {
 		newStrings[i] = convertedString;
 	}
 	int maxIndex[2];
-	calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);
-	while (maxIndex[0] >= 0 && maxIndex[1] >= 0 && tokenValues.size() < 1000) {
+	int frequency = calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);
+	while (maxIndex[0] >= 0 && maxIndex[1] >= 0 && tokenValues.size() < maxTokens) {
 		tokenValues.emplace_back(tokenValues[maxIndex[0]] + tokenValues[maxIndex[1]]);
+		printf("Token %d:\"%s\"  %d Occurences\n", tokenValues.size(), tokenValues[tokenValues.size() - 1].c_str(), frequency);
 		replaceStrings(numStrings, newStrings, maxIndex, tokenValues.size() - 1);
-		calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);
+		frequency = calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);
 	}
+	printf("%d Tokens Found\n", tokenValues.size());
 }
 
 BytePairTokenizer::BytePairTokenizer(string fileName) {
@@ -136,6 +141,7 @@ float** BytePairTokenizer::tokenize(string str, int& length) {
 	}
 	str = convertedString;
 	vector<int> tokens;
+	bool existingToken;
 	while (str.length() > 0) {
 		for (int i = tokenValues.size() - 1; i >= 0; i--) {
 			string token = tokenValues[i];

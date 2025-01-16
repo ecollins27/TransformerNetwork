@@ -1,42 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="BatchNormalization.cpp" />
-    <ClCompile Include="BatchMean.cpp" />
-    <ClCompile Include="BytePairTokenizer.cpp" />
-    <ClCompile Include="DenseLayer.cpp" />
-    <ClCompile Include="Dropout.cpp" />
-    <ClCompile Include="GatedLayer.cpp" />
-    <ClCompile Include="InputLayer.cpp" />
-    <ClCompile Include="LayerNormalization.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Matrix.cpp" />
-    <ClCompile Include="Model.cpp" />
-    <ClCompile Include="MultiHeadAttentionLayer.cpp" />
-    <ClCompile Include="NeuralNetwork.cpp" />
-    <ClCompile Include="PositionalEncodingLayer.cpp" />
-    <ClCompile Include="ResidualAdd.cpp" />
-    <ClCompile Include="ResidualSave.cpp" />
-    <ClCompile Include="TransformerModel.cpp" />
-    <ClCompile Include="Matrix2.cpp">
-      <Filter>DNN\Matrix</Filter>
-    </ClCompile>
-    <ClCompile Include="MatrixBatch.cpp">
-      <Filter>DNN\Matrix</Filter>
-    </ClCompile>
     <ClCompile Include="Layer.cpp">
       <Filter>DNN\Layers</Filter>
-    </ClCompile>
-    <ClCompile Include="TrainingParams.cpp">
-      <Filter>DNN\Util</Filter>
     </ClCompile>
     <ClCompile Include="Optimizer.cpp">
       <Filter>DNN\Util</Filter>
     </ClCompile>
     <ClCompile Include="ModelParser.cpp">
-      <Filter>DNN\Util</Filter>
-    </ClCompile>
-    <ClCompile Include="Loss.cpp">
       <Filter>DNN\Util</Filter>
     </ClCompile>
     <ClCompile Include="Activation.cpp">
@@ -45,46 +17,90 @@
     <ClCompile Include="Matrix3D.cpp">
       <Filter>DNN\Matrix</Filter>
     </ClCompile>
-    <ClCompile Include="Matrix3DBatch.cpp">
+    <ClCompile Include="Layer1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Input1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Dense1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Dropout1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Gated1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="ResidualSave1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="ResidualAdd1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="BatchNormalization1D.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="Layer2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Dense2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Dropout2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Gated2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Input2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="LayerNormalization2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="PositionalEncoding2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="ResidualSave2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="ResidualAdd2D.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="SequenceMean.cpp">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClCompile>
+    <ClCompile Include="MultiHeadAttention.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Matrix.cpp">
       <Filter>DNN\Matrix</Filter>
+    </ClCompile>
+    <ClCompile Include="Model1D.cpp">
+      <Filter>DNN\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Model2DTo1D.cpp">
+      <Filter>DNN\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Loss1D.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="BytePairTokenizer.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="TrainingParams.cpp">
+      <Filter>DNN\Util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BatchNormalization.h" />
-    <ClInclude Include="BatchMean.h" />
-    <ClInclude Include="BytePairTokenizer.h" />
-    <ClInclude Include="DenseLayer.h" />
-    <ClInclude Include="Dropout.h" />
-    <ClInclude Include="GatedLayer.h" />
-    <ClInclude Include="InputLayer.h" />
-    <ClInclude Include="LayerNormalization.h" />
-    <ClInclude Include="Matrix.h" />
-    <ClInclude Include="Model.h" />
-    <ClInclude Include="MultiHeadAttentionLayer.h" />
-    <ClInclude Include="NeuralNetwork.h" />
-    <ClInclude Include="PositionalEncodingLayer.h" />
-    <ClInclude Include="ResidualAdd.h" />
-    <ClInclude Include="ResidualSave.h" />
-    <ClInclude Include="TransformerModel.h" />
-    <ClInclude Include="Matrix2.h">
-      <Filter>DNN\Matrix</Filter>
-    </ClInclude>
-    <ClInclude Include="MatrixBatch.h">
-      <Filter>DNN\Matrix</Filter>
-    </ClInclude>
     <ClInclude Include="Layer.h">
       <Filter>DNN\Layers</Filter>
-    </ClInclude>
-    <ClInclude Include="TrainingParams.h">
-      <Filter>DNN\Util</Filter>
     </ClInclude>
     <ClInclude Include="Optimizer.h">
       <Filter>DNN\Util</Filter>
     </ClInclude>
     <ClInclude Include="ModelParser.h">
-      <Filter>DNN\Util</Filter>
-    </ClInclude>
-    <ClInclude Include="Loss.h">
       <Filter>DNN\Util</Filter>
     </ClInclude>
     <ClInclude Include="Activation.h">
@@ -93,8 +109,80 @@
     <ClInclude Include="Matrix3D.h">
       <Filter>DNN\Matrix</Filter>
     </ClInclude>
-    <ClInclude Include="Matrix3DBatch.h">
+    <ClInclude Include="Layer1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Input1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Dense1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Dropout1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Gated1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="ResidualSave1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="ResidualAdd1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="BatchNormalization1D.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="Layer2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Dense2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Dropout2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Gated2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Input2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="LayerNormalization2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="PositionalEncoding2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="ResidualSave2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="ResidualAdd2D.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="SequenceMean.h">
+      <Filter>DNN\Layers\Layers1D</Filter>
+    </ClInclude>
+    <ClInclude Include="MultiHeadAttention.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Matrix.h">
       <Filter>DNN\Matrix</Filter>
+    </ClInclude>
+    <ClInclude Include="Model1D.h">
+      <Filter>DNN\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="Model2DTo1D.h">
+      <Filter>DNN\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="Loss1D.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="BytePairTokenizer.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="TrainingParams.h">
+      <Filter>DNN\Util</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -115,6 +203,9 @@
     </Filter>
     <Filter Include="DNN\Util">
       <UniqueIdentifier>{ddf43f54-63ab-42c3-b347-e1b64d24cdb2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DNN\Models">
+      <UniqueIdentifier>{6cd7f2c6-87b3-4b26-abd2-9f50c5faf1ea}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

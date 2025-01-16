@@ -7,54 +7,63 @@
 #include <thread>
 using namespace std;
 
-
-
 class Matrix {
 
 public:
-
 	class FillFunction;
 	static FillFunction* ZERO_FILL;
 	static FillFunction* UNIT_NORMAL_FILL;
 	static FillFunction* UNIT_UNIFORM_FILL;
 
-	static float rowRowDotProduct(int n, float* x, float* y);
-	static float rowColumnDotProduct(int n, float* x, float** Y, int column);
-	static float** allocateMatrix(FillFunction* fillFunction, int height, int width);
-	static float*** allocate3DMatrix(FillFunction* fillFunction, int d1, int d2, int d3);
-	static float**** allocate4DMatrix(FillFunction* fillFunction, int d1, int d2, int d3, int d4);
-	static void deallocateMatrix(float** A, int height, int width);
-	static void deallocate3DMatrix(float*** A, int d1, int d2, int d3);
-	static void deallocate4DMatrix(float**** A, int d1, int d2, int d3, int d4);
-	static bool containsNaN(int height, int width, float** A);
-	static void add(int m, int n, float** A, float** B, float** C, float scalar1, float scalar2);
-	static void scale(int m, int n, float** A, float scalar);
-	static void transpose(int m, int n, float** A, float** At);
-	static void transposeInPlace(int m, float** A);
-	static void naiveMatrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
-	static void matrixMultiplyABC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
-	static void matrixMultiplyAtBC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
-	//static void rowMultiplyABtC(int n, int p, float** A, float** B, float** C, bool overwrite);
-	static void subMatrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite, int startY);
-	static void matrixMultiplyABtC(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
-	//static void rowMultiplyABtCt(int n, int p, float** A, float** B, float** C, bool overwrite);
-	static void matrixMultiplyABtCt(int m, int n, int p, float** A, float** B, float** C, bool overwrite);
-	static void matrixTensorMultiply(int m, int n, int p, float** A, float*** B, float** C, bool overwrite);
-	static void elementMultiply(int m, int n, float** A, float** B, float** C, bool overwrite);
-	static void fill(FillFunction* fillFunction, int m, int n, float** A);
-	static void copy(int m, int n, float** from, float** to);
-	static void print(int m, int n, float** A);
+	float** matrix;
+	float** matrixTrans;
+	bool saveTranspose;
+	bool* transposeUpdated;
 
-	class FillFunction {
+	Matrix(){}
+	Matrix(FillFunction* fillFunction, int height, int width, bool saveTranspose);
+	Matrix(float** matrix, float** matrixTrans);
+
+	float operator()(int i, int j);
+	float& r(int i, int j);
+	void calculateTranspose(int height, int width);
+	void calculateMatrix(int height, int width);
+	void scale(int height, int width, float c);
+	void copy(int height, int width, Matrix& to);
+	void fill(FillFunction* fillFunction, int height, int width);
+	void print(int height, int width);
+	Matrix subMatrix(int i, int j, int height, int width);
+	bool containsIllegalValue(int height, int width);
+	void free(int height, int width);
+	void calculateMean(int height, int width, float* means);
+	void calculateDistribution(int height, int width, float* means, float* variance);
+
+	static float** allocateMatrix(Matrix::FillFunction* fillFunction, int height, int width);
+	static void deallocateMatrix(float** matrix, int height, int width);
+	static float*** allocateMatrix3D(Matrix::FillFunction* fillFunction, int depth, int height, int width);
+	static Matrix* allocateMatrixArray(Matrix::FillFunction* fillFunction, int x1, int x2, int x3, bool saveTranspose);
+	static Matrix** allocateMatrixArray2D(Matrix::FillFunction* fillFunction, int x1, int x2, int x3, int x4, bool saveTranspose);
+	static float dotProduct(int n, float* a, float* b);
+	static void multiplyABC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite);
+	static void multiplyAtBC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite);
+	static void multiplyAtBtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite);
+	static void multiplyABtC(int m, int n, int p, Matrix& A, Matrix& B, Matrix& C, bool overwrite);
+
+	static void add(int m, int n, Matrix& A, Matrix& B, Matrix& C);
+	static void linearCombo(int m, int n, float c1, Matrix& A, float c2, Matrix& B, Matrix& C);
+	static void elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C);
+	static void normalize(int m, int n, Matrix A, Matrix B, float* means, float* std);
+
+	virtual class FillFunction {
 	public:
-		virtual float get() = 0;
+		virtual float operator()() = 0;
 	};
 
 	class ConstantFill : public FillFunction {
 	public:
 		float value;
 		ConstantFill(float value);
-		float get();
+		float operator()();
 	};
 
 	class NormalFill : public FillFunction {
@@ -63,7 +72,7 @@ public:
 		normal_distribution<float>* distribution;
 
 		NormalFill(float mean, float stdDeviation);
-		float get();
+		float operator()();
 	};
 
 	class UniformFill : public FillFunction {
@@ -72,7 +81,7 @@ public:
 		uniform_real_distribution<float>* distribution;
 
 		UniformFill(float lowerBound, float upperBound);
-		float get();
+		float operator()();
 	};
 };
 

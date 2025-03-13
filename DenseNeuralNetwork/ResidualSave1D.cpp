@@ -1,5 +1,9 @@
 #include "ResidualSave1D.h"
 
+ResidualSave1D::~ResidualSave1D() {
+	Layer1D::~Layer1D();
+}
+
 void ResidualSave1D::propagateLayer(int num) {
 	prevLayer->neurons.copy(batchSize, size, neurons);
 }

@@ -10,6 +10,7 @@ public:
 	ResidualSave1D* residual;
 
 	ResidualAdd1D(ResidualSave1D* residualLayer);
+	~ResidualAdd1D();
 
 	void propagateLayer(int num);
 	void backPropagate(int num);

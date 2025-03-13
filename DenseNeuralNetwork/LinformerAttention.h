@@ -1,12 +1,17 @@
 #pragma once
 #include "Layer2D.h"
 
-class MultiHeadAttention : public Layer2D {
+class LinformerAttention : public Layer2D {
 
 public:
 	Layer2D* prevLayer;
 
-	int numHeads, keySize, valueSize;
+	int numHeads, keySize, valueSize, projSize;
+
+	Matrix E;
+	Matrix* EGrad;
+	Matrix F;
+	Matrix* FGrad;
 
 	Matrix* Wq;
 	Matrix** WqGrad;
@@ -21,8 +26,12 @@ public:
 	Matrix** QGrad;
 	Matrix** K;
 	Matrix** KGrad;
+	Matrix** KProj;
+	Matrix** KProjGrad;
 	Matrix** V;
 	Matrix** VGrad;
+	Matrix** VProj;
+	Matrix** VProjGrad;
 
 	Matrix** A;
 	Matrix** AGrad;
@@ -38,8 +47,9 @@ public:
 	Optimizer** keyOptimizers;
 	Optimizer** queryOptimizers;
 	Optimizer** valueOptimizers;
+	Optimizer** projOptimizers;
 
-	MultiHeadAttention(int numHeads, int keySize, int valueSize);
+	LinformerAttention(int numHeads, int keySize, int valueSize, int projSize);
 
 	void propagateLayer(int num);
 	void backPropagate(int num);
@@ -47,6 +57,7 @@ public:
 	void setBatchSize(int batchSize);
 	void save(ofstream& file);
 
+	void setMaxNumTokens(int maxTokenSize);
 	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	int getNumParameters();

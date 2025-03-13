@@ -22,17 +22,16 @@ public:
 	}
 
 	int getNumParameters();
-	void fit(Loss1D* lossFunction, int numData, float** X, float** y, int numMetrics, Loss1D** metrics, TrainingParams* params);
-	void test(Loss1D* lossFunction, int numData, float** X, float** y, int numMetrics, Loss1D** metrics);
+	void fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params);
+	void test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics);
 	void save(string filename);
 
 private:
 	void updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics);
-	void evaluateValidation(Loss1D* lossFunction, int numData, float** X, float** y, int batchSize, int numMetrics, Loss1D** metrics);
+	void evaluateValidation(Loss1D* lossFunction, Dataset* valData, int batchSize, int numMetrics, Loss1D** metrics);
 	void applyGradients(float learningRate);
-	void predict(float** input);
-	void forwardPropagate(float** input);
+	void predict(void* input, bool sparse);
+	void forwardPropagate(void* input, bool sparse);
 	void backPropagate(Loss1D* lossFunction, float** yTrue);
-	void shuffle(int numData, float** X, float** y);
 };
 

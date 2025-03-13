@@ -4,6 +4,10 @@ ResidualAdd1D::ResidualAdd1D(ResidualSave1D* residualLayer) {
 	residual = residualLayer;
 }
 
+ResidualAdd1D::~ResidualAdd1D() {
+	Layer1D::~Layer1D();
+}
+
 void ResidualAdd1D::propagateLayer(int num) {
 	Matrix::add(batchSize, size, prevLayer->neurons, residual->neurons, neurons);
 }

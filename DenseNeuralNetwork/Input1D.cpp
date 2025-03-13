@@ -5,11 +5,22 @@ Input1D::Input1D(int size) {
 	this->size = size;
 }
 
+Input1D::~Input1D() {
+	Layer1D::~Layer1D();
+}
+
 void Input1D::setInput(float** input) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			neurons.r(i, j) = input[i][j];
 		}
+	}
+}
+
+void Input1D::setSparseInput(int* input) {
+	neurons.fill(Matrix::ZERO_FILL, batchSize, size);
+	for (int i = 0; i < batchSize; i++) {
+		neurons.r(i, input[i]) = 1;
 	}
 }
 

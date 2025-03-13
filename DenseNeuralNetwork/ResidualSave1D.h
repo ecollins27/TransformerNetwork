@@ -6,6 +6,8 @@ class ResidualSave1D : public Layer1D {
 public:
 	Layer1D* prevLayer;
 
+	~ResidualSave1D();
+
 	void propagateLayer(int num);
 	void backPropagate(int num);
 	void setPrevLayer(Layer* prevLayer);

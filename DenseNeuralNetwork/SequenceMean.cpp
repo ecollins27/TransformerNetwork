@@ -7,6 +7,11 @@ SequenceMean::SequenceMean(Activation* activation) {
 	gradientCalculated = { false };
 }
 
+SequenceMean::~SequenceMean() {
+	delete activation;
+	Layer1D::~Layer1D();
+}
+
 void SequenceMean::propagateLayer(int num) {
 	for (int j = 0; j < size; j++) {
 		float& mean = means.r(num, j);

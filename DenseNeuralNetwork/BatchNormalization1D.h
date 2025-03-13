@@ -17,6 +17,7 @@ public:
 	Optimizer* optimizer;
 
 	BatchNormalization1D(float momentum);
+	~BatchNormalization1D();
 
 	void propagateLayer(int num);
 	void backPropagate(int num);

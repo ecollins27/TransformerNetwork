@@ -19,6 +19,8 @@ public:
 
 	Layer* nextLayer;
 
+	~Layer();
+
 	template<typename T, typename A>
 	static bool instanceOf(A l) {
 		return dynamic_cast<T*>(l) != NULL;

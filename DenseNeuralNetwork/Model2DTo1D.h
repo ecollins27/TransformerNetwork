@@ -4,6 +4,8 @@
 #include <climits>
 #include <thread>
 #include <functional>
+#include "Dataset.h"
+#include "LinformerAttention.h"
 
 class Model2DTo1D {
 
@@ -15,6 +17,8 @@ public:
 	Layer* tempLayer;
 	Layer1D* outputLayer;
 	int t;
+
+	const int MAX_NUM_TOKENS = 200;
 
 	Model2DTo1D(int inputSize);
 
@@ -30,19 +34,21 @@ public:
 	}
 
 	int getNumParameters();
-	void addTransformerBlock(int numHeads, int keySize, int valueSize);
+	void addTransformer(int numHeads, int keySize, int valueSize);
+	void addLinformer(int numHeads, int keySize, int valueSize, int projSize);
 
-	void fit(Loss1D* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss1D** metrics, TrainingParams* params);
-	void test(Loss1D* lossFunction, int numData, int* numTokens, float*** X, float** y, int numMetrics, Loss1D** metrics);
+	void fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params);
+	void test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics);
 	void save(string fileName);
 
 private:
 	void applyGradients(float learningRate);
 	void updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics);
-	void predict(float** input, int thread);
-	void evaluateValidation(Loss1D* lossFunction, int valSize, float*** XVal, float** yVal, int* numTokens, int batchSize, int numMetrics, Loss1D** metrics);
-	void forwardPropagate(float** input, int thread);
-	void backPropagate(Loss1D* lossFunction, float** yTrue, int thread);
-	void shuffle(int numData, int* numTokens, float*** X, float** y);
+	void predict(void* input, bool sparse, int thread);
+	void evaluateValidation(Loss1D* lossFunction, Dataset* valData, int batchSize, int numMetrics, Loss1D** metrics);
+	void forwardPropagate(void* input, bool sparse, int thread);
+	void backPropagate(Loss1D* lossFunction, int thread);
+
+	Dataset* partitionData(Dataset* data);
 };
 

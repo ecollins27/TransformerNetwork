@@ -7,6 +7,7 @@ public:
 	Input2D(int size);
 
 	void setInput(int num, float** input);
+	void setSparseInput(int num, int* input);
 	void propagateLayer(int num);
 	void backPropagate(int num);
 	void setPrevLayer(Layer* prevLayer);

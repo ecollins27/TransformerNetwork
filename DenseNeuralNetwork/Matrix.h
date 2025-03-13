@@ -14,6 +14,7 @@ public:
 	static FillFunction* ZERO_FILL;
 	static FillFunction* UNIT_NORMAL_FILL;
 	static FillFunction* UNIT_UNIFORM_FILL;
+	int maxHeight, maxWidth;
 
 	float** matrix;
 	float** matrixTrans;
@@ -22,7 +23,8 @@ public:
 
 	Matrix(){}
 	Matrix(FillFunction* fillFunction, int height, int width, bool saveTranspose);
-	Matrix(float** matrix, float** matrixTrans);
+	Matrix(int maxHeight, int maxWidth, float** matrix, float** matrixTrans);
+	~Matrix();
 
 	float operator()(int i, int j);
 	float& r(int i, int j);
@@ -31,6 +33,8 @@ public:
 	void scale(int height, int width, float c);
 	void copy(int height, int width, Matrix& to);
 	void fill(FillFunction* fillFunction, int height, int width);
+	bool equals(int height, int width, Matrix A);
+	bool similiar(int height, int width, Matrix A, float errorThreshold);
 	void print(int height, int width);
 	Matrix subMatrix(int i, int j, int height, int width);
 	bool containsIllegalValue(int height, int width);

@@ -4,6 +4,11 @@ BatchNormalization1D::BatchNormalization1D(float momentum) {
 	this->momentum = momentum;
 }
 
+BatchNormalization1D::~BatchNormalization1D() {
+	delete optimizer;
+	Layer1D::~Layer1D();
+}
+
 void BatchNormalization1D::propagateLayer(int num) {
 	for (int j = 0; j < size; j++) {
 		float& meanSum = batchMean.r(0, j);

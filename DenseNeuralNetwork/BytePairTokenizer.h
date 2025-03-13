@@ -18,7 +18,9 @@ public:
 	BytePairTokenizer(int numStrings, string* strings, int maxTokens);
 	BytePairTokenizer(string fileName);
 	float*** toTokens(int numStrings, string* strings, int* numTokens);
+	int** toSparseTokens(int numStrings, string* strings, int* numTokens);
 	void save(string filename);
 	float** tokenize(string string, int& length);
+	int* sparseTokenize(string string, int& length);
 };
 

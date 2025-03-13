@@ -25,12 +25,28 @@ Matrix::Matrix(FillFunction* fillFunction, int height, int width, bool saveTrans
 	transposeUpdated = new bool(true);
 }
 
-Matrix::Matrix(float** matrix, float** matrixTrans) {
+Matrix::Matrix(int maxHeight, int maxWidth, float** matrix, float** matrixTrans) {
+	this->maxHeight = maxHeight;
+	this->maxWidth = maxWidth;
 	this->matrix = matrix;
 	this->matrixTrans = matrixTrans;
 	saveTranspose = matrixTrans != NULL;
 	if (saveTranspose) {
 		transposeUpdated = new bool(true);
+	}
+}
+
+Matrix::~Matrix() {
+	delete transposeUpdated;
+	for (int i = 0; i < maxHeight; i++) {
+		delete[] matrix[i];
+	}
+	delete[] matrix;
+	if (matrixTrans != NULL) {
+		for (int j = 0; j < maxWidth; j++) {
+			delete[] matrixTrans[j];
+		}
+		delete[] matrixTrans;
 	}
 }
 
@@ -82,6 +98,30 @@ void Matrix::fill(FillFunction* fillFunction, int height, int width) {
 			r(i,j) = fillFunction->operator()();
 		}
 	}
+}
+
+bool Matrix::equals(int height, int width, Matrix A) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			if (matrix[i][j] != A(i, j)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+bool Matrix::similiar(int height, int width, Matrix A, float errorThreshold) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			if (abs((matrix[i][j] - A(i, j)) / matrix[i][j]) > errorThreshold) {
+				return false;
+			} else if (abs((matrix[i][j] - A(i, j)) / A(i, j)) > errorThreshold) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 void Matrix::print(int height, int width) {
@@ -220,12 +260,11 @@ Matrix** Matrix::allocateMatrixArray2D(Matrix::FillFunction* fillFunction, int x
 
 float Matrix::dotProduct(int n, float* a, float* b) {
 	int i, n8 = n >> 3 << 3;
-	__m128 vs1, vs2;
-	float s, t[4];
-	vs1 = _mm_setzero_ps();
-	vs2 = _mm_setzero_ps();
+	float s = 0.0f, t[4];
+	__m128 vs1 = _mm_setzero_ps();
+	__m128 vs2 = _mm_setzero_ps();
+	__m128 vx1, vx2, vy1, vy2;
 	for (i = 0; i < n8; i += 8) {
-		__m128 vx1, vx2, vy1, vy2;
 		vx1 = _mm_loadu_ps(&a[i]);
 		vx2 = _mm_loadu_ps(&a[i + 4]);
 		vy1 = _mm_loadu_ps(&b[i]);
@@ -233,7 +272,9 @@ float Matrix::dotProduct(int n, float* a, float* b) {
 		vs1 = _mm_add_ps(vs1, _mm_mul_ps(vx1, vy1));
 		vs2 = _mm_add_ps(vs2, _mm_mul_ps(vx2, vy2));
 	}
-	for (s = 0.0f; i < n; ++i) s += a[i] * b[i];
+	for (; i < n; i++) {
+		s += a[i] * b[i];
+	}
 	_mm_storeu_ps(t, vs1);
 	s += t[0] + t[1] + t[2] + t[3];
 	_mm_storeu_ps(t, vs2);

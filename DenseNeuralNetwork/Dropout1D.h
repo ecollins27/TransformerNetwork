@@ -10,6 +10,7 @@ public:
 	bool** dropped;
 
 	Dropout1D(float dropoutRate);
+	~Dropout1D();
 
 	void propagateLayer(int num);
 	void backPropagate(int num);

@@ -160,6 +160,32 @@ float** BytePairTokenizer::tokenize(string str, int& length) {
 	return matrix;
 }
 
+int* BytePairTokenizer::sparseTokenize(string str, int& length) {
+	string convertedString = "";
+	for (int i = 0; i < str.length(); i++) {
+		convertedString += tolower(str[i]);
+	}
+	str = convertedString;
+	vector<int> tokens;
+	bool existingToken;
+	while (str.length() > 0) {
+		for (int i = tokenValues.size() - 1; i >= 0; i--) {
+			string token = tokenValues[i];
+			if (str.substr(0, token.length()).compare(token) == 0) {
+				tokens.emplace_back(i);
+				str.replace(0, token.length(), "");
+				break;
+			}
+		}
+	}
+	length = tokens.size();
+	int* sequence = new int[tokens.size()];
+	for (int i = 0; i < tokens.size(); i++) {
+		sequence[i] = tokens[i];
+	}
+	return sequence;
+}
+
 float*** BytePairTokenizer::toTokens(int numStrings, string* strings, int* numTokens) {
 	float*** oneHotEmbeddings = (float***)malloc(numStrings * sizeof(float**));
 	for (int i = 0; i < numStrings; i++) {
@@ -168,4 +194,14 @@ float*** BytePairTokenizer::toTokens(int numStrings, string* strings, int* numTo
 	}
 	printf("\n");
 	return oneHotEmbeddings;
+}
+
+int** BytePairTokenizer::toSparseTokens(int numStrings, string* strings, int* numTokens) {
+	int** sparseEmbeddings = new int* [numStrings];
+	for (int i = 0; i < numStrings; i++) {
+		sparseEmbeddings[i] = sparseTokenize(strings[i], numTokens[i]);
+		printf("\r%f", 100.0 * i / numStrings);
+	}
+	printf("\n");
+	return sparseEmbeddings;
 }

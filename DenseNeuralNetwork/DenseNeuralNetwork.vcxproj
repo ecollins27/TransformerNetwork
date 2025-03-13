@@ -22,6 +22,7 @@
     <ClCompile Include="Activation.cpp" />
     <ClCompile Include="BatchNormalization1D.cpp" />
     <ClCompile Include="BytePairTokenizer.cpp" />
+    <ClCompile Include="Dataset.cpp" />
     <ClCompile Include="Dense1D.cpp" />
     <ClCompile Include="Dense2D.cpp" />
     <ClCompile Include="Dropout1D.cpp" />
@@ -34,6 +35,7 @@
     <ClCompile Include="Layer1D.cpp" />
     <ClCompile Include="Layer2D.cpp" />
     <ClCompile Include="LayerNormalization2D.cpp" />
+    <ClCompile Include="LinformerAttention.cpp" />
     <ClCompile Include="Loss1D.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
@@ -55,6 +57,7 @@
     <ClInclude Include="Activation.h" />
     <ClInclude Include="BatchNormalization1D.h" />
     <ClInclude Include="BytePairTokenizer.h" />
+    <ClInclude Include="Dataset.h" />
     <ClInclude Include="Dense1D.h" />
     <ClInclude Include="Dense2D.h" />
     <ClInclude Include="Dropout1D.h" />
@@ -67,6 +70,7 @@
     <ClInclude Include="Layer1D.h" />
     <ClInclude Include="Layer2D.h" />
     <ClInclude Include="LayerNormalization2D.h" />
+    <ClInclude Include="LinformerAttention.h" />
     <ClInclude Include="Loss1D.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Matrix3D.h" />

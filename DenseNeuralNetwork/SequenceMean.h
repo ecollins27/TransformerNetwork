@@ -16,6 +16,7 @@ public:
 	Matrix backPropIntermediate;
 
 	SequenceMean(Activation* activation);
+	~SequenceMean();
 
 	void propagateLayer(int num);
 	void backPropagate(int num);

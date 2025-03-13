@@ -8,6 +8,8 @@ public:
 	Matrix neurons;
 	Matrix neuronGradient;
 
+	~Layer1D();
+
 	virtual void setBatchSize(int batchSize) {
 		this->batchSize = batchSize;
 		neurons = Matrix(Matrix::ZERO_FILL, batchSize, size + 1, true);

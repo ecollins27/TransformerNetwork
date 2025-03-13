@@ -5,6 +5,12 @@ Dense1D::Dense1D(Activation* activation, int size) {
 	this->size = size;
 }
 
+Dense1D::~Dense1D() {
+	delete activation;
+	delete optimizer;
+	Layer1D::~Layer1D();
+}
+
 void Dense1D::propagateLayer(int num) {
 	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, linearCombo, true);
 	activation->operate(batchSize, size, linearCombo, neurons);

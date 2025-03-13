@@ -29,6 +29,7 @@ public:
 	Activation* activation;
 
 	Gated1D(Activation* activation, int size);
+	~Gated1D();
 
 	void propagateLayer(int num);
 	void backPropagate(int num);

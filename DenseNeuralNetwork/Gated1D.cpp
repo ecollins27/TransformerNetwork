@@ -5,6 +5,13 @@ Gated1D::Gated1D(Activation* activation, int size) {
 	this->size = size;
 }
 
+Gated1D::~Gated1D() {
+	delete activation;
+	delete optimizer1;
+	delete optimizer2;
+	Layer1D::~Layer1D();
+}
+
 void Gated1D::propagateLayer(int num) {
 	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights1, A1, true);
 	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights2, A2, true);

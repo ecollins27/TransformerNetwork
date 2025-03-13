@@ -15,6 +15,7 @@ public:
 	Optimizer* optimizer;
 
 	Dense1D(Activation* activation, int size);
+	~Dense1D();
 
 	void propagateLayer(int num);
 	void backPropagate(int num);

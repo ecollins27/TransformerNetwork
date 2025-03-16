@@ -1,4 +1,8 @@
 #include "BatchNormalization1D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string BatchNormalization1D::LAYER_NAME = "BatchNormalization1D";
 
 BatchNormalization1D::BatchNormalization1D(float momentum) {
 	this->momentum = momentum;
@@ -6,37 +10,51 @@ BatchNormalization1D::BatchNormalization1D(float momentum) {
 
 BatchNormalization1D::~BatchNormalization1D() {
 	delete optimizer;
+	mean.free();
+	batchMean.free();
+	variance.free();
+	batchVariance.free();
+	std.free();
+	parameters.free();
+	parameterGradient.free();
 	Layer1D::~Layer1D();
 }
 
 void BatchNormalization1D::propagateLayer(int num) {
-	for (int j = 0; j < size; j++) {
-		float& meanSum = batchMean.r(0, j);
-		meanSum = 0;
-		for (int i = 0; i < batchSize; i++) {
-			meanSum += prevLayer->neurons(i, j);
-		}
-		meanSum /= batchSize;
-		mean.r(0, j) = momentum * mean(0, j) + (1 - momentum) * meanSum;
+	Matrix::calculateMean(batchSize, size, prevLayer->neurons, batchMean, 0);
+	Matrix::calculateVariance(batchSize, size, prevLayer->neurons, batchMean, batchVariance, 0);
+	Matrix::linearCombo(1, size, momentum, mean, 1 - momentum, batchMean, mean);
+	Matrix::linearCombo(1, size, momentum, variance, 1 - momentum, batchVariance, variance);
+	variance.sqrt(1, size, std, 0);
+	Matrix::parameterNormalize(batchSize, size, prevLayer->neurons, neurons, mean, std, parameters, 0);
 
-		float& varianceSum = batchVariance.r(0, j);
-		varianceSum = 0;
-		for (int i = 0; i < batchSize; i++) {
-			varianceSum += (prevLayer->neurons(i, j) - meanSum) * (prevLayer->neurons(i, j) - meanSum);
-		}
-		varianceSum /= batchSize;
-		variance.r(0, j) = momentum * variance(0, j) + (1 - momentum) * varianceSum;
-		std.r(0, j) = sqrt(variance(0, j));
+	//for (int j = 0; j < size; j++) {
+	//	float& meanSum = batchMean.r(0, j);
+	//	meanSum = 0;
+	//	for (int i = 0; i < batchSize; i++) {
+	//		meanSum += prevLayer->neurons(i, j);
+	//	}
+	//	meanSum /= batchSize;
+	//	mean.r(0, j) = momentum * mean(0, j) + (1 - momentum) * meanSum;
 
-		for (int i = 0; i < batchSize; i++) {
-			if (std(0, j) == 0) {
-				neurons.r(i, j) = parameters(0, j);
-			}
-			else {
-				neurons.r(i, j) = parameters(0, j) + parameters(1, j) * (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
-			}
-		}
-	}
+	//	float& varianceSum = batchVariance.r(0, j);
+	//	varianceSum = 0;
+	//	for (int i = 0; i < batchSize; i++) {
+	//		varianceSum += (prevLayer->neurons(i, j) - meanSum) * (prevLayer->neurons(i, j) - meanSum);
+	//	}
+	//	varianceSum /= batchSize;
+	//	variance.r(0, j) = momentum * variance(0, j) + (1 - momentum) * varianceSum;
+	//	std.r(0, j) = sqrt(variance(0, j));
+
+	//	for (int i = 0; i < batchSize; i++) {
+	//		if (std(0, j) == 0) {
+	//			neurons.r(i, j) = parameters(0, j);
+	//		}
+	//		else {
+	//			neurons.r(i, j) = parameters(0, j) + parameters(1, j) * (prevLayer->neurons(i, j) - mean(0, j)) / std(0, j);
+	//		}
+	//	}
+	//}
 }
 
 void BatchNormalization1D::backPropagate(int num) {
@@ -45,7 +63,7 @@ void BatchNormalization1D::backPropagate(int num) {
 		return;
 	}
 	float c = (1 - momentum) / batchSize;
-	prevLayer->neuronGradient.fill(Matrix::ZERO_FILL, batchSize, size);
+	prevLayer->neuronGradient.constantFill(0, batchSize, size);
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			parameterGradient.r(0, j) += neuronGradient(i, j);
@@ -86,7 +104,7 @@ void BatchNormalization1D::setBatchSize(int batchSize) {
 }
 
 void BatchNormalization1D::save(ofstream& file) {
-	file << "BatchNormalization,\n";
+	file << LAYER_NAME.c_str() << ",\n";
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < size; j++) {
 			if (i < 2) {
@@ -103,6 +121,26 @@ void BatchNormalization1D::save(ofstream& file) {
 	}
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
+	}
+}
+
+void BatchNormalization1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	BatchNormalization1D* batchNormalization = { new BatchNormalization1D(0.9) };
+	nn->addLayer(batchNormalization);
+	for (int i = 0; i < 2; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < *prevSize - 1; j++) {
+			batchNormalization->parameters.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+	ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+	for (int j = 0; j < *prevSize - 1; j++) {
+		batchNormalization->mean.r(0, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+	}
+	ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+	for (int j = 0; j < *prevSize - 1; j++) {
+		batchNormalization->variance.r(0, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		batchNormalization->std.r(0, j) = sqrt(batchNormalization->variance(0, j) + 0.0000001);
 	}
 }
 

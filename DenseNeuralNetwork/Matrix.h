@@ -24,8 +24,8 @@ public:
 	Matrix(){}
 	Matrix(FillFunction* fillFunction, int height, int width, bool saveTranspose);
 	Matrix(int maxHeight, int maxWidth, float** matrix, float** matrixTrans);
-	~Matrix();
 
+	void free();
 	float operator()(int i, int j);
 	float& r(int i, int j);
 	void calculateTranspose(int height, int width);
@@ -33,14 +33,14 @@ public:
 	void scale(int height, int width, float c);
 	void copy(int height, int width, Matrix& to);
 	void fill(FillFunction* fillFunction, int height, int width);
+	void constantFill(float f, int height, int width);
+	void sqrt(int m, int n, Matrix& B, int num);
 	bool equals(int height, int width, Matrix A);
 	bool similiar(int height, int width, Matrix A, float errorThreshold);
 	void print(int height, int width);
 	Matrix subMatrix(int i, int j, int height, int width);
 	bool containsIllegalValue(int height, int width);
 	void free(int height, int width);
-	void calculateMean(int height, int width, float* means);
-	void calculateDistribution(int height, int width, float* means, float* variance);
 
 	static float** allocateMatrix(Matrix::FillFunction* fillFunction, int height, int width);
 	static void deallocateMatrix(float** matrix, int height, int width);
@@ -56,9 +56,12 @@ public:
 	static void add(int m, int n, Matrix& A, Matrix& B, Matrix& C);
 	static void linearCombo(int m, int n, float c1, Matrix& A, float c2, Matrix& B, Matrix& C);
 	static void elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C);
-	static void normalize(int m, int n, Matrix A, Matrix B, float* means, float* std);
+	static void calculateMean(int m, int n, Matrix& A, Matrix& mean, int num);
+	static void calculateVariance(int m, int n, Matrix& A, Matrix& mean, Matrix& variance, int num);
+	static void normalize(int m, int n, Matrix& A, Matrix& B, Matrix& mean, Matrix& std, int num);
+	static void parameterNormalize(int m, int n, Matrix& A, Matrix& B, Matrix& mean, Matrix& std, Matrix& parameters, int num);
 
-	virtual class FillFunction {
+	class FillFunction {
 	public:
 		virtual float operator()() = 0;
 	};

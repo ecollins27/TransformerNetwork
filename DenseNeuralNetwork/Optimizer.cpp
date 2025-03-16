@@ -14,12 +14,14 @@ GradientDescent::GradientDescent(float regConstant) {
 }
 
 void GradientDescent::applyGradient(Matrix weights, float t, float learningRate, int batchSize) {
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			weightGradient.r(i, j) /= batchSize;
-			weights.r(i, j) -= learningRate * (weightGradient(i, j) + 2 * regConstant * weights(i, j));
-			weightGradient.r(i, j) = 0;
-		}
+	weightGradient.scale(height, width, 1.0 / batchSize);
+	Matrix::linearCombo(height, width, 1, weights, -learningRate, weightGradient, weights);
+	if (regConstant != 0) {
+		Matrix::linearCombo(height, width, 1, weights, -2 * regConstant, weights, weights);
+	}
+	weightGradient.constantFill(0, height, width);
+	if (weights.saveTranspose) {
+		*weights.transposeUpdated = false;
 	}
 }
 
@@ -39,13 +41,15 @@ Momentum::Momentum(float beta, float regConstant) {
 }
 
 void Momentum::applyGradient(Matrix weights, float t, float learningRate, int batchSize) {
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			weightGradient.r(i, j) /= batchSize;
-			M.r(i, j) = beta * M(i, j) - learningRate * (weightGradient(i, j) + 2 * regConstant * weights(i, j));
-			weights.r(i, j) += M(i, j);
-			weightGradient.r(i, j) = 0;
-		}
+	weightGradient.scale(height, width, 1.0 / batchSize);
+	Matrix::linearCombo(height, width, beta, M, -learningRate, weightGradient, M);
+	if (regConstant != 0) {
+		Matrix::linearCombo(height, width, 1, M, 2 * regConstant, weights, M);
+	}
+	Matrix::add(height, width, weights, M, weights);
+	weightGradient.constantFill(0, height, width);
+	if (weights.saveTranspose) {
+		*weights.transposeUpdated = false;
 	}
 }
 
@@ -69,16 +73,33 @@ Adam::Adam(float beta1, float beta2, float regConstant) {
 void Adam::applyGradient(Matrix weights, float t, float learningRate, int batchSize) {
 	float mScalar = 1.0 / (1 - pow(beta1, t));
 	float sScalar = 1.0 / (1 - pow(beta2, t));
-	float fullGradient;
+	weightGradient.scale(height, width, 1.0 / batchSize);
+	if (regConstant != 0) {
+		Matrix::linearCombo(height, width, 1, weightGradient, 2 * regConstant, weights, weightGradient);
+	}
+	Matrix::linearCombo(height, width, beta1, M, 1 - beta1, weightGradient, M);
+	Matrix::elementMultiply(height, width, weightGradient, weightGradient, weightGradient);
+	Matrix::linearCombo(height, width, beta2, S, 1 - beta2, weightGradient, S);
+
+	int w4 = width >> 2 << 2;
+	__m128 n, d, v;
+	__m128 numScalar = _mm_set1_ps(learningRate * mScalar);
+	__m128 denScalar = _mm_set1_ps(sScalar);
+	__m128 e = _mm_set1_ps(0.0000001);
 	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			weightGradient.r(i, j) /= batchSize;
-			fullGradient = weightGradient(i, j) + 2 * regConstant * weights(i, j);
-			M.r(i, j) = beta1 * M(i, j) + (1 - beta1) * fullGradient;
-			S.r(i, j) = beta2 * S(i, j) + (1 - beta2) * fullGradient * fullGradient;
-			weights.r(i, j) -= learningRate * mScalar * M(i, j) / sqrt(sScalar * S(i, j) + 0.0000001);
-			weightGradient.r(i, j) = 0;
+		for (int j = 0; j < w4; j+=4) {
+			n = _mm_mul_ps(numScalar, _mm_loadu_ps(&M.matrix[i][j]));
+			d = _mm_sqrt_ps(_mm_add_ps(e, _mm_mul_ps(denScalar, _mm_loadu_ps(&S.matrix[i][j]))));
+			v = _mm_sub_ps(_mm_loadu_ps(&weights.matrix[i][j]), _mm_div_ps(n, d));
+			_mm_store_ps(&weights.matrix[i][j], v);
 		}
+		for (int j = w4; j < width; j++) {
+			weights.r(i, j) -= learningRate * mScalar * M(i, j) / sqrt(sScalar * S(i, j) + 0.0000001);
+		}
+	}
+	weightGradient.constantFill(0, height, width);
+	if (weights.saveTranspose) {
+		*weights.transposeUpdated = false;
 	}
 }
 
@@ -103,20 +124,53 @@ AdEMAMix::AdEMAMix(float beta1, float beta2, float beta3, float alpha, float reg
 }
 
 void AdEMAMix::applyGradient(Matrix weights, float t, float learningRate, int batchSize) {
+	weightGradient.scale(height, width, 1.0 / batchSize);
+	if (regConstant != 0) {
+		Matrix::linearCombo(height, width, 1, weightGradient, 2 * regConstant, weights, weightGradient);
+	}
+	Matrix::linearCombo(height, width, beta1, M1, 1 - beta1, weightGradient, M1);
+	Matrix::linearCombo(height, width, beta3, M2, 1 - beta3, weightGradient, M2);
+	Matrix::elementMultiply(height, width, weightGradient, weightGradient, weightGradient);
+	Matrix::linearCombo(height, width, beta2, S, 1 - beta2, weightGradient, S);
+
 	float mScalar = 1.0 / (1 - pow(beta1, t));
 	float sScalar = 1.0 / (1 - pow(beta2, t));
-	float fullGradient;
+	int w4 = width >> 2 << 2;
+	__m128 n, d, v;
+	__m128 mScal = _mm_set1_ps(learningRate * mScalar);
+	__m128 sScal = _mm_set1_ps(sScalar);
+	__m128 a = _mm_set1_ps(learningRate * alpha);
+	__m128 e = _mm_set1_ps(0.0000001);
 	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			weightGradient.r(i, j) /= batchSize;
-			fullGradient = weightGradient(i, j) + 2 * regConstant * weights(i, j);
-			M1.r(i, j) = beta1 * M1(i, j) + (1 - beta1) * fullGradient;
-			M2.r(i, j) = beta3 * M2(i, j) + (1 - beta3) * fullGradient;
-			S.r(i, j) = beta2 * S(i, j) + (1 - beta2) * fullGradient * fullGradient;
+		for (int j = 0; j < w4; j += 4) {
+			n = _mm_add_ps(_mm_mul_ps(mScal, _mm_loadu_ps(&M1.matrix[i][j])), _mm_mul_ps(a, _mm_loadu_ps(&M2.matrix[i][j])));
+			d = _mm_sqrt_ps(_mm_add_ps(e, _mm_mul_ps(sScal, _mm_loadu_ps(&S.matrix[i][j]))));
+			v = _mm_sub_ps(_mm_loadu_ps(&weights.matrix[i][j]), _mm_div_ps(n, d));
+			_mm_store_ps(&weights.matrix[i][j], v);
+		}
+		for (int j = w4; j < width; j++) {
 			weights.r(i, j) -= learningRate * (mScalar * M1(i, j) + alpha * M2(i, j)) / sqrt(sScalar * S(i, j) + 0.0000001);
-			weightGradient.r(i, j) = 0;
 		}
 	}
+	weightGradient.constantFill(0, height, width);
+	if (weights.saveTranspose) {
+		*weights.transposeUpdated = false;
+	}
+
+	//float mScalar = 1.0 / (1 - pow(beta1, t));
+	//float sScalar = 1.0 / (1 - pow(beta2, t));
+	//float fullGradient;
+	//for (int i = 0; i < height; i++) {
+	//	for (int j = 0; j < width; j++) {
+	//		weightGradient.r(i, j) /= batchSize;
+	//		fullGradient = weightGradient(i, j) + 2 * regConstant * weights(i, j);
+	//		M1.r(i, j) = beta1 * M1(i, j) + (1 - beta1) * fullGradient;
+	//		M2.r(i, j) = beta3 * M2(i, j) + (1 - beta3) * fullGradient;
+	//		S.r(i, j) = beta2 * S(i, j) + (1 - beta2) * fullGradient * fullGradient;
+	//		weights.r(i, j) -= learningRate * (mScalar * M1(i, j) + alpha * M2(i, j)) / sqrt(sScalar * S(i, j) + 0.0000001);
+	//		weightGradient.r(i, j) = 0;
+	//	}
+	//}
 }
 
 Optimizer* AdEMAMix::clone(){

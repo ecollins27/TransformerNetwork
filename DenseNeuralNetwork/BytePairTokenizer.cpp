@@ -118,10 +118,12 @@ BytePairTokenizer::BytePairTokenizer(string fileName) {
 	getline(file, line);
 	int num = stoi(line);
 	for (int i = 0; i < num; i++) {
+		printf("\r%d/%d", i, num);
 		getline(file, line);
 		string token(line.c_str());
 		tokenValues.emplace_back(token);
 	}
+	printf("\r%d/%d\n", num, num);
 	file.close();
 }
 
@@ -171,7 +173,8 @@ int* BytePairTokenizer::sparseTokenize(string str, int& length) {
 	while (str.length() > 0) {
 		for (int i = tokenValues.size() - 1; i >= 0; i--) {
 			string token = tokenValues[i];
-			if (str.substr(0, token.length()).compare(token) == 0) {
+			string substr = str.substr(0, token.length());
+			if (substr.compare(token) == 0) {
 				tokens.emplace_back(i);
 				str.replace(0, token.length(), "");
 				break;

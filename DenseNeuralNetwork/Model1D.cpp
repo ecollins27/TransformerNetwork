@@ -1,15 +1,28 @@
 #include "Model1D.h"
 
+const string Model1D::MODEL_NAME = "Model1D";
+
 Model1D::Model1D(int inputSize) {
 	inputLayer = { new Input1D(inputSize) };
 	outputLayer = inputLayer;
 	t = 0;
 }
 
-void Model1D::addLayer(Layer1D* layer) {
+void Model1D::addLayer(Layer* layer) {
+	if (dynamic_cast<Layer1D*>(layer) == NULL) {
+		throw invalid_argument("Layer must be 1D");
+	}
 	layer->setPrevLayer(outputLayer);
 	outputLayer->setNextLayer(layer);
-	outputLayer = layer;
+	outputLayer = (Layer1D*)layer;
+}
+
+Layer* Model1D::getLayer(int index) {
+	Layer* layer = inputLayer;
+	for (int i = 0; i < index; i++) {
+		layer = layer->nextLayer;
+	}
+	return layer;
 }
 
 void Model1D::applyGradients(float learningRate) {
@@ -71,7 +84,7 @@ void Model1D::backPropagate(Loss1D* lossFunction, float** yTrue) {
 }
 
 void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params) {
-	Dataset* trainingData;
+	Dataset* trainingData = data;
 	Dataset* valData;
 
 	float valSplit = params->get<TrainingParams::VAL_SPLIT, float>();
@@ -133,7 +146,7 @@ void Model1D::test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D**
 
 void Model1D::save(string filename) {
 	ofstream file(filename.c_str());
-	file << "Model1D\n";
+	file << MODEL_NAME << "\n";
 	inputLayer->save(file);
 	file.close();
 }

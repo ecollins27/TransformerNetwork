@@ -1,13 +1,17 @@
-#include "MultiHeadAttention.h"
+#include "TransformerAttention.h"
+#include "Model.h"
+#include "ModelParser.h"
 
-MultiHeadAttention::MultiHeadAttention(int numHeads, int keySize, int valueSize) {
+const string TransformerAttention::LAYER_NAME = "TransformerAttention";
+
+TransformerAttention::TransformerAttention(int numHeads, int keySize, int valueSize) {
 	this->numHeads = numHeads;
 	this->keySize = keySize;
 	this->valueSize = valueSize;
 	softmax = Activation::SOFTMAX->clone();
 }
 
-void MultiHeadAttention::propagateLayer(int num) {
+void TransformerAttention::propagateLayer(int num) {
 	double scalar = 1.0 / sqrt(keySize);
 	for (int i = 0; i < numHeads; i++) {
 		Matrix::multiplyABtC(numTokens[num], prevSize, keySize, prevLayer->neurons[num], Wq[i], Q[num][i], true);
@@ -21,10 +25,10 @@ void MultiHeadAttention::propagateLayer(int num) {
 	Matrix::multiplyABtC(numTokens[num], numHeads * valueSize, size, Ac[num], Wo, neurons[num], true);
 }
 
-void MultiHeadAttention::backPropagate(int num) {
+void TransformerAttention::backPropagate(int num) {
 	Matrix::multiplyABC(numTokens[num], size, numHeads * valueSize, neuronGradient[num], Wo, AcGrad[num], true);
 	Matrix::multiplyAtBC(size, numTokens[num], numHeads * valueSize, neuronGradient[num], Ac[num], WoGrad[num], true);
-	prevLayer->neuronGradient[num].fill(Matrix::ZERO_FILL, numTokens[num], prevSize);
+	prevLayer->neuronGradient[num].constantFill(0, numTokens[num], prevSize);
 	float scalar = 1.0 / sqrt(keySize);
 	for (int i = 0; i < numHeads; i++) {
 		Matrix::multiplyABC(numTokens[num], valueSize, numTokens[num], AcSubGrad[num][i], V[num][i], AGrad[num][i], true);
@@ -46,7 +50,7 @@ void MultiHeadAttention::backPropagate(int num) {
 	prevLayer->backPropagate(num);
 }
 
-void MultiHeadAttention::setPrevLayer(Layer* prevLayer) {
+void TransformerAttention::setPrevLayer(Layer* prevLayer) {
 	if (!instanceOf<Layer2D>(prevLayer)) {
 		throw invalid_argument("Previous layer must be instance Layer2D");
 	}
@@ -62,7 +66,7 @@ void MultiHeadAttention::setPrevLayer(Layer* prevLayer) {
 	Wo = Matrix(normal, size, numHeads * valueSize, true);
 }
 
-void MultiHeadAttention::setBatchSize(int batchSize) {
+void TransformerAttention::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
 	WqGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, keySize, prevSize, false);
 	WkGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, keySize, prevSize, false);
@@ -93,8 +97,8 @@ void MultiHeadAttention::setBatchSize(int batchSize) {
 	}
 }
 
-void MultiHeadAttention::save(ofstream& file) {
-	file << "MultiHeadAttention,";
+void TransformerAttention::save(ofstream& file) {
+	file << LAYER_NAME << ",";
 	file << numHeads << "," << keySize << "," << valueSize << ",\n";
 	for (int i = 0; i < numHeads; i++) {
 		for (int j = 0; j < keySize; j++) {
@@ -127,7 +131,41 @@ void MultiHeadAttention::save(ofstream& file) {
 	}
 }
 
-void MultiHeadAttention::applyGradients(float learningRate, int t) {
+void TransformerAttention::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	int numHeads = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	int keySize = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	int valueSize = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	TransformerAttention* multiHeadAttentionLayer = { new TransformerAttention(numHeads, keySize, valueSize) };
+	nn->addLayer(multiHeadAttentionLayer);
+	for (int i = 0; i < numHeads; i++) {
+		for (int j = 0; j < keySize; j++) {
+			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int k = 0; k < *prevSize; k++) {
+				multiHeadAttentionLayer->Wq[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+		for (int j = 0; j < keySize; j++) {
+			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int k = 0; k < *prevSize; k++) {
+				multiHeadAttentionLayer->Wk[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+		for (int j = 0; j < valueSize; j++) {
+			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int k = 0; k < *prevSize; k++) {
+				multiHeadAttentionLayer->Wv[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+	}
+	for (int i = 0; i < *prevSize - 1; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < numHeads * valueSize; j++) {
+			multiHeadAttentionLayer->Wo.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+}
+
+void TransformerAttention::applyGradients(float learningRate, int t) {
 	for (int i = 0; i < batchSize; i++) {
 		outputOptimizer->addGradient(WoGrad[i]);
 		for (int j = 0; j < numHeads; j++) {
@@ -147,7 +185,7 @@ void MultiHeadAttention::applyGradients(float learningRate, int t) {
 	}
 }
 
-void MultiHeadAttention::setOptimizer(Optimizer* optimizer) {
+void TransformerAttention::setOptimizer(Optimizer* optimizer) {
 	outputOptimizer = optimizer->clone();
 	outputOptimizer->setDimensions(size, numHeads * valueSize);
 	queryOptimizers = new Optimizer * [numHeads];
@@ -166,7 +204,7 @@ void MultiHeadAttention::setOptimizer(Optimizer* optimizer) {
 	}
 }
 
-int MultiHeadAttention::getNumParameters() {
+int TransformerAttention::getNumParameters() {
 	int current = nextLayer == NULL ? 0 : nextLayer->getNumParameters();
 	current += size * numHeads * valueSize;
 	current += numHeads * valueSize * prevSize;

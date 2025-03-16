@@ -1,7 +1,12 @@
 #include "Dropout1D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string Dropout1D::LAYER_NAME = "Dropout1D";
 
 Dropout1D::Dropout1D(float dropoutRate) {
 	this->dropoutRate = dropoutRate;
+	this->distribution = uniform_real_distribution<float>(0, 1);
 }
 
 Dropout1D::~Dropout1D() {
@@ -15,7 +20,7 @@ Dropout1D::~Dropout1D() {
 void Dropout1D::propagateLayer(int num) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
-			float randValue = (float)rand() / (RAND_MAX + 1);
+			float randValue = distribution(generator);
 			if (randValue < dropoutRate) {
 				neurons.r(i, j) = 0;
 				dropped[i][j] = true;
@@ -73,10 +78,15 @@ void Dropout1D::setBatchSize(int batchSize) {
 }
 
 void Dropout1D::save(ofstream& file){
-	file << "Dropout," << dropoutRate << ",\n";
+	file << LAYER_NAME << "," << dropoutRate << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void Dropout1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	Dropout1D* dropout = { new Dropout1D(ModelParser::getNextFloat(line, commaIndex, newCommaIndex)) };
+	nn->addLayer(dropout);
 }
 
 void Dropout1D::predict(int num) {

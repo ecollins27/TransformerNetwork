@@ -1,4 +1,8 @@
 #include "ResidualSave1D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string ResidualSave1D::LAYER_NAME = "ResidualSave1D";
 
 ResidualSave1D::~ResidualSave1D() {
 	Layer1D::~Layer1D();
@@ -30,10 +34,15 @@ void ResidualSave1D::setBatchSize(int batchSize) {
 }
 
 void ResidualSave1D::save(ofstream& file) {
-	file << "ResidualSave,\n";
+	file << LAYER_NAME << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void ResidualSave1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	ResidualSave1D* residualSave = { new ResidualSave1D() };
+	nn->addLayer(residualSave);
 }
 
 void ResidualSave1D::backPropagateWithResidual(int num) {

@@ -92,8 +92,8 @@ long timeFunction(string header, Function function, Params... params) {
 }
 
 int main() {
-	int numData = 5000;
-	int valData = 5000;
+	int numData = 1000;
+	int valData = 100;
 	string* reviews = new string[numData];
 	string* valReviews = new string[valData];
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
@@ -125,51 +125,94 @@ int main() {
 	model->addLinformer(20, 100, 10, 10);
 	model->addLinformer(20, 100, 10, 10);
 	model->addLayer(new Dense2D(Activation::SWISH, 75));
-	model->addLayer(new Dense2D(Activation::SWISH, 20));
-	model->addLayer(new Dense2D(Activation::SWISH, 2));
-	model->addLayer(new SequenceMean(Activation::SOFTMAX));
+	model->addLayer(new SequenceMean(Activation::NONE));
+	model->addLayer(new Dense1D(Activation::SWISH, 20));
+	model->addLayer(new Dense1D(Activation::SOFTMAX, 2));
 	
-	printf("NumParameters: %d\n", model->getNumParameters());
-	printf("NaiveAccuracy: %f\n", calculateNaiveAccuracy(numData, y));
-	Optimizer* optimizer = new AdEMAMix(0.9, 0.9999, 0.999, 5, 0.00001);
-	TrainingParams* params = new TrainingParams(0.00001f, 12, 20, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
+	TrainingParams* params = new TrainingParams(0.00001f, 12, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
 	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D*[1]{ new Accuracy1D() }, params);
-	model->save("transformer4_regular.txt");
+	model->save("linformer.txt");
 	return 0;
 }
 
-int main2() {
-	int numData = 10000;
+int main2(int argc, char* args[]) {
+	int numData = 1000;
+	int valData = 100;
 	string* reviews = new string[numData];
+	string* valReviews = new string[valData];
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
-	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\Sentiment Analysis Dataset.csv", reviews, y, 100000, numData);
-	BytePairTokenizer tokenizer("tokens1000.txt");
+	float** yVal = Matrix::allocateMatrix(Matrix::ZERO_FILL, valData, 2);
+	getIMDBData(string(args[1]), reviews, y, 0, numData);
+	getIMDBData(string(args[1]), valReviews, yVal, numData, valData);
+	string tokenPath(args[2]);
+	BytePairTokenizer tokenizer(tokenPath);
 
 	int* numTokens = new int[numData];
-	float*** X = tokenizer.toTokens(numData, reviews, numTokens);
+	int* valNumTokens = new int[valData];
+	int** X = tokenizer.toSparseTokens(numData, reviews, numTokens);
+	int** XVal = tokenizer.toSparseTokens(valData, valReviews, valNumTokens);
 
-	Model2DTo1D* model = (Model2DTo1D*)ModelParser::parseModel("transformer4_regular.txt");
+	int maxReviewSize = 0;
+	for (int i = 0; i < numData; i++) {
+		if (reviews[i].length() > maxReviewSize) {
+			maxReviewSize = reviews[i].length();
+		}
+	}
+	printf("MaxReviewSize: %d\n", maxReviewSize);
 
-	model->test(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D()});
+	Model2DTo1D* model = new Model2DTo1D(1000);
+	model->addLayer(new Dense2D(Activation::NONE, 500));
+	model->addLayer(new Dense2D(Activation::NONE, 300));
+	model->addLayer(new Dense2D(Activation::NONE, 100));
+	model->addLayer(new PositionalEncoding2D());
+	//model->addTransformerBlock(20, 100, 50);
+	//model->addTransformerBlock(20, 100, 30);
+	model->addLinformer(20, 100, 10, 10);
+	model->addLinformer(20, 100, 10, 10);
+	model->addLayer(new Dense2D(Activation::SWISH, 75));
+	model->addLayer(new SequenceMean(Activation::NONE));
+	model->addLayer(new Dense1D(Activation::SWISH, 20));
+	model->addLayer(new Dense1D(Activation::SOFTMAX, 2));
+
+	TrainingParams* params = new TrainingParams(0.00001f, 12, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
+	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D() }, params);
+	model->save("linformer.txt");
+	return 0;
 }
 
 int main3() {
-	int numData = 50000;
+	int numData = 1000;
 	string* reviews = new string[numData];
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
-	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\IMDB Dataset.csv", reviews, y, 0, numData);
+	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\IMDB Dataset.csv", reviews, y, 2000, numData);
 
-	BytePairTokenizer tokenizer(numData, reviews, 1000);
-	tokenizer.save("imdb_tokens.txt");
+	BytePairTokenizer tokenizer("imdb_tokens.txt");
+	int* numTokens = new int[numData];
+	int** X = tokenizer.toSparseTokens(numData, reviews, numTokens);
+
+	Model2DTo1D* model = (Model2DTo1D*)ModelParser::parseModel("linformer.txt");
+	model->test(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D() });
+	return 0;
+}
+
+void testFill(int height, int width, Matrix A, float f) {
+	__m128 C = _mm_set1_ps(f);
+	int w4 = width >> 2 << 2;
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < w4; j += 4) {
+			_mm_store_ps(&A.matrix[i][j], _mm_mul_ps(C, _mm_loadu_ps(&A.matrix[i][j])));
+		}
+		for (int j = w4; j < width; j++) {
+			A.r(i, j) = A(i, j) * f;;
+		}
+	}
 }
 
 // TODO:
-// Greatly reduce memory requirements somehow - allow longer sequences
-//  - Limit max token size and make predictions with vote
-//  - Possibly implement Linformer, Performer, and Reformer?
-// Use SIMD on Normalization layers
+// Finish deconstructors for Layer2D, activations, optimizers, and models
+// Implement Performer and Reformer?
+// Use SIMD on Normalization and SequenceMean backprop
 // Allow Model2D classes to use batch sizes other than NUM_CORES
-// Store __m128 objects permanently in matrix class?
 // 
 // 
 // Implement RNNs

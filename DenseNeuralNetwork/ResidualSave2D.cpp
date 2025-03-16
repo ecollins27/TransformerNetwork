@@ -1,4 +1,7 @@
 #include "ResidualSave2D.h"
+#include "Model.h"
+
+const string ResidualSave2D::LAYER_NAME = "ResidualSave2D";
 
 void ResidualSave2D::propagateLayer(int num) {
 	prevLayer->neurons[num].copy(numTokens[num], size, neurons[num]);
@@ -19,10 +22,15 @@ void ResidualSave2D::setPrevLayer(Layer* prevLayer) {
 }
 
 void ResidualSave2D::save(ofstream& file) {
-	file << "ResidualSave,\n";
+	file << LAYER_NAME << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void ResidualSave2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	ResidualSave2D* residualSave = { new ResidualSave2D() };
+	nn->addLayer(residualSave);
 }
 
 void ResidualSave2D::backPropagateWithResidual(int num) {

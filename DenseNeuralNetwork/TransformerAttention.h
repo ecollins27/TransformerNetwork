@@ -1,9 +1,11 @@
 #pragma once
 #include "Layer2D.h"
 
-class MultiHeadAttention : public Layer2D {
+class TransformerAttention : public Layer2D {
 
 public:
+	const static string LAYER_NAME;
+
 	Layer2D* prevLayer;
 
 	int numHeads, keySize, valueSize;
@@ -39,13 +41,14 @@ public:
 	Optimizer** queryOptimizers;
 	Optimizer** valueOptimizers;
 
-	MultiHeadAttention(int numHeads, int keySize, int valueSize);
+	TransformerAttention(int numHeads, int keySize, int valueSize);
 
 	void propagateLayer(int num);
 	void backPropagate(int num);
 	void setPrevLayer(Layer* prevLayer);
 	void setBatchSize(int batchSize);
 	void save(ofstream& file);
+	static void load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize);
 
 	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);

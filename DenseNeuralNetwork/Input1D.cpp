@@ -18,7 +18,7 @@ void Input1D::setInput(float** input) {
 }
 
 void Input1D::setSparseInput(int* input) {
-	neurons.fill(Matrix::ZERO_FILL, batchSize, size);
+	neurons.constantFill(0, batchSize, size);
 	for (int i = 0; i < batchSize; i++) {
 		neurons.r(i, input[i]) = 1;
 	}

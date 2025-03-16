@@ -15,7 +15,8 @@
 #include "Gated2D.h"
 #include "Input2D.h"
 #include "LayerNormalization2D.h"
-#include "MultiHeadAttention.h"
+#include "LinformerAttention.h"
+#include "TransformerAttention.h"
 #include "PositionalEncoding2D.h"
 #include "ResidualAdd2D.h"
 #include "ResidualSave2D.h"
@@ -25,6 +26,12 @@
 class ModelParser {
 
 public:
-	static void* parseModel(string fileName);
+	static float getNextFloat(string line, int* commaIndex, int* newCommaIndex);
+	static int getNextInt(string line, int* commaIndex, int* newCommaIndex);
+	static string getNextString(string& line, int* commaIndex, int* newCommaIndex);
+	static void getNextLine(ifstream& file, string& line, int* commaIndex, int* newCommaIndex);
+	static Activation* readActivation(string& line, int* commaIndex, int* newCommaIndex);
+	static void addLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D);
+	static Model* parseModel(string fileName);
 };
 

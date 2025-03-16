@@ -1,4 +1,8 @@
 #include "SequenceMean.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string SequenceMean::LAYER_NAME = "SequenceMean";
 
 SequenceMean::SequenceMean(Activation* activation) {
 	this->activation = activation;
@@ -9,18 +13,13 @@ SequenceMean::SequenceMean(Activation* activation) {
 
 SequenceMean::~SequenceMean() {
 	delete activation;
+	means.free();
+	backPropIntermediate.free();
 	Layer1D::~Layer1D();
 }
 
 void SequenceMean::propagateLayer(int num) {
-	for (int j = 0; j < size; j++) {
-		float& mean = means.r(num, j);
-		mean = 0;
-		for (int i = 0; i < prevLayer->numTokens[num]; i++) {
-			mean += prevLayer->neurons[num](i, j);
-		}
-		mean /= prevLayer->numTokens[num];
-	}
+	Matrix::calculateMean(prevLayer->numTokens[num], size, prevLayer->neurons[num], means, num);
 	forwardThreadCount.fetch_add(1);
 	if (forwardThreadCount.load() >= batchSize) {
 		forwardThreadCount.store(0);
@@ -67,10 +66,16 @@ void SequenceMean::setBatchSize(int batchSize) {
 }
 
 void SequenceMean::save(ofstream& file) {
-	file << "SequenceMean,";
+	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void SequenceMean::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	Activation* activation = ModelParser::readActivation(line, commaIndex, newCommaIndex);
+	SequenceMean* batchSum = { new SequenceMean(activation) };
+	nn->addLayer(batchSum);
 }

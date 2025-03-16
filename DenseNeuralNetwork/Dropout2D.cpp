@@ -1,13 +1,18 @@
 #include "Dropout2D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string Dropout2D::LAYER_NAME = "Dropout2D";
 
 Dropout2D::Dropout2D(float dropoutRate) {
 	this->dropoutRate = dropoutRate;
+	this->distribution = uniform_real_distribution<float>(0, 1);
 }
 
 void Dropout2D::propagateLayer(int num) {
 	for (int i = 0; i < numTokens[num]; i++) {
 		for (int j = 0; j < size; j++) {
-			float randValue = (float)rand() / (RAND_MAX + 1);
+			float randValue = distribution(generator);
 			if (randValue < dropoutRate) {
 				neurons[num].r(i, j) = 0;
 				dropped[num][i][j] = true;
@@ -61,10 +66,15 @@ void Dropout2D::setBatchSize(int batchSize) {
 }
 
 void Dropout2D::save(ofstream& file) {
-	file << "Dropout," << dropoutRate << ",\n";
+	file << LAYER_NAME << "," << dropoutRate << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void Dropout2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	Dropout2D* dropout = { new Dropout2D(ModelParser::getNextFloat(line, commaIndex, newCommaIndex)) };
+	nn->addLayer(dropout);
 }
 
 void Dropout2D::predict(int num) {

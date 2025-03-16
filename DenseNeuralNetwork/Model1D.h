@@ -1,25 +1,22 @@
 #pragma once
 #include "Input1D.h"
 #include "Loss1D.h"
+#include "Model.h"
 
-class Model1D {
+class Model1D : public Model {
 
 public:
+	const static string MODEL_NAME;
+
 	Input1D* inputLayer;
 	Layer1D* outputLayer;
 	int t;
 
 	Model1D(int inputSize);
 
-	void addLayer(Layer1D* layer);
-	template<typename T>
-	T* getLayer(int index) {
-		Layer* layer = inputLayer;
-		for (int i = 0; i < index; i++) {
-			layer = layer->nextLayer;
-		}
-		return (T*)layer;
-	}
+	void addLayer(Layer* layer);
+
+	Layer* getLayer(int index);
 
 	int getNumParameters();
 	void fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params);

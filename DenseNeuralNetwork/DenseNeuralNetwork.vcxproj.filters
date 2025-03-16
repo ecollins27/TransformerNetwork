@@ -71,7 +71,7 @@
     <ClCompile Include="SequenceMean.cpp">
       <Filter>DNN\Layers\Layers1D</Filter>
     </ClCompile>
-    <ClCompile Include="MultiHeadAttention.cpp">
+    <ClCompile Include="TransformerAttention.cpp">
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClCompile>
     <ClCompile Include="Matrix.cpp">
@@ -92,8 +92,16 @@
     <ClCompile Include="TrainingParams.cpp">
       <Filter>DNN\Util</Filter>
     </ClCompile>
-    <ClCompile Include="Dataset.cpp" />
     <ClCompile Include="LinformerAttention.cpp">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClCompile>
+    <ClCompile Include="Model.cpp">
+      <Filter>DNN\Models</Filter>
+    </ClCompile>
+    <ClCompile Include="Dataset.cpp">
+      <Filter>DNN\Util</Filter>
+    </ClCompile>
+    <ClCompile Include="PerformerAttention.cpp">
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClCompile>
   </ItemGroup>
@@ -167,7 +175,7 @@
     <ClInclude Include="SequenceMean.h">
       <Filter>DNN\Layers\Layers1D</Filter>
     </ClInclude>
-    <ClInclude Include="MultiHeadAttention.h">
+    <ClInclude Include="TransformerAttention.h">
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClInclude>
     <ClInclude Include="Matrix.h">
@@ -188,8 +196,16 @@
     <ClInclude Include="TrainingParams.h">
       <Filter>DNN\Util</Filter>
     </ClInclude>
-    <ClInclude Include="Dataset.h" />
     <ClInclude Include="LinformerAttention.h">
+      <Filter>DNN\Layers\Layers2D</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.h">
+      <Filter>DNN\Models</Filter>
+    </ClInclude>
+    <ClInclude Include="Dataset.h">
+      <Filter>DNN\Util</Filter>
+    </ClInclude>
+    <ClInclude Include="PerformerAttention.h">
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClInclude>
   </ItemGroup>

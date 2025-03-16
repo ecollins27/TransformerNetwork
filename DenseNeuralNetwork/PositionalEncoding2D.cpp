@@ -1,4 +1,8 @@
 #include "PositionalEncoding2D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string PositionalEncoding2D::LAYER_NAME = "PositionalEncoding2D";
 
 PositionalEncoding2D::PositionalEncoding2D(float L) {
 	this->L = L;
@@ -33,8 +37,14 @@ void PositionalEncoding2D::setPrevLayer(Layer* prevLayer) {
 }
 
 void PositionalEncoding2D::save(ofstream& file) {
-	file << "PositionalEncodingLayer," << L << ",\n";
+	file << LAYER_NAME << "," << L << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void PositionalEncoding2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	int L = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	PositionalEncoding2D* positionalEncodingLayer = { new PositionalEncoding2D(L) };
+	nn->addLayer(positionalEncodingLayer);
 }

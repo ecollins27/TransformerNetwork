@@ -1,4 +1,8 @@
 #include "ResidualAdd2D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string ResidualAdd2D::LAYER_NAME = "ResidualAdd2D";
 
 ResidualAdd2D::ResidualAdd2D(ResidualSave2D* residualLayer) {
 	this->residual = residualLayer;
@@ -29,8 +33,14 @@ void ResidualAdd2D::setPrevLayer(Layer* prevLayer) {
 }
 
 void ResidualAdd2D::save(ofstream& file) {
-	file << "ResidualAdd," << residual->index << ",\n";
+	file << LAYER_NAME << "," << residual->index << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void ResidualAdd2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	int saveIndex = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	ResidualAdd2D* residualAdd = { new ResidualAdd2D((ResidualSave2D*)nn->getLayer(saveIndex)) };
+	nn->addLayer(residualAdd);
 }

@@ -6,6 +6,8 @@
 #include <fstream>
 
 class InputLayer;
+class Model;
+class ModelParser;
 
 class Layer {
 

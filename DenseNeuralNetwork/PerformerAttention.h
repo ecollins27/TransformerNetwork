@@ -1,19 +1,14 @@
 #pragma once
 #include "Layer2D.h"
 
-class LinformerAttention : public Layer2D {
+class PerformerAttention : public Layer2D {
 
 public:
 	const static string LAYER_NAME;
 
 	Layer2D* prevLayer;
 
-	int numHeads, keySize, valueSize, projSize;
-
-	Matrix E;
-	Matrix* EGrad;
-	Matrix F;
-	Matrix* FGrad;
+	int numHeads, keySize, valueSize, M;
 
 	Matrix* Wq;
 	Matrix** WqGrad;
@@ -26,14 +21,14 @@ public:
 
 	Matrix** Q;
 	Matrix** QGrad;
+	Matrix** QK;
+	Matrix** QKGrad;
 	Matrix** K;
 	Matrix** KGrad;
-	Matrix** KProj;
-	Matrix** KProjGrad;
+	Matrix** KK;
+	Matrix** KKGrad;
 	Matrix** V;
 	Matrix** VGrad;
-	Matrix** VProj;
-	Matrix** VProjGrad;
 
 	Matrix** A;
 	Matrix** AGrad;
@@ -45,13 +40,14 @@ public:
 
 	Activation* softmax;
 
+	Matrix omega;
+
 	Optimizer* outputOptimizer;
 	Optimizer** keyOptimizers;
 	Optimizer** queryOptimizers;
 	Optimizer** valueOptimizers;
-	Optimizer** projOptimizers;
 
-	LinformerAttention(int numHeads, int keySize, int valueSize, int projSize);
+	PerformerAttention(int numHeads, int keySize, int valueSize, int M);
 
 	void propagateLayer(int num);
 	void backPropagate(int num);
@@ -60,9 +56,9 @@ public:
 	void save(ofstream& file);
 	static void load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize);
 
-	void setMaxNumTokens(int maxTokenSize);
 	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	int getNumParameters();
+	void phi(int height, int width, Matrix X, Matrix Y);
 };
 

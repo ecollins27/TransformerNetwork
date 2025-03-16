@@ -1,10 +1,13 @@
 #pragma once
 #include "Layer1D.h"
 #include "Layer2D.h"
+#include <atomic>
 
 class SequenceMean : public Layer1D {
 
 public:
+	const static string LAYER_NAME;
+
 	Layer2D* prevLayer;
 
 	atomic<int> forwardThreadCount, backThreadCount;
@@ -23,5 +26,6 @@ public:
 	void setPrevLayer(Layer* prevLayer);
 	void setBatchSize(int batchSize);
 	void save(ofstream& file);
+	static void load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize);
 };
 

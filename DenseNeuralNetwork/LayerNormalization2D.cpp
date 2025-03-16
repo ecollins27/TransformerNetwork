@@ -1,36 +1,45 @@
 #include "LayerNormalization2D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string LayerNormalization2D::LAYER_NAME = "LayerNormalization2D";
 
 void LayerNormalization2D::propagateLayer(int num) {
-	for (int j = 0; j < size; j++) {
-		float& meanSum = mean.r(num, j);
-		meanSum = 0;
-		for (int i = 0; i < numTokens[num]; i++) {
-			meanSum += prevLayer->neurons[num](i, j);
-		}
-		meanSum /= numTokens[num];
+	Matrix::calculateMean(numTokens[num], size, prevLayer->neurons[num], mean, num);
+	Matrix::calculateVariance(numTokens[num], size, prevLayer->neurons[num], mean, variance, num);
+	variance.sqrt(batchSize, size, std, num);
+	Matrix::normalize(numTokens[num], size, prevLayer->neurons[num], neurons[num], mean, std, num);
 
-		float& varianceSum = variance.r(num, j);
-		varianceSum = 0;
-		for (int i = 0; i < numTokens[num]; i++) {
-			varianceSum += (prevLayer->neurons[num](i, j) - meanSum) * (prevLayer->neurons[num](i, j) - meanSum);
-		}
-		varianceSum /= numTokens[num];
-		std.r(num, j) = sqrt(varianceSum);
+	//for (int j = 0; j < size; j++) {
+	//	float& meanSum = mean.r(num, j);
+	//	meanSum = 0;
+	//	for (int i = 0; i < numTokens[num]; i++) {
+	//		meanSum += prevLayer->neurons[num](i, j);
+	//	}
+	//	meanSum /= numTokens[num];
 
-		for (int i = 0; i < numTokens[num]; i++) {
-			if (std(num, j) == 0) {
-				neurons[num].r(i, j) = 0;
-			}
-			else {
-				neurons[num].r(i, j) = (prevLayer->neurons[num](i, j) - mean(num, j)) / std(num, j);
-			}
-		}
-	}
+	//	float& varianceSum = variance.r(num, j);
+	//	varianceSum = 0;
+	//	for (int i = 0; i < numTokens[num]; i++) {
+	//		varianceSum += (prevLayer->neurons[num](i, j) - meanSum) * (prevLayer->neurons[num](i, j) - meanSum);
+	//	}
+	//	varianceSum /= numTokens[num];
+	//	std.r(num, j) = sqrt(varianceSum);
+
+	//	for (int i = 0; i < numTokens[num]; i++) {
+	//		if (std(num, j) == 0) {
+	//			neurons[num].r(i, j) = 0;
+	//		}
+	//		else {
+	//			neurons[num].r(i, j) = (prevLayer->neurons[num](i, j) - mean(num, j)) / std(num, j);
+	//		}
+	//	}
+	//}
 }
 
 void LayerNormalization2D::backPropagate(int num) {
 	float c = 1.0 / numTokens[num];
-	prevLayer->neuronGradient[num].fill(Matrix::ZERO_FILL, numTokens[num], size);
+	prevLayer->neuronGradient[num].constantFill(0, numTokens[num], size);
 	for (int i = 0; i < numTokens[num]; i++) {
 		for (int j = 0; j < size; j++) {
 			if (std(num, j) != 0) {
@@ -56,10 +65,15 @@ void LayerNormalization2D::setPrevLayer(Layer* prevLayer) {
 }
 
 void LayerNormalization2D::save(ofstream& file) {
-	file << "LayerNormalization,\n";
+	file << LAYER_NAME << ",\n";
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void LayerNormalization2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	LayerNormalization2D* layerNormalization = { new LayerNormalization2D() };
+	nn->addLayer(layerNormalization);
 }
 
 void LayerNormalization2D::setBatchSize(int batchSize) {

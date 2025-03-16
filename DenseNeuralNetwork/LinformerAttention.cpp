@@ -1,4 +1,8 @@
 #include "LinformerAttention.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string LinformerAttention::LAYER_NAME = "LinformerAttention";
 
 LinformerAttention::LinformerAttention(int numHeads, int keySize, int valueSize, int projSize) {
 	this->numHeads = numHeads;
@@ -39,7 +43,9 @@ void LinformerAttention::backPropagate(int num) {
 	Matrix::multiplyABC(numTokens[num], size, numHeads * valueSize, neuronGradient[num], Wo, AcGrad[num], true);
 	// dWo = dYT Ac
 	Matrix::multiplyAtBC(size, numTokens[num], numHeads * valueSize, neuronGradient[num], Ac[num], WoGrad[num], true);
-	prevLayer->neuronGradient[num].fill(Matrix::ZERO_FILL, numTokens[num], prevSize);
+	prevLayer->neuronGradient[num].constantFill(0, numTokens[num], prevSize);
+	EGrad->constantFill(0, projSize, maxNumTokens);
+	FGrad->constantFill(0, projSize, maxNumTokens);
 	float scalar = 1.0 / sqrt(keySize);
 	for (int i = 0; i < numHeads; i++) {
 		// dA = dAc Vp
@@ -52,8 +58,8 @@ void LinformerAttention::backPropagate(int num) {
 		Matrix::multiplyABC(valueSize, numTokens[num], prevSize, VGrad[num][i], prevLayer->neurons[num], WvGrad[num][i], true);
 		// dX += dVT Wv
 		Matrix::multiplyAtBC(numTokens[num], valueSize, prevSize, VGrad[num][i], Wv[i], prevLayer->neuronGradient[num], false);
-		// dF = dVpT V
-		Matrix::multiplyAtBC(projSize, valueSize, numTokens[num], VProjGrad[num][i], V[num][i], FGrad[num], true);
+		// dF += dVpT V
+		Matrix::multiplyAtBC(projSize, valueSize, numTokens[num], VProjGrad[num][i], V[num][i], FGrad[num], false);
 		// dA = softmax'(A)
 		softmax->differentiate(numTokens[num], projSize, A[num][i], A[num][i], AGrad[num][i], AGrad[num][i]);
 		// dQ = dA Kp
@@ -64,8 +70,8 @@ void LinformerAttention::backPropagate(int num) {
 		Matrix::multiplyAtBC(projSize, numTokens[num], keySize, AGrad[num][i], Q[num][i], KProjGrad[num][i], true);
 		// dKp = dKp / sqrt(dk)
 		KProjGrad[num][i].scale(projSize, keySize, scalar);
-		// dE = dKp K
-		Matrix::multiplyABC(projSize, keySize, numTokens[num], KProjGrad[num][i], K[num][i], EGrad[num], true);
+		// dE += dKp K
+		Matrix::multiplyABC(projSize, keySize, numTokens[num], KProjGrad[num][i], K[num][i], EGrad[num], false);
 		// dK = dKpT E
 		Matrix::multiplyAtBC(keySize, projSize, numTokens[num], KProjGrad[num][i], E, KGrad[num][i], true);
 		//dX += dQ Wq
@@ -134,8 +140,8 @@ void LinformerAttention::setBatchSize(int batchSize) {
 }
 
 void LinformerAttention::save(ofstream& file) {
-	file << "LinformerAttention,";
-	file << numHeads << "," << keySize << "," << valueSize << ",\n";
+	file << LAYER_NAME << ", ";
+	file << numHeads << "," << keySize << "," << valueSize << "," << projSize << ",\n";
 	for (int i = 0; i < numHeads; i++) {
 		for (int j = 0; j < keySize; j++) {
 			for (int k = 0; k < prevSize; k++) {
@@ -162,8 +168,72 @@ void LinformerAttention::save(ofstream& file) {
 		}
 		file << "\n";
 	}
+	file << maxNumTokens << ",\n";
+	for (int i = 0; i < projSize; i++) {
+		for (int j = 0; j < maxNumTokens; j++) {
+			file << E(i, j) << ",";
+		}
+		file << "\n";
+	}
+	for (int i = 0; i < projSize; i++) {
+		for (int j = 0; j < maxNumTokens; j++) {
+			file << F(i, j) << ",";
+		}
+		file << "\n";
+	}
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
+	}
+}
+
+void LinformerAttention::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	int numHeads = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	int keySize = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	int valueSize = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	int projSize = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	LinformerAttention* linformerAttention = { new LinformerAttention(numHeads, keySize, valueSize, projSize) };
+	nn->addLayer(linformerAttention);
+	for (int i = 0; i < numHeads; i++) {
+		for (int j = 0; j < keySize; j++) {
+			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int k = 0; k < *prevSize; k++) {
+				linformerAttention->Wq[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+		for (int j = 0; j < keySize; j++) {
+			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int k = 0; k < *prevSize; k++) {
+				linformerAttention->Wk[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+		for (int j = 0; j < valueSize; j++) {
+			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+			for (int k = 0; k < *prevSize; k++) {
+				linformerAttention->Wv[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			}
+		}
+	}
+	for (int i = 0; i < *prevSize - 1; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < numHeads * valueSize; j++) {
+			linformerAttention->Wo.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+	ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+	int maxNumTokens = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	linformerAttention->E = Matrix(Matrix::ZERO_FILL, projSize, maxNumTokens, true);
+	linformerAttention->F = Matrix(Matrix::ZERO_FILL, projSize, maxNumTokens, true);
+	for (int i = 0; i < projSize; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < maxNumTokens; j++) {
+			linformerAttention->E.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+	for (int i = 0; i < projSize; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < maxNumTokens; j++) {
+			linformerAttention->F.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
 	}
 }
 
@@ -171,8 +241,13 @@ void LinformerAttention::setMaxNumTokens(int maxNumTokens) {
 	this->maxNumTokens = maxNumTokens;
 	float std = 1.0 / maxNumTokens;
 	Matrix::NormalFill* normal = new Matrix::NormalFill(0, std);
-	E = Matrix(normal, projSize, maxNumTokens, true);
-	F = Matrix(normal, projSize, maxNumTokens, true);
+	if (E.matrix == NULL && F.matrix == NULL) {
+		E = Matrix(normal, projSize, maxNumTokens, true);
+		F = Matrix(normal, projSize, maxNumTokens, true);
+	}
+	else if (maxNumTokens > E.maxWidth) {
+		throw invalid_argument("Loaded projection matrix is too small");
+	}
 	if (nextLayer != NULL && instanceOf<Layer2D>(nextLayer)) {
 		((Layer2D*)nextLayer)->setMaxNumTokens(maxNumTokens);
 	}
@@ -229,5 +304,6 @@ int LinformerAttention::getNumParameters() {
 	current += size * numHeads * valueSize;
 	current += numHeads * valueSize * prevSize;
 	current += 2 * numHeads * keySize * prevSize;
+	current += 2 * projSize * maxNumTokens;
 	return current;
 }

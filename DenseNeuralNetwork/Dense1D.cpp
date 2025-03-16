@@ -1,4 +1,8 @@
 #include "Dense1D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string Dense1D::LAYER_NAME = "Dense1D";
 
 Dense1D::Dense1D(Activation* activation, int size) {
 	this->activation = activation->clone();
@@ -8,6 +12,10 @@ Dense1D::Dense1D(Activation* activation, int size) {
 Dense1D::~Dense1D() {
 	delete activation;
 	delete optimizer;
+	weights.free();
+	weightGradient.free();
+	linearCombo.free();
+	backPropIntermediate.free();
 	Layer1D::~Layer1D();
 }
 
@@ -54,7 +62,7 @@ void Dense1D::setBatchSize(int batchSize) {
 }
 
 void Dense1D::save(ofstream& file) {
-	file << "DenseLayer,";
+	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
 	for (int i = 0; i < size; i++) {
@@ -66,6 +74,20 @@ void Dense1D::save(ofstream& file) {
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void Dense1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	Activation* activation = ModelParser::readActivation(line, commaIndex, newCommaIndex);
+	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	Dense1D* denseLayer = new Dense1D(activation, size);
+	nn->addLayer(denseLayer);
+	for (int i = 0; i < size; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < *prevSize; j++) {
+			denseLayer->weights.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+	*prevSize = size + 1;
 }
 
 void Dense1D::applyGradients(float learningRate, int t) {

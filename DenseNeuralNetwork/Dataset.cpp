@@ -18,8 +18,10 @@ int Dataset::getMaxNumTokens() {
 }
 
 void Dataset::shuffle() {
+	uniform_real_distribution<float> distribution = uniform_real_distribution<float>(0, numData);
+	default_random_engine generator;
 	for (int i = 0; i < numData; i++) {
-		int index = (int)(numData * ((float)rand() / (RAND_MAX + 1)));
+		int index = (int)distribution(generator);
 		swap(X[i], X[index]);
 		swap(y[i], y[index]);
 		swap(numTokens[i], numTokens[index]);

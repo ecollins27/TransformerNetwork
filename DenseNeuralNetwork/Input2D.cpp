@@ -14,7 +14,7 @@ void Input2D::setInput(int num, float** input) {
 }
 
 void Input2D::setSparseInput(int num, int* input) {
-	neurons[num].fill(Matrix::ZERO_FILL, numTokens[num], size);
+	neurons[num].constantFill(0, numTokens[num], size);
 	for (int i = 0; i < numTokens[num]; i++) {
 		neurons[num].r(i, input[i]) = 1;
 	}

@@ -4,8 +4,9 @@
 #include "LayerNormalization2D.h"
 #include "Dense2D.h"
 #include "Gated2D.h"
-#include "MultiHeadAttention.h"
+#include "TransformerAttention.h"
 
+const string Model2DTo1D::MODEL_NAME = "Model2DTo1D";
 int Model2DTo1D::NUM_CORES = 12;
 
 Model2DTo1D::Model2DTo1D(int inputSize) {
@@ -30,6 +31,14 @@ void Model2DTo1D::addLayer(Layer* layer) {
 		outputLayer->setNextLayer(layer);
 		outputLayer = (Layer1D*)layer;
 	}
+}
+
+Layer* Model2DTo1D::getLayer(int index) {
+	Layer* layer = inputLayer;
+	for (int i = 0; i < index; i++) {
+		layer = layer->nextLayer;
+	}
+	return layer;
 }
 
 void Model2DTo1D::applyGradients(float learningRate) {
@@ -71,14 +80,19 @@ void Model2DTo1D::backPropagate(Loss1D* lossFunction, int thread) {
 	outputLayer->backPropagate(thread);
 }
 
-void Model2DTo1D::evaluateValidation(Loss1D* lossFunction, Dataset* valData, int batchSize, int numMetrics, Loss1D** metrics) {
+void Model2DTo1D::evaluateValidation(string output, Loss1D* lossFunction, Dataset* valData, int batchSize, int numMetrics, Loss1D** metrics) {
 	int valSize = valData->numData;
+	valSize -= valSize % batchSize;
 	float* averages = new float[numMetrics + 1];
 	for (int i = 0; i < numMetrics + 1; i++) {
 		averages[i] = 0;
 	}
 	thread* threads = new thread[batchSize];
 	for (int i = 0; i < valSize; i += batchSize) {
+		printf("\r%s%d/%d  ValLoss:%f  ", output.c_str(), i, valSize, averages[numMetrics] / i);
+		for (int j = 0; j < numMetrics; j++) {
+			printf("Val%s:%f  ", metrics[j]->toString().c_str(), averages[j] / i);
+		}
 		inputLayer->setNumTokens(&valData->numTokens[i]);
 		for (int k = 0; k < batchSize; k++) {
 			threads[k] = thread(&Model2DTo1D::predict, this, valData->X[i + k],valData->sparseX, k);
@@ -88,7 +102,7 @@ void Model2DTo1D::evaluateValidation(Loss1D* lossFunction, Dataset* valData, int
 		}
 		updateAverages(lossFunction, (float**)(&valData->y[i]), averages, numMetrics, metrics);
 	}
-	printf("  ValLoss:%f  ", averages[numMetrics] / valSize);
+	printf("\r%s  ValLoss:%f  ", output.c_str(), averages[numMetrics] / valSize);
 	for (int j = 0; j < numMetrics; j++) {
 		printf("Val%s:%f  ", metrics[j]->toString().c_str(), averages[j] / valSize);
 	}
@@ -98,7 +112,7 @@ void Model2DTo1D::addTransformer(int numHeads, int keySize, int valueSize) {
 	int size = tempLayer->size;
 	ResidualSave2D* rs1 = { new ResidualSave2D() };
 	this->addLayer(rs1);
-	this->addLayer({ new MultiHeadAttention(numHeads, keySize, valueSize) });
+	this->addLayer({ new TransformerAttention(numHeads, keySize, valueSize) });
 	this->addLayer({ new ResidualAdd2D(rs1) });
 	this->addLayer({ new LayerNormalization2D() });
 	ResidualSave2D* rs2 = { new ResidualSave2D() };
@@ -167,7 +181,6 @@ void Model2DTo1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1
 	trainingNum -= trainingNum % batchSize;
 	valNum -= valNum % batchSize;
 
-	printf("MaxTokenSize:%d\n", maxTokenSize);
 	inputLayer->setMaxNumTokens(maxTokenSize);
 	inputLayer->setBatchSize(batchSize);
 	thread* threads = new thread[batchSize];
@@ -184,7 +197,6 @@ void Model2DTo1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1
 		for (int i = 0; i < numMetrics + 1; i++) {
 			averages[i] = 0;
 		}
-		printf("%p\n", trainingData->y[53]);
 		for (int i = 0; i < trainingNum; i += batchSize) {
 			printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, numEpochs, i, trainingNum, averages[numMetrics] / i);
 			for (int j = 0; j < numMetrics; j++) {
@@ -207,19 +219,54 @@ void Model2DTo1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1
 			updateAverages(lossFunction, (float**)(&trainingData->y[i]), averages, numMetrics, metrics);
 			applyGradients(learningRate);
 		}
+		string output = std::format("Epoch {}/{}  {}/{}  Loss:{}  ", epoch + 1, numEpochs, trainingNum, trainingNum, averages[numMetrics] / trainingNum);
 		printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, numEpochs, trainingNum, trainingNum, averages[numMetrics] / trainingNum);
 		for (int j = 0; j < numMetrics; j++) {
+			output += std::format("{}:{}  ", metrics[j]->toString().c_str(), averages[j] / trainingNum);
 			printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / trainingNum);
 		}
 		if (valNum > 0) {
-			evaluateValidation(lossFunction, valData, batchSize, numMetrics, metrics);
+			evaluateValidation(output, lossFunction, valData, batchSize, numMetrics, metrics);
 		}
 		printf("\n");
 	}
 }
 
 void Model2DTo1D::test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics) {
-	return;
+	int maxNumTokens = data->getMaxNumTokens();
+	if (maxNumTokens > MAX_NUM_TOKENS) {
+		data = partitionData(data);
+		maxNumTokens = MAX_NUM_TOKENS;
+	}
+	data->shuffle();
+	int batchSize = NUM_CORES;
+	inputLayer->setMaxNumTokens(maxNumTokens);
+	inputLayer->setBatchSize(NUM_CORES);
+	int numData = data->numData;
+	numData -= numData % batchSize;
+	float* averages = new float[numMetrics + 1];
+	for (int i = 0; i < numMetrics + 1; i++) {
+		averages[i] = 0;
+	}
+	thread* threads = new thread[batchSize];
+	for (int i = 0; i < numData; i += batchSize) {
+		printf("\rTest: %d/%d  TestLoss:%f  ", i, numData, averages[numMetrics] / i);
+		for (int j = 0; j < numMetrics; j++) {
+			printf("Test%s:%f  ", metrics[j]->toString().c_str(), averages[j] / i);
+		}
+		inputLayer->setNumTokens(&data->numTokens[i]);
+		for (int k = 0; k < batchSize; k++) {
+			threads[k] = thread(&Model2DTo1D::predict, this, data->X[i + k], data->sparseX, k);
+		}
+		for (int k = 0; k < batchSize; k++) {
+			threads[k].join();
+		}
+		updateAverages(lossFunction, (float**)(&data->y[i]), averages, numMetrics, metrics);
+	}
+	printf("\rTest: %d/%d  TestLoss:%f  ", numData, numData, averages[numMetrics] / numData);
+	for (int j = 0; j < numMetrics; j++) {
+		printf("Test%s:%f  ", metrics[j]->toString().c_str(), averages[j] / numData);
+	}
 }
 
 Dataset* Model2DTo1D::partitionData(Dataset* data) {
@@ -255,13 +302,12 @@ Dataset* Model2DTo1D::partitionData(Dataset* data) {
 			counter++;
 		}
 	}
-	printf("%d %d\n", counter, numData);
 	return new Dataset(numData, numTokens, newX, newY, data->sparseX);
 }
 
 void Model2DTo1D::save(string filename) {
 	ofstream file(filename.c_str());
-	file << "Model2DTo1D\n";
+	file << MODEL_NAME << "\n";
 	inputLayer->save(file);
 	file.close();
 }

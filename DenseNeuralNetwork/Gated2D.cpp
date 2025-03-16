@@ -1,4 +1,8 @@
 #include "Gated2D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string Gated2D::LAYER_NAME = "Gated2D";
 
 Gated2D::Gated2D(Activation* activation, int size) {
 	this->activation = activation->clone();
@@ -58,7 +62,7 @@ void Gated2D::setBatchSize(int batchSize) {
 }
 
 void Gated2D::save(ofstream& file) {
-	file << "GatedLayer,";
+	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
 	for (int i = 0; i < size; i++) {
@@ -76,6 +80,26 @@ void Gated2D::save(ofstream& file) {
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void Gated2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	Activation* activation = ModelParser::readActivation(line, commaIndex, newCommaIndex);
+	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	Gated2D* gatedLayer = { new Gated2D(activation, size) };
+	nn->addLayer(gatedLayer);
+	for (int i = 0; i < size; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < *prevSize; j++) {
+			gatedLayer->weights1.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+	for (int i = 0; i < size; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < *prevSize; j++) {
+			gatedLayer->weights2.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+	*prevSize = size + 1;
 }
 
 void Gated2D::applyGradients(float learningRate, int t) {

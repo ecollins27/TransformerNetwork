@@ -1,4 +1,8 @@
 #include "Gated1D.h"
+#include "Model.h"
+#include "ModelParser.h"
+
+const string Gated1D::LAYER_NAME = "Gated1D";
 
 Gated1D::Gated1D(Activation* activation, int size) {
 	this->activation = activation->clone();
@@ -9,6 +13,16 @@ Gated1D::~Gated1D() {
 	delete activation;
 	delete optimizer1;
 	delete optimizer2;
+	weights1.free();
+	weightGradient1.free();
+	weights2.free();
+	weightGradient2.free();
+	A1.free();
+	A1Grad.free();
+	A2.free();
+	A2Grad.free();
+	Ao.free();
+	AoGrad.free();
 	Layer1D::~Layer1D();
 }
 
@@ -66,7 +80,7 @@ void Gated1D::setBatchSize(int batchSize) {
 }
 
 void Gated1D::save(ofstream& file) {
-	file << "GatedLayer,";
+	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
 	for (int i = 0; i < size; i++) {
@@ -84,6 +98,26 @@ void Gated1D::save(ofstream& file) {
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
+}
+
+void Gated1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	Activation* activation = ModelParser::readActivation(line, commaIndex, newCommaIndex);
+	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
+	Gated1D* gatedLayer = { new Gated1D(activation, size) };
+	nn->addLayer(gatedLayer);
+	for (int i = 0; i < size; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < *prevSize; j++) {
+			gatedLayer->weights1.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+	for (int i = 0; i < size; i++) {
+		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
+		for (int j = 0; j < *prevSize; j++) {
+			gatedLayer->weights2.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		}
+	}
+	*prevSize = size + 1;
 }
 
 void Gated1D::applyGradients(float learningRate, int t) {

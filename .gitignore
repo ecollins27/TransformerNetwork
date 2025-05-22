@@ -367,3 +367,5 @@ FodyWeavers.xsd
 **/mnist_train.csv
 **/mnist_test.csv
 DenseNeuralNetwork/*.exe
+DenseNeuralNetwork/*.o
+DenseNeuralNetwork/*.txt

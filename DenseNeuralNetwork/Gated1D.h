@@ -11,7 +11,7 @@ class Gated1D : public Layer1D {
 public:
 	const static string LAYER_NAME;
 
-	Layer1D* prevLayer;
+	Layer1D* prevLayer = NULL;
 
 	Matrix weights1;
 	Matrix weightGradient1;

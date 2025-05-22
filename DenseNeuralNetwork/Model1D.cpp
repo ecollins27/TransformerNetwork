@@ -150,3 +150,11 @@ void Model1D::save(string filename) {
 	inputLayer->save(file);
 	file.close();
 }
+
+void Model1D::printLayers() {
+	Layer* layer = inputLayer;
+	while (layer->nextLayer != NULL) {
+		printf("%s\n", typeid(*layer).name());
+		layer = layer->nextLayer;
+	}
+}

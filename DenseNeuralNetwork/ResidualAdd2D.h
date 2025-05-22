@@ -7,7 +7,7 @@ class ResidualAdd2D : public Layer2D {
 public:
 	const static string LAYER_NAME;
 
-	Layer2D* prevLayer;
+	Layer2D* prevLayer = NULL;
 	ResidualSave2D* residual;
 
 	ResidualAdd2D(ResidualSave2D* residualLayer);

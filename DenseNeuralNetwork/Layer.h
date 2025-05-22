@@ -19,7 +19,7 @@ public:
 	int batchSize;
 	int index;
 
-	Layer* nextLayer;
+	Layer* nextLayer = NULL;
 
 	~Layer();
 

@@ -16,8 +16,8 @@ public:
 	static FillFunction* UNIT_UNIFORM_FILL;
 	int maxHeight, maxWidth;
 
-	float** matrix;
-	float** matrixTrans;
+	float** matrix = NULL;
+	float** matrixTrans = NULL;
 	bool saveTranspose;
 	bool* transposeUpdated;
 

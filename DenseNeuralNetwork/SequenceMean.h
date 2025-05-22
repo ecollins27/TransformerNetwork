@@ -8,7 +8,7 @@ class SequenceMean : public Layer1D {
 public:
 	const static string LAYER_NAME;
 
-	Layer2D* prevLayer;
+	Layer2D* prevLayer = NULL;
 
 	atomic<int> forwardThreadCount, backThreadCount;
 	atomic<bool> gradientCalculated;

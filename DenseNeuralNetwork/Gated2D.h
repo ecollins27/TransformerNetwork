@@ -6,7 +6,7 @@ class Gated2D : public Layer2D {
 public:
 	const static string LAYER_NAME;
 
-	Layer2D* prevLayer;
+	Layer2D* prevLayer = NULL;
 
 	Matrix weights1;
 	Matrix* weightGradient1;

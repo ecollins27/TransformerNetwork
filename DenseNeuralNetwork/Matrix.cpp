@@ -122,6 +122,7 @@ void Matrix::constantFill(float f, int height, int width) {
 	int w4 = width >> 2 << 2;
 	__m128 C = _mm_set1_ps(f);
 	for (int i = 0; i < height; i++) {
+		//printf("  %d %p\n", i, matrix[i]);
 		for (int j = 0; j < w4; j += 4) {
 			_mm_store_ps(&matrix[i][j], C);
 		}
@@ -403,7 +404,7 @@ void Matrix::elementMultiply(int m, int n, Matrix& A, Matrix& B, Matrix& C) {
 
 void Matrix::sqrt(int m, int n, Matrix& B, int num) {
 	int n4 = n >> 2 << 2;
-	for (int j = 0; j < n4; j++) {
+	for (int j = 0; j < n4; j += 4) {
 		_mm_store_ps(&B.matrix[num][j], _mm_sqrt_ps(_mm_loadu_ps(&matrix[num][j])));
 	}
 	for (int j = n4; j < n; j++) {

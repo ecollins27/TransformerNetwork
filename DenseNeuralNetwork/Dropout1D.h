@@ -6,7 +6,7 @@ class Dropout1D : public Layer1D {
 public:
 	const static string LAYER_NAME;
 
-	Layer1D* prevLayer;
+	Layer1D* prevLayer = NULL;
 
 	float dropoutRate;
 	bool** dropped;

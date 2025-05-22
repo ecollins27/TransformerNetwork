@@ -6,7 +6,7 @@ class BatchNormalization1D : public Layer1D {
 
 public:
 	const static string LAYER_NAME;
-	Layer1D* prevLayer;
+	Layer1D* prevLayer = NULL;
 
 	float momentum;
 	Matrix mean, batchMean;

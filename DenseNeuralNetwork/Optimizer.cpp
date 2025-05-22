@@ -132,7 +132,6 @@ void AdEMAMix::applyGradient(Matrix weights, float t, float learningRate, int ba
 	Matrix::linearCombo(height, width, beta3, M2, 1 - beta3, weightGradient, M2);
 	Matrix::elementMultiply(height, width, weightGradient, weightGradient, weightGradient);
 	Matrix::linearCombo(height, width, beta2, S, 1 - beta2, weightGradient, S);
-
 	float mScalar = 1.0 / (1 - pow(beta1, t));
 	float sScalar = 1.0 / (1 - pow(beta2, t));
 	int w4 = width >> 2 << 2;

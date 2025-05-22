@@ -44,6 +44,9 @@ void getIMDBData(string fileName, string* X, float** y, int start, int num) {
 	string sentiment;
 	int commaIndex;
 	ifstream file(fileName);
+	if (file.fail()) {
+		throw invalid_argument("Specified file does not exist");
+	}
 	getline(file, line);
 	for (int i = 0; i < start; i++) {
 		getline(file, line);
@@ -92,8 +95,8 @@ long timeFunction(string header, Function function, Params... params) {
 }
 
 int main() {
-	int numData = 1000;
-	int valData = 100;
+	int numData = 10000;
+	int valData = 1000;
 	string* reviews = new string[numData];
 	string* valReviews = new string[valData];
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
@@ -102,12 +105,13 @@ int main() {
 	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\IMDB Dataset.csv", valReviews, yVal, numData, valData);
 	BytePairTokenizer tokenizer("imdb_tokens.txt");
 
+	printf("Size: %d\n", reviews[0].length());
 	int* numTokens = new int[numData];
 	int* valNumTokens = new int[valData];
 	int** X = tokenizer.toSparseTokens(numData, reviews, numTokens);
 	int** XVal = tokenizer.toSparseTokens(valData, valReviews, valNumTokens);
 
-	int maxReviewSize = 0;
+	unsigned int maxReviewSize = 0;
 	for (int i = 0; i < numData; i++) {
 		if (reviews[i].length() > maxReviewSize) {
 			maxReviewSize = reviews[i].length();
@@ -129,15 +133,15 @@ int main() {
 	model->addLayer(new Dense1D(Activation::SWISH, 20));
 	model->addLayer(new Dense1D(Activation::SOFTMAX, 2));
 	
-	TrainingParams* params = new TrainingParams(0.00001f, 12, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
+	TrainingParams* params = new TrainingParams(0.00001f, Model2DTo1D::NUM_CORES, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
 	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D*[1]{ new Accuracy1D() }, params);
 	model->save("linformer.txt");
 	return 0;
 }
 
-int main2(int argc, char* args[]) {
-	int numData = 1000;
-	int valData = 100;
+int main1(int argc, char* args[]) {
+	int numData = 10000;
+	int valData = 1000;
 	string* reviews = new string[numData];
 	string* valReviews = new string[valData];
 	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
@@ -152,7 +156,7 @@ int main2(int argc, char* args[]) {
 	int** X = tokenizer.toSparseTokens(numData, reviews, numTokens);
 	int** XVal = tokenizer.toSparseTokens(valData, valReviews, valNumTokens);
 
-	int maxReviewSize = 0;
+	unsigned int maxReviewSize = 0;
 	for (int i = 0; i < numData; i++) {
 		if (reviews[i].length() > maxReviewSize) {
 			maxReviewSize = reviews[i].length();
@@ -160,6 +164,7 @@ int main2(int argc, char* args[]) {
 	}
 	printf("MaxReviewSize: %d\n", maxReviewSize);
 
+	printf("Constructing Model:\n");
 	Model2DTo1D* model = new Model2DTo1D(1000);
 	model->addLayer(new Dense2D(Activation::NONE, 500));
 	model->addLayer(new Dense2D(Activation::NONE, 300));
@@ -174,7 +179,9 @@ int main2(int argc, char* args[]) {
 	model->addLayer(new Dense1D(Activation::SWISH, 20));
 	model->addLayer(new Dense1D(Activation::SOFTMAX, 2));
 
-	TrainingParams* params = new TrainingParams(0.00001f, 12, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
+	TrainingParams* params = new TrainingParams(0.00001f, Model2DTo1D::NUM_CORES, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
+
+	printf("Training Model:\n");
 	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D() }, params);
 	model->save("linformer.txt");
 	return 0;

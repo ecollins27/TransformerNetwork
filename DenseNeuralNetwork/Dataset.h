@@ -10,9 +10,9 @@ class Dataset {
 
 public:
 	int numData;
-	int* numTokens;
-	void** X;
-	void** y;
+	int* numTokens = NULL;
+	void** X = NULL;
+	void** y = NULL;
 
 	bool sparseX;
 

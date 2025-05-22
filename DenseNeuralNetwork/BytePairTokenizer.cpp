@@ -87,8 +87,11 @@ BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings, int maxTok
 			char c = tolower(strings[i][j]);
 			string token(1,c);
 			if (!contains(tokenValues, token)) {
+				while (token[token.size() - 1] == '\n' || token[token.size() - 1] == '\r') {
+					token = token.substr(0, token.size() - 1);
+				}
 				tokenValues.emplace_back(token);
-				printf("Token %d:\"%s\"\n", tokenValues.size(), token.c_str());
+				printf("Token %d:\"%s\"\n", (int)tokenValues.size(), token.c_str());
 			}
 		}
 	}
@@ -105,11 +108,11 @@ BytePairTokenizer::BytePairTokenizer(int numStrings, string* strings, int maxTok
 	int frequency = calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);
 	while (maxIndex[0] >= 0 && maxIndex[1] >= 0 && tokenValues.size() < maxTokens) {
 		tokenValues.emplace_back(tokenValues[maxIndex[0]] + tokenValues[maxIndex[1]]);
-		printf("Token %d:\"%s\"  %d Occurences\n", tokenValues.size(), tokenValues[tokenValues.size() - 1].c_str(), frequency);
+		printf("Token %d:\"%s\"  %d Occurences\n", (int)tokenValues.size(), tokenValues[tokenValues.size() - 1].c_str(), frequency);
 		replaceStrings(numStrings, newStrings, maxIndex, tokenValues.size() - 1);
 		frequency = calculateNextToken(numStrings, newStrings, tokenValues, maxIndex);
 	}
-	printf("%d Tokens Found\n", tokenValues.size());
+	printf("%d Tokens Found\n", (int)tokenValues.size());
 }
 
 BytePairTokenizer::BytePairTokenizer(string fileName) {
@@ -121,6 +124,9 @@ BytePairTokenizer::BytePairTokenizer(string fileName) {
 		printf("\r%d/%d", i, num);
 		getline(file, line);
 		string token(line.c_str());
+		while (token[token.size() - 1] == '\n' || token[token.size() - 1] == '\r') {
+			token = token.substr(0, token.size() - 1);
+		}
 		tokenValues.emplace_back(token);
 	}
 	printf("\r%d/%d\n", num, num);
@@ -152,6 +158,9 @@ float** BytePairTokenizer::tokenize(string str, int& length) {
 				str.replace(0, token.length(), "");
 				break;
 			}
+			if (i == 0) {
+				throw invalid_argument("Unable to tokenize string");
+			}
 		}
 	}
 	length = tokens.size();
@@ -170,14 +179,28 @@ int* BytePairTokenizer::sparseTokenize(string str, int& length) {
 	str = convertedString;
 	vector<int> tokens;
 	bool existingToken;
+	//printf("Size: %d\n", (int)tokenValues.size());
+	string token, substr;
 	while (str.length() > 0) {
 		for (int i = tokenValues.size() - 1; i >= 0; i--) {
 			string token = tokenValues[i];
 			string substr = str.substr(0, token.length());
+			//std::cout << "TOKEN:[" << token << "] SUBSTR:[" << substr << "]" << std::endl;
+
+			//// Safe hex dump
+			//for (char c : token) printf("%02X ", (unsigned char)c); printf(" <- token\n");
+			//for (char c : substr) printf("%02X ", (unsigned char)c); printf(" <- substr\n");
+
+			//// Try basic output
+			//printf("A(%s)B (%s)C\n", token.c_str(), substr.c_str());
+			//printf("(%s) (%s)\n", token.c_str(), substr.c_str());
 			if (substr.compare(token) == 0) {
 				tokens.emplace_back(i);
 				str.replace(0, token.length(), "");
 				break;
+			}
+			if (i == 0) {
+				throw invalid_argument("Unable to tokenize string");
 			}
 		}
 	}

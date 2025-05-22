@@ -8,8 +8,8 @@ class Model1D : public Model {
 public:
 	const static string MODEL_NAME;
 
-	Input1D* inputLayer;
-	Layer1D* outputLayer;
+	Input1D* inputLayer = NULL;
+	Layer1D* outputLayer = NULL;
 	int t;
 
 	Model1D(int inputSize);
@@ -22,6 +22,8 @@ public:
 	void fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params);
 	void test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics);
 	void save(string filename);
+
+	void printLayers();
 
 private:
 	void updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics);

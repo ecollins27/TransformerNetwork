@@ -5,6 +5,7 @@
 #include <random>
 #include <xmmintrin.h>
 #include <thread>
+
 using namespace std;
 
 class Matrix {
@@ -16,8 +17,8 @@ public:
 	static FillFunction* UNIT_UNIFORM_FILL;
 	int maxHeight, maxWidth;
 
-	float** matrix = NULL;
-	float** matrixTrans = NULL;
+	float** matrix;
+	float** matrixTrans;
 	bool saveTranspose;
 	bool* transposeUpdated;
 

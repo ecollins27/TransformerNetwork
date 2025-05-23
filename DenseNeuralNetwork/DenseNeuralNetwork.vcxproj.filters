@@ -104,6 +104,7 @@
     <ClCompile Include="PerformerAttention.cpp">
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClCompile>
+    <ClCompile Include="Matrix2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Layer.h">
@@ -208,6 +209,7 @@
     <ClInclude Include="PerformerAttention.h">
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClInclude>
+    <ClInclude Include="Matrix2.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="DNN">

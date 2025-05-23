@@ -39,6 +39,7 @@
     <ClCompile Include="Loss1D.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
+    <ClCompile Include="Matrix2.cpp" />
     <ClCompile Include="Matrix3D.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelParser.cpp" />
@@ -75,6 +76,7 @@
     <ClInclude Include="LinformerAttention.h" />
     <ClInclude Include="Loss1D.h" />
     <ClInclude Include="Matrix.h" />
+    <ClInclude Include="Matrix2.h" />
     <ClInclude Include="Matrix3D.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelParser.h" />
@@ -197,7 +199,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <AssemblerOutput>AssemblyAndSourceCode</AssemblerOutput>
-      <AdditionalIncludeDirectories>C:\Users\Owner\OneDrive\Desktop\C_Projects\Libraries\cccl-main\thrust;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

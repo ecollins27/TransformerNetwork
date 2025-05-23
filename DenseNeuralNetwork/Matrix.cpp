@@ -8,6 +8,7 @@ Matrix::Matrix(FillFunction* fillFunction, int height, int width, bool saveTrans
 	this->saveTranspose = saveTranspose;
 	this->maxHeight = height;
 	this->maxWidth = width;
+
 	matrix = new float* [height];
 	for (int i = 0; i < height; i++) {
 		matrix[i] = new float[width];

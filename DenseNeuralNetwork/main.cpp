@@ -5,8 +5,12 @@
 
 #include "ModelParser.h"
 #include "BytePairTokenizer.h"
+#include "Matrix2.h"
 #include <typeinfo>
 #include <thread>
+#include <thrust/host_vector.h>
+#include <thrust/for_each.h>
+#include <thrust/execution_policy.h>
 
 using namespace std::chrono;
 
@@ -95,6 +99,39 @@ long timeFunction(string header, Function function, Params... params) {
 }
 
 int main() {
+	int size = 100;
+	Matrix A1(Matrix::ZERO_FILL, size, size, false);
+	Matrix B1(Matrix::ZERO_FILL, size, size, true);
+	Matrix C1(Matrix::ZERO_FILL, size, size, false);
+
+	Matrix2 A2(size, size);
+	Matrix2 B2(size, size);
+	Matrix2 C2(size, size);
+
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			A1.r(i, j) = (i * size + j) / (float)size;
+			B1.r(i, j) = (size * size - i * size - j) / (float)size;
+			A2(i, j) = (i * size + j) / (float)size;
+			B2(i, j) = (size * size - i * size - j) / (float)size;
+		}
+	}
+	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1), ref(B1), ref(C1), true);
+	timeFunction("Thrust", Matrix2::multiplyABC, ref(A2), ref(B2), ref(C2));
+
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			if (abs(C1(i, j) - C2(i, j)) / C1(i, j) > 0.001) {
+				printf("%f %f %f Not Equal", C1(i, j), C2(i, j), abs(C1(i, j) - C2(i, j)) / C1(i, j));
+				exit(0);
+			}
+		}
+	}
+	printf("Are Equal");
+}
+
+
+int main1() {
 	int numData = 10000;
 	int valData = 1000;
 	string* reviews = new string[numData];
@@ -139,7 +176,7 @@ int main() {
 	return 0;
 }
 
-int main1(int argc, char* args[]) {
+int main2(int argc, char* args[]) {
 	int numData = 10000;
 	int valData = 1000;
 	string* reviews = new string[numData];

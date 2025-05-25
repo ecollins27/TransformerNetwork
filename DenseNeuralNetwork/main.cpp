@@ -8,9 +8,6 @@
 #include "Matrix2.h"
 #include <typeinfo>
 #include <thread>
-#include <thrust/host_vector.h>
-#include <thrust/for_each.h>
-#include <thrust/execution_policy.h>
 
 using namespace std::chrono;
 
@@ -99,7 +96,7 @@ long timeFunction(string header, Function function, Params... params) {
 }
 
 int main() {
-	int size = 100;
+	int size = 1000;
 	Matrix A1(Matrix::ZERO_FILL, size, size, false);
 	Matrix B1(Matrix::ZERO_FILL, size, size, true);
 	Matrix C1(Matrix::ZERO_FILL, size, size, false);
@@ -116,6 +113,7 @@ int main() {
 			B2(i, j) = (size * size - i * size - j) / (float)size;
 		}
 	}
+	printf("\n%d\n\n", size);
 	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1), ref(B1), ref(C1), true);
 	timeFunction("Thrust", Matrix2::multiplyABC, ref(A2), ref(B2), ref(C2));
 

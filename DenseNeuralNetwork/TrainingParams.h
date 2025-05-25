@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdarg.h>
 #include "Dataset.h"
+#include <tuple>
 
 using namespace std;
 

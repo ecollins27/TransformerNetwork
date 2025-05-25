@@ -13,6 +13,7 @@ public:
 	int height, width;
 	int* heightRange;
 	int* widthRange;
+	int* elementRange;
 
 	Matrix2(int height, int width);
 	int e(int i, int j);
@@ -20,17 +21,16 @@ public:
 	void print();
 	void setDims(int height, int width);
 
-	static struct dotProduct {
+	struct dotProduct {
 		Matrix2& A;
 		Matrix2& B;
 		Matrix2& C;
-		int i;
 
 		__host__ __device__
-		void operator()(int j);
+		void operator()(int i);
 	};
 
-	static struct rowMultiply {
+	struct rowMultiply {
 		Matrix2& A;
 		Matrix2& B;
 		Matrix2& C;

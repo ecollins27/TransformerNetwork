@@ -1,22 +1,19 @@
-#include "Matrix2.h"
+﻿#include "Matrix2.h"
 
 Matrix2::Matrix2(int height, int width) {
 	maxHeight = height;
 	maxWidth = width;
 	this->height = height;
 	this->width = width;
-	heightRange = new int[maxHeight];
-	widthRange = new int[maxWidth];
-	elementRange = new int[maxHeight * maxWidth];
-	matrix = new float[maxHeight * maxWidth];
+	if (ON_DEVICE) {
+		cudaMallocManaged(&matrix, maxHeight * maxWidth * sizeof(float));
+	}
+	else {
+		matrix = new float[maxHeight * maxWidth];
+	}
 	for (int i = 0; i < height; i++) {
-		heightRange[i] = i;
 		for (int j = 0; j < width; j++) {
-			if (i == 0) {
-				widthRange[j] = j;
-			}
 			matrix[e(i, j)] = 0;
-			elementRange[e(i, j)] = e(i, j);
 		}
 	}
 }
@@ -46,23 +43,17 @@ void Matrix2::setDims(int height, int width) {
 	this->width = width;
 }
 
-void Matrix2::dotProduct::operator()(int x) {
-	int i = x / C.width;
-	int j = x % C.width;
-	float sum = 0;
-	for (int k = 0; k < A.width; k++) {
-		sum += A.matrix[i * A.width + k] * B.matrix[k * B.width + j];
-	}
-	C.matrix[i * C.width + j] = sum;
-}
-
-void Matrix2::rowMultiply::operator()(int i) {
-	return;
-}
-
 void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C) {
-	if (A.width != B.height || C.height != A.height || C.width != B.width) {
-		throw invalid_argument("Incompatible matrices");
+	cublasHandle_t handle;
+	cublasCreate(&handle);
+
+	float alpha = 1.0f;
+	float beta = 0.0f;
+	int M = C.height;
+	int N = C.width;
+	int K = A.width;
+	cublasStatus_t stat = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, C.width, C.height, A.width, &alpha, B.matrix, C.width, A.matrix, A.width, &beta, C.matrix, N);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error("cuBLAS multiplication failed");
 	}
-	thrust::for_each_n(thrust::host, C.elementRange, C.height * C.width, dotProduct(A, B, C));
 }

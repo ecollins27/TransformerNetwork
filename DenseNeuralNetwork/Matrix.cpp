@@ -250,7 +250,7 @@ Matrix** Matrix::allocateMatrixArray2D(Matrix::FillFunction* fillFunction, int x
 }
 
 float Matrix::dotProduct(int n, float* a, float* b) {
-	int n4 = n >> 3 << 3;
+	int n4 = n >> 2 << 2;
 	float s = 0.0f, t[4];
 	__m128 vs = _mm_setzero_ps();
 	__m128 vx, vy;

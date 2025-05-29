@@ -1,20 +1,20 @@
-﻿#include "Matrix2.h"
+﻿﻿#include "Matrix2.h"
+
+float Matrix2::ALPHA = 1.0f;
+float Matrix2::BETA = 0.0f;
+cublasHandle_t Matrix2::HANDLE = NULL;
 
 Matrix2::Matrix2(int height, int width) {
 	maxHeight = height;
 	maxWidth = width;
 	this->height = height;
 	this->width = width;
-	if (ON_DEVICE) {
-		cudaMallocManaged(&matrix, maxHeight * maxWidth * sizeof(float));
+	cudaError_t err = cudaMalloc(&device, maxHeight * maxWidth * sizeof(float));
+	if (err == cudaSuccess) {
+		printf("allocated successfully\n");
 	}
 	else {
-		matrix = new float[maxHeight * maxWidth];
-	}
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			matrix[e(i, j)] = 0;
-		}
+		throw invalid_argument("CUDA memory allocation failed");
 	}
 }
 
@@ -23,13 +23,28 @@ int Matrix2::e(int i, int j) {
 }
 
 float& Matrix2::operator()(int i, int j) {
-	return matrix[e(i, j)];
+	if (host == NULL) {
+		throw invalid_argument("Matrix must be converted to host before accessing");
+	}
+	return host[e(i, j)];
+}
+
+void Matrix2::copy(float* host_matrix) {
+	cudaMemcpy(device, host_matrix, height * width * sizeof(float), cudaMemcpyHostToDevice);
+}
+
+void Matrix2::toHost() {
+	host = new float[maxHeight * maxWidth];
+	cudaMemcpy(host, device, height * width * sizeof(float), cudaMemcpyDeviceToHost);
 }
 
 void Matrix2::print() {
+	if (host == NULL) {
+		throw invalid_argument("Matrix must be converted to host before printing");
+	}
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
-			printf("%f  ", matrix[e(i, j)]);
+			printf("%f  ", host[e(i, j)]);
 		}
 		printf("\n");
 	}
@@ -44,15 +59,7 @@ void Matrix2::setDims(int height, int width) {
 }
 
 void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C) {
-	cublasHandle_t handle;
-	cublasCreate(&handle);
-
-	float alpha = 1.0f;
-	float beta = 0.0f;
-	int M = C.height;
-	int N = C.width;
-	int K = A.width;
-	cublasStatus_t stat = cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, C.width, C.height, A.width, &alpha, B.matrix, C.width, A.matrix, A.width, &beta, C.matrix, N);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, C.width, C.height, A.width, &ALPHA, B.device, C.width, A.device, A.width, &BETA, C.device, C.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}

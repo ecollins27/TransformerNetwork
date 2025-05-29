@@ -90,37 +90,49 @@ long timeFunction(string header, Function function, Params... params) {
 	auto start = high_resolution_clock::now();
 	function(forward<Params>(params)...);
 	auto stop = high_resolution_clock::now();
-	auto duration = duration_cast<microseconds>(stop - start);
-	printf("%s: %d\n", header.c_str(), duration.count());
+	auto duration = duration_cast<milliseconds>(stop - start);
+	printf("%s: %d milliseconds\n", header.c_str(), duration.count());
 	return duration.count();
 }
 
 int main() {
-	int size = 1000;
+	cublasCreate(&Matrix2::HANDLE);
+	printf("allocating normal matrices\n");
+	int size = 100;
 	Matrix A1(Matrix::ZERO_FILL, size, size, false);
 	Matrix B1(Matrix::ZERO_FILL, size, size, true);
 	Matrix C1(Matrix::ZERO_FILL, size, size, false);
 
+	printf("allocating gpu matrices\n");
+	float* A2d = new float[size * size];
+	float* B2d = new float[size * size];
+	float* C2d = new float[size * size];
 	Matrix2 A2(size, size);
 	Matrix2 B2(size, size);
 	Matrix2 C2(size, size);
 
+	printf("editing matrices\n");
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
 			A1.r(i, j) = (i * size + j) / (float)size;
 			B1.r(i, j) = (size * size - i * size - j) / (float)size;
-			A2(i, j) = (i * size + j) / (float)size;
-			B2(i, j) = (size * size - i * size - j) / (float)size;
+			A2d[A2.e(i, j)] = A1(i, j);
+			B2d[B2.e(i, j)] = B1(i, j);
+			C2d[C2.e(i, j)] = C1(i, j);
 		}
 	}
+	A2.copy(A2d);
+	B2.copy(B2d);
+	C2.copy(C2d);
 	printf("\n%d\n\n", size);
 	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1), ref(B1), ref(C1), true);
-	timeFunction("Thrust", Matrix2::multiplyABC, ref(A2), ref(B2), ref(C2));
+	timeFunction("cuBLAS", Matrix2::multiplyABC, ref(A2), ref(B2), ref(C2));
 
+	C2.toHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
-			if (abs(C1(i, j) - C2(i, j)) / C1(i, j) > 0.001) {
-				printf("%f %f %f Not Equal", C1(i, j), C2(i, j), abs(C1(i, j) - C2(i, j)) / C1(i, j));
+			if (abs((C1(i, j) - C2(i, j)) / C1(i, j)) > 0.001) {
+				printf("%d %d %f %f %f Not Equal", i, j, C1(i, j), C2(i, j), abs(C1(i, j) - C2(i, j)) / C1(i, j));
 				exit(0);
 			}
 		}
@@ -167,9 +179,9 @@ int main1() {
 	model->addLayer(new SequenceMean(Activation::NONE));
 	model->addLayer(new Dense1D(Activation::SWISH, 20));
 	model->addLayer(new Dense1D(Activation::SOFTMAX, 2));
-	
+
 	TrainingParams* params = new TrainingParams(0.00001f, Model2DTo1D::NUM_CORES, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
-	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D*[1]{ new Accuracy1D() }, params);
+	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D() }, params);
 	model->save("linformer.txt");
 	return 0;
 }

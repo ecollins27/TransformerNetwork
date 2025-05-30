@@ -2,31 +2,30 @@
 #include <iostream>
 #include <cublas_v2.h>
 
-
 using namespace std;
 
-class Matrix2 {
+class MatrixBatch {
 
 public:
-	float* device;
-	float* host = NULL;
+	float** device;
+	float** host = NULL;
 	int maxHeight, maxWidth;
-	int height, width;
+	int batchSize, height, width;
 
 	static float ALPHA;
 	static float BETA;
 	static cublasHandle_t HANDLE;
 
-	Matrix2() {};
-	Matrix2(int height, int width);
+	MatrixBatch(int batchSize, int height, int width);
 	int e(int i, int j);
-	float& operator()(int i, int j);
+	float& operator()(int b, int i, int j);
 	void print();
 	void allocateHost();
 	void deallocateHost();
 	void copyToDevice();
-	void copy(float* matrix);
+	void copy(float** matrix);
 	void setDims(int height, int width);
 
-	static void multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C);
+	static void multiplyABC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C);
 };
+

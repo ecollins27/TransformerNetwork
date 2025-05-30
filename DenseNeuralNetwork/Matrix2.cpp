@@ -10,10 +10,7 @@ Matrix2::Matrix2(int height, int width) {
 	this->height = height;
 	this->width = width;
 	cudaError_t err = cudaMalloc(&device, maxHeight * maxWidth * sizeof(float));
-	if (err == cudaSuccess) {
-		printf("allocated successfully\n");
-	}
-	else {
+	if (err != cudaSuccess) {
 		throw invalid_argument("CUDA memory allocation failed");
 	}
 }
@@ -33,9 +30,19 @@ void Matrix2::copy(float* host_matrix) {
 	cudaMemcpy(device, host_matrix, height * width * sizeof(float), cudaMemcpyHostToDevice);
 }
 
-void Matrix2::toHost() {
+void Matrix2::allocateHost() {
 	host = new float[maxHeight * maxWidth];
 	cudaMemcpy(host, device, height * width * sizeof(float), cudaMemcpyDeviceToHost);
+}
+
+void Matrix2::deallocateHost() {
+	cudaMemcpy(device, host, height * width * sizeof(float), cudaMemcpyHostToDevice);
+	delete[] host;
+	host = NULL;
+}
+
+void Matrix2::copyToDevice() {
+	copy(host);
 }
 
 void Matrix2::print() {

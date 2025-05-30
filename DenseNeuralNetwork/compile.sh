@@ -1,8 +1,12 @@
-echo "== Copying Matrix2.cpp to Matrix2.cu =="
+echo "== Cleaning up C++ files =="
+dos2unix -q *.cpp
+
+echo "== Copying CUDA Source to cu files =="
 cp Matrix2.cpp Matrix2.cu
+cp MatrixBatch.cpp MatrixBatch.cu
 
 echo "== Compiling CUDA source =="
-nvcc -std=c++20 -c Matrix2.cu -o Matrix2.o
+nvcc -std=c++20 -c *.cu
 
 echo "== Compiling other C++ files =="
 CPP_SOURCES=$(ls *.cpp | grep -v Matrix2.cpp)

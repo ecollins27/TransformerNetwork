@@ -41,6 +41,7 @@
     <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="Matrix2.cpp" />
     <ClCompile Include="Matrix3D.cpp" />
+    <ClCompile Include="MatrixBatch.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelParser.cpp" />
     <ClCompile Include="TransformerAttention.cpp" />
@@ -78,6 +79,7 @@
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Matrix2.h" />
     <ClInclude Include="Matrix3D.h" />
+    <ClInclude Include="MatrixBatch.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelParser.h" />
     <ClInclude Include="TransformerAttention.h" />

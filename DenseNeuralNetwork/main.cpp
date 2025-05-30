@@ -6,6 +6,7 @@
 #include "ModelParser.h"
 #include "BytePairTokenizer.h"
 #include "Matrix2.h"
+#include "MatrixBatch.h"
 #include <typeinfo>
 #include <thread>
 
@@ -97,47 +98,91 @@ long timeFunction(string header, Function function, Params... params) {
 
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
-	printf("allocating normal matrices\n");
+	cublasCreate(&MatrixBatch::HANDLE);
+	int size = 100;
+	int batchSize = 10;
+	Matrix* A1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, false);
+	Matrix* B1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, true);
+	Matrix* C1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, false);
+
+	MatrixBatch A2(batchSize, size, size);
+	MatrixBatch B2(batchSize, size, size);
+	MatrixBatch C2(batchSize, size, size);
+
+	A2.allocateHost();
+	B2.allocateHost();
+	C2.allocateHost();
+	for (int k = 0; k < batchSize; k++) {
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				A1[k].r(i, j) = (i * size + j) / (float)size;
+				B1[k].r(i, j) = (size * size - i * size - j) / (float)size;
+				A2(k, i, j) = A1[k](i, j);
+				B2(k, i, j) = B1[k](i, j);
+				C2(k, i, j) = C1[k](i, j);
+			}
+		}
+	}
+	A2.deallocateHost();
+	B2.deallocateHost();
+	C2.copyToDevice();
+	printf("\n%d\n\n", size);
+	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1[0]), ref(B1[0]), ref(C1[0]), true);
+	timeFunction("cuBLAS", MatrixBatch::multiplyABC, ref(A2), ref(B2), ref(C2));
+
+	for (int k = 0; k < batchSize; k++) {
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				if (abs((C1[k](i, j) - C2(k, i, j)) / C1(k, i, j)) > 0.001) {
+					printf("Not Equal\n");
+					exit(0);
+				}
+			}
+		}
+	}
+	printf("Are Equal\n");
+}
+
+int main4() {
+	cublasCreate(&Matrix2::HANDLE);
+	cublasCreate(&MatrixBatch::HANDLE);
 	int size = 100;
 	Matrix A1(Matrix::ZERO_FILL, size, size, false);
 	Matrix B1(Matrix::ZERO_FILL, size, size, true);
 	Matrix C1(Matrix::ZERO_FILL, size, size, false);
 
-	printf("allocating gpu matrices\n");
-	float* A2d = new float[size * size];
-	float* B2d = new float[size * size];
-	float* C2d = new float[size * size];
 	Matrix2 A2(size, size);
 	Matrix2 B2(size, size);
 	Matrix2 C2(size, size);
 
-	printf("editing matrices\n");
+	A2.allocateHost();
+	B2.allocateHost();
+	C2.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
 			A1.r(i, j) = (i * size + j) / (float)size;
 			B1.r(i, j) = (size * size - i * size - j) / (float)size;
-			A2d[A2.e(i, j)] = A1(i, j);
-			B2d[B2.e(i, j)] = B1(i, j);
-			C2d[C2.e(i, j)] = C1(i, j);
+			A2(i, j) = A1(i, j);
+			B2(i, j) = B1(i, j);
+			C2(i, j) = C1(i, j);
 		}
 	}
-	A2.copy(A2d);
-	B2.copy(B2d);
-	C2.copy(C2d);
+	A2.deallocateHost();
+	B2.deallocateHost();
+	C2.copyToDevice();
 	printf("\n%d\n\n", size);
 	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1), ref(B1), ref(C1), true);
 	timeFunction("cuBLAS", Matrix2::multiplyABC, ref(A2), ref(B2), ref(C2));
 
-	C2.toHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
 			if (abs((C1(i, j) - C2(i, j)) / C1(i, j)) > 0.001) {
-				printf("%d %d %f %f %f Not Equal", i, j, C1(i, j), C2(i, j), abs(C1(i, j) - C2(i, j)) / C1(i, j));
+				printf("Not Equal\n");
 				exit(0);
 			}
 		}
 	}
-	printf("Are Equal");
+	printf("Are Equal\n");
 }
 
 
@@ -247,19 +292,6 @@ int main3() {
 	Model2DTo1D* model = (Model2DTo1D*)ModelParser::parseModel("linformer.txt");
 	model->test(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D() });
 	return 0;
-}
-
-void testFill(int height, int width, Matrix A, float f) {
-	__m128 C = _mm_set1_ps(f);
-	int w4 = width >> 2 << 2;
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < w4; j += 4) {
-			_mm_store_ps(&A.matrix[i][j], _mm_mul_ps(C, _mm_loadu_ps(&A.matrix[i][j])));
-		}
-		for (int j = w4; j < width; j++) {
-			A.r(i, j) = A(i, j) * f;;
-		}
-	}
 }
 
 // TODO:

@@ -105,6 +105,7 @@
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClCompile>
     <ClCompile Include="Matrix2.cpp" />
+    <ClCompile Include="MatrixBatch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Layer.h">
@@ -210,6 +211,7 @@
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClInclude>
     <ClInclude Include="Matrix2.h" />
+    <ClInclude Include="MatrixBatch.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="DNN">

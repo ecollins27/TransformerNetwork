@@ -1,7 +1,7 @@
 #include "MatrixBatch.h"
 
-float MatrixBatch::ALPHA;
-float MatrixBatch::BETA;
+float MatrixBatch::ALPHA = 1.0f;
+float MatrixBatch::BETA = 0.0f;
 
 MatrixBatch::MatrixBatch(int batchSize, int height, int width) {
 	maxHeight = height;
@@ -13,12 +13,18 @@ MatrixBatch::MatrixBatch(int batchSize, int height, int width) {
 	if (err != cudaSuccess) {
 		throw invalid_argument("CUDA memory allocation failed");
 	}
+	deviceArray = new float* [batchSize];
 	for (int i = 0; i < batchSize; i++) {
-		cudaError_t err = cudaMalloc(&device[i], maxHeight * maxWidth * sizeof(float));
+		cudaError_t err = cudaMalloc(&deviceArray[i], maxHeight * maxWidth * sizeof(float));
 		if (err != cudaSuccess) {
 			throw invalid_argument("CUDA memory allocation failed");
 		}
 	}
+	err = cudaMemcpy(device, deviceArray, batchSize * sizeof(float*), cudaMemcpyHostToDevice);
+	if (err != cudaSuccess) {
+		throw invalid_argument("CUDA memory copy failed");
+	}
+	host = NULL;
 }
 
 int MatrixBatch::e(int i, int j) {
@@ -37,7 +43,7 @@ void MatrixBatch::allocateHost() {
 	for (int i = 0; i < batchSize; i++) {
 		host[i] = new float[maxHeight * maxWidth];
 	}
-	cudaMemcpy2D(host, batchSize, device, batchSize, batchSize, height * width * sizeof(float), cudaMemcpyDeviceToHost);
+	copyToHost();
 }
 
 void MatrixBatch::deallocateHost() {
@@ -53,13 +59,26 @@ void MatrixBatch::copyToDevice() {
 	copy(host);
 }
 
+void MatrixBatch::copyToHost() {
+	cudaError_t err;
+	for (int i = 0; i < batchSize; i++) {
+		err = cudaMemcpy(host[i], deviceArray[i], height * width * sizeof(float), cudaMemcpyDeviceToHost);
+		if (err != cudaSuccess) {
+			throw invalid_argument("CUDA memory allocation failed");
+		}
+	}
+}
+
 void MatrixBatch::print() {
 	if (host == NULL) {
 		throw invalid_argument("Matrix must be converted to host before printing");
 	}
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			printf("%f  ", host[e(i, j)]);
+	for (int k = 0; k < batchSize; k++) {
+		for (int i = 0; i < height; i++) {
+			for (int j = 0; j < width; j++) {
+				printf("%f  ", host[k][e(i, j)]);
+			}
+			printf("\n");
 		}
 		printf("\n");
 	}
@@ -73,11 +92,17 @@ void MatrixBatch::setDims(int height, int width) {
 	this->width = width;
 }
 void MatrixBatch::copy(float** host_matrix) {
-	cudaMemcpy2D(device, batchSize, host_matrix, batchSize, batchSize, height * width * sizeof(float), cudaMemcpyHostToDevice);
+	cudaError_t err;
+	for (int i = 0; i < batchSize; i++) {
+		err = cudaMemcpy(deviceArray[i], host_matrix[i], height * width * sizeof(float), cudaMemcpyHostToDevice);
+		if (err != cudaSuccess) {
+			throw invalid_argument("CUDA memory allocation failed");
+		}
+	}
 }
 
 void MatrixBatch::multiplyABC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C) {
-	cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, C.width, C.height, A.width, &ALPHA, B.device, C.width, A.device, A.width, &BETA, C.device, C.width, C.batchSize);
+	cublasStatus_t stat = cublasSgemmBatched(Matrix2::HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, C.width, C.height, A.width, &ALPHA, B.device, C.width, A.device, A.width, &BETA, C.device, C.width, C.batchSize);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}

@@ -91,16 +91,15 @@ long timeFunction(string header, Function function, Params... params) {
 	auto start = high_resolution_clock::now();
 	function(forward<Params>(params)...);
 	auto stop = high_resolution_clock::now();
-	auto duration = duration_cast<milliseconds>(stop - start);
-	printf("%s: %d milliseconds\n", header.c_str(), duration.count());
+	auto duration = duration_cast<microseconds>(stop - start);
+	printf("%s: %d microseconds\n", header.c_str(), duration.count());
 	return duration.count();
 }
 
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
-	cublasCreate(&MatrixBatch::HANDLE);
-	int size = 100;
-	int batchSize = 10;
+	int size = 150;
+	int batchSize = 25;
 	Matrix* A1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, false);
 	Matrix* B1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, true);
 	Matrix* C1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, false);
@@ -130,11 +129,12 @@ int main() {
 	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1[0]), ref(B1[0]), ref(C1[0]), true);
 	timeFunction("cuBLAS", MatrixBatch::multiplyABC, ref(A2), ref(B2), ref(C2));
 
+	C2.copyToHost();
 	for (int k = 0; k < batchSize; k++) {
 		for (int i = 0; i < size; i++) {
 			for (int j = 0; j < size; j++) {
-				if (abs((C1[k](i, j) - C2(k, i, j)) / C1(k, i, j)) > 0.001) {
-					printf("Not Equal\n");
+				if (abs((C1[0](i, j) - C2(k, i, j)) / C1[0](i, j)) > 0.001) {
+					printf("Not Equal %f %f %d %d %d\n", C1[0](i, j), C2(k, i, j), k, i, j);
 					exit(0);
 				}
 			}
@@ -145,7 +145,6 @@ int main() {
 
 int main4() {
 	cublasCreate(&Matrix2::HANDLE);
-	cublasCreate(&MatrixBatch::HANDLE);
 	int size = 100;
 	Matrix A1(Matrix::ZERO_FILL, size, size, false);
 	Matrix B1(Matrix::ZERO_FILL, size, size, true);

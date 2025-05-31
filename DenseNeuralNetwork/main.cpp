@@ -96,7 +96,7 @@ long timeFunction(string header, Function function, Params... params) {
 	return duration.count();
 }
 
-int main() {
+int main4() {
 	cublasCreate(&Matrix2::HANDLE);
 	int size = 150;
 	int batchSize = 25;
@@ -143,7 +143,7 @@ int main() {
 	printf("Are Equal\n");
 }
 
-int main4() {
+int main() {
 	cublasCreate(&Matrix2::HANDLE);
 	int size = 100;
 	Matrix A1(Matrix::ZERO_FILL, size, size, false);
@@ -170,8 +170,8 @@ int main4() {
 	B2.deallocateHost();
 	C2.copyToDevice();
 	printf("\n%d\n\n", size);
-	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1), ref(B1), ref(C1), true);
-	timeFunction("cuBLAS", Matrix2::multiplyABC, ref(A2), ref(B2), ref(C2));
+	timeFunction("SIMD", Matrix::add, size, size, ref(A1), ref(B1), ref(C1), true);
+	timeFunction("cuBLAS", Matrix2::add, ref(A2), ref(B2), ref(C2));
 
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {

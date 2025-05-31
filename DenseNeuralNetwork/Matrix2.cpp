@@ -95,7 +95,7 @@ void Matrix2::elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C) {
 	kernelMultiply  <<< numBlocks, THREADS_PER_BLOCK >>> (N, A.device, B.device, C.device);
 }
 
-void Matrix2::kernalAdd(Matrix2& A, Matrix2& B, Matrix2& C) {
+void Matrix2::add(Matrix2& A, Matrix2& B, Matrix2& C) {
 	int N = A.height * A.width;
 	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
 	kernelAdd <<< numBlocks, THREADS_PER_BLOCK >>> (N, A.device, B.device, C.device);

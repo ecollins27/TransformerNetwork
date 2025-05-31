@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <cublas_v2.h>
+#include "Matrix2.h"
 
 using namespace std;
 
@@ -15,7 +16,6 @@ public:
 
 	static float ALPHA;
 	static float BETA;
-	static cublasHandle_t HANDLE;
 
 	MatrixBatch(int batchSize, int height, int width);
 	int e(int i, int j);
@@ -24,6 +24,7 @@ public:
 	void allocateHost();
 	void deallocateHost();
 	void copyToDevice();
+	void copyToHost();
 	void copy(float** matrix);
 	void setDims(int height, int width);
 

@@ -1,4 +1,4 @@
-﻿﻿#include "Matrix2.h"
+#include "Matrix2.h"
 
 float Matrix2::ALPHA = 1.0f;
 float Matrix2::BETA = 0.0f;

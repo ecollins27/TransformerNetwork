@@ -13,12 +13,15 @@ MatrixBatch::MatrixBatch(int batchSize, int height, int width) {
 	if (err != cudaSuccess) {
 		throw invalid_argument("CUDA memory allocation failed");
 	}
+	host = new float*[batchSize];
 	for (int i = 0; i < batchSize; i++) {
-		cudaError_t err = cudaMalloc(&device[i], maxHeight * maxWidth * sizeof(float));
+		cudaError_t err = cudaMalloc(&host[i], maxHeight * maxWidth * sizeof(float));
 		if (err != cudaSuccess) {
 			throw invalid_argument("CUDA memory allocation failed");
 		}
 	}
+	cudaMemcpy(device, host, batchSize * sizeof(float*), cudaMemcpyHostToDevice);
+	delete[] host;
 }
 
 int MatrixBatch::e(int i, int j) {

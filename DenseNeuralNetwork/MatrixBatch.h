@@ -8,6 +8,7 @@ class MatrixBatch {
 
 public:
 	float** device;
+	float** deviceArray;
 	float** host = NULL;
 	int maxHeight, maxWidth;
 	int batchSize, height, width;

@@ -1,7 +1,7 @@
 #pragma once
 #include <iostream>
 #include <cublas_v2.h>
-
+#include <cuda_runtime.h>
 
 using namespace std;
 
@@ -15,6 +15,7 @@ public:
 
 	static float ALPHA;
 	static float BETA;
+	static int THREADS_PER_BLOCK;
 	static cublasHandle_t HANDLE;
 
 	Matrix2() {};
@@ -28,5 +29,12 @@ public:
 	void copy(float* matrix);
 	void setDims(int height, int width);
 
+	__global__
+	void kernelAdd(int N, const float* A, const float* B, const float* C);
+	__global__
+	void kernelMultiply(int N, const float* A, const float* B, const float* C);
+
 	static void multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C);
+	static void add(Matrix2& A, Matrix2& B, Matrix2& C);
+	static void elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C);
 };

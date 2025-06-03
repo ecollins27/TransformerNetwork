@@ -92,7 +92,7 @@ long timeFunction(string header, Function function, Params... params) {
 	function(forward<Params>(params)...);
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<microseconds>(stop - start);
-	printf("%s: %d microseconds\n", header.c_str(), duration.count());
+	//printf("%s: %d microseconds\n", header.c_str(), duration.count());
 	return duration.count();
 }
 
@@ -146,34 +146,56 @@ int main4() {
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
 	int size = 1000;
-	int m = size, n = size, p = size;
 
-	Matrix2 A(m, n);
-	Matrix2 B(n, p);
-	Matrix2 C1(m, p);
-	Matrix2 C2(m, p);
+	Matrix2 A(size, size);
+	Matrix2 B(size, size);
+	Matrix2 C1(size, size);
+	Matrix2 C2(size, size);
 
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < n; j++) {
-			A(i, j) = i * n + j;
+	int increment = 50;
+	ofstream file("runtime_data.csv");
+	for (int m = increment; m <= size; m += increment) {
+		for (int n = increment; n <= size; n += increment) {
+			for (int p = increment; p <= size; p += increment) {
+				A.setDims(m, n);
+				B.setDims(n, p);
+				C1.setDims(m, p);
+				C2.setDims(m, p);
+
+				for (int i = 0; i < m; i++) {
+					for (int j = 0; j < n; j++) {
+						A(i, j) = i * n + j;
+					}
+					for (int j = 0; j < p; j++) {
+						C1(i, j) = 0;
+						C2(i, j) = 0;
+					}
+				}
+				for (int i = 0; i < n; i++) {
+					for (int j = 0; j < p; j++) {
+						B(i, j) = n * p - i * p - j;
+					}
+				}
+				A.copyToDevice();
+				B.copyToDevice();
+				C1.copyToDevice();
+				C2.copyToDevice();
+				
+				long simdTime = timeFunction("SIMD", Matrix2::simdMultiplyABC, ref(A), ref(B), ref(C1));
+				long gpuTime = timeFunction("cuBLAS", Matrix2::multiplyABC, ref(A), ref(B), ref(C2));
+
+				if (simdTime < gpuTime) {
+					printf("%d %d %d SIMD\n", m, n, p);
+					file << m << "," << n << "," << p << "," << 0 << "\n";
+				}
+				else {
+					printf("%d %d %d GPU\n", m, n, p);
+					file << m << "," << n << "," << p << "," << 1 << "\n";
+				}
+			}
 		}
-		for (int j = 0; j < p; j++) {
-			C1(i, j) = 0;
-			C2(i, j) = 0;
-		}
+		file.close();
 	}
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < p; j++) {
-			B(i, j) = n * p - i * p - j;
-		}
-	}
-	A.copyToDevice();
-	B.copyToDevice();
-	C1.copyToDevice();
-	C2.copyToDevice();
-	printf("\n%d\n\n", size);
-	timeFunction("SIMD", Matrix2::simdMultiplyABC, size, size, ref(A), ref(B), ref(C1));
-	timeFunction("cuBLAS", Matrix2::multiplyABC, ref(A), ref(B), ref(C2));
 
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {

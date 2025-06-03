@@ -146,34 +146,35 @@ int main4() {
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
 	int size = 1000;
-	Matrix A1(Matrix::ZERO_FILL, size, size, false);
-	Matrix B1(Matrix::ZERO_FILL, size, size, true);
-	Matrix C1(Matrix::ZERO_FILL, size, size, false);
+	int m = size, n = size, p = size;
 
-	Matrix2 A2(size, size);
-	Matrix2 B2(size, size);
-	Matrix2 C2(size, size);
+	Matrix2 A(m, n);
+	Matrix2 B(n, p);
+	Matrix2 C1(m, p);
+	Matrix2 C2(m, p);
 
-	A2.allocateHost();
-	B2.allocateHost();
-	C2.allocateHost();
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < size; j++) {
-			A1.r(i, j) = (i * size + j) / (float)size;
-			B1.r(i, j) = (size * size - i * size - j) / (float)size;
-			A2(i, j) = A1(i, j);
-			B2(i, j) = B1(i, j);
-			C2(i, j) = C1(i, j);
+	for (int i = 0; i < m; i++) {
+		for (int j = 0; j < n; j++) {
+			A(i, j) = i * n + j;
+		}
+		for (int j = 0; j < p; j++) {
+			C1(i, j) = 0;
+			C2(i, j) = 0;
 		}
 	}
-	A2.deallocateHost();
-	B2.deallocateHost();
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < p; j++) {
+			B(i, j) = n * p - i * p - j;
+		}
+	}
+	A.copyToDevice();
+	B.copyToDevice();
+	C1.copyToDevice();
 	C2.copyToDevice();
 	printf("\n%d\n\n", size);
-	timeFunction("SIMD", Matrix::add, size, size, ref(A1), ref(B1), ref(C1));
-	timeFunction("cuBLAS", Matrix2::add, ref(A2), ref(B2), ref(C2));
+	timeFunction("SIMD", Matrix2::simdMultiplyABC, size, size, ref(A), ref(B), ref(C1));
+	timeFunction("cuBLAS", Matrix2::multiplyABC, ref(A), ref(B), ref(C2));
 
-	C2.copyToHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
 			if (abs((C1(i, j) - C2(i, j)) / C1(i, j)) > 0.001) {

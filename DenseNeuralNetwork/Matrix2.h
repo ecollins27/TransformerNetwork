@@ -26,13 +26,9 @@ public:
 	void allocateHost();
 	void deallocateHost();
 	void copyToDevice();
+	void copyToHost();
 	void copy(float* matrix);
 	void setDims(int height, int width);
-
-	__global__
-	void kernelAdd(int N, const float* A, const float* B, const float* C);
-	__global__
-	void kernelMultiply(int N, const float* A, const float* B, const float* C);
 
 	static void multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C);
 	static void add(Matrix2& A, Matrix2& B, Matrix2& C);

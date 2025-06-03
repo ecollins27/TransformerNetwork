@@ -145,7 +145,7 @@ int main4() {
 
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
-	int size = 100;
+	int size = 1000;
 	Matrix A1(Matrix::ZERO_FILL, size, size, false);
 	Matrix B1(Matrix::ZERO_FILL, size, size, true);
 	Matrix C1(Matrix::ZERO_FILL, size, size, false);
@@ -170,9 +170,10 @@ int main() {
 	B2.deallocateHost();
 	C2.copyToDevice();
 	printf("\n%d\n\n", size);
-	timeFunction("SIMD", Matrix::add, size, size, ref(A1), ref(B1), ref(C1), true);
+	timeFunction("SIMD", Matrix::add, size, size, ref(A1), ref(B1), ref(C1));
 	timeFunction("cuBLAS", Matrix2::add, ref(A2), ref(B2), ref(C2));
 
+	C2.copyToHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
 			if (abs((C1(i, j) - C2(i, j)) / C1(i, j)) > 0.001) {

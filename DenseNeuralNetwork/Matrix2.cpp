@@ -46,6 +46,10 @@ void Matrix2::copyToDevice() {
 	copy(host);
 }
 
+void Matrix2::copyToHost() {
+	cudaMemcpy(host, device, height * width * sizeof(float), cudaMemcpyDeviceToHost);
+}
+
 void Matrix2::print() {
 	if (host == NULL) {
 		throw invalid_argument("Matrix must be converted to host before printing");
@@ -66,37 +70,9 @@ void Matrix2::setDims(int height, int width) {
 	this->width = width;
 }
 
-__global__
-void Matrix2::kernelAdd(int N, const float* A, const float* B, const float* C) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < N) {
-		C[i] = A[i] + B[i];
-	}
-}
-
-__global__
-void Matrix2::kernelMultiply(int N, const float* A, const float* B, const float* C) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < N) {
-		C[i] = A[i] * B[i];
-	}
-}
-
 void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C) {
 	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, C.width, C.height, A.width, &ALPHA, B.device, C.width, A.device, A.width, &BETA, C.device, C.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
-}
-
-void Matrix2::elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C) {
-	int N = A.height * A.width;
-	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-	kernelMultiply  <<< numBlocks, THREADS_PER_BLOCK >>> (N, A.device, B.device, C.device);
-}
-
-void Matrix2::add(Matrix2& A, Matrix2& B, Matrix2& C) {
-	int N = A.height * A.width;
-	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-	kernelAdd <<< numBlocks, THREADS_PER_BLOCK >>> (N, A.device, B.device, C.device);
 }

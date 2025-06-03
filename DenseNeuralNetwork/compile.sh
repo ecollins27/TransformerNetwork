@@ -14,7 +14,7 @@ CPP_SOURCES=$(ls *.cpp | grep -Ev "(Matrix2|MatrixBatch).cpp")
 g++ -w -std=c++2b -O2 -fexceptions -Wall -Wextra -Wno-unused-parameter -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -fno-strict-aliasing -Wno-sign-compare -ffp-contract=off -fPIC -g -c $CPP_SOURCES
 
 echo "== Linking all object files =="
-nvcc --verbose *.o -lcublas -o main
+nvcc *.o -lcublas -o main
 
 echo "== Deleting extra files =="
 rm *.o

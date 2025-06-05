@@ -1,16 +1,19 @@
 #include "Matrix2.h"
 
 float Matrix2::ALPHA = 1.0f;
-float Matrix2::BETA = 0.0f;
+float Matrix2::BETA0 = 0.0f;
+float Matrix2::BETA1 = 1.0f;
 int Matrix2::THREADS_PER_BLOCK = 256;
 cublasHandle_t Matrix2::HANDLE = NULL;
+Matrix2::ConstantFill Matrix2::ZERO_FILL = ConstantFill(0);
+Matrix2::NormalFill Matrix2::UNIT_NORMAL_FILL = NormalFill(0,1);
+Matrix2::UniformFill Matrix2::UNIT_UNIFORM_FILL = UniformFill(0,1);
 
 Matrix2::Matrix2(int height, int width) {
-	maxHeight = height;
-	maxWidth = width;
+	maxLength = height * width;
 	this->height = height;
 	this->width = width;
-	cudaError_t err = cudaMalloc(&device, maxHeight * maxWidth * sizeof(float));
+	cudaError_t err = cudaMalloc(&device, maxLength * sizeof(float));
 	if (err != cudaSuccess) {
 		throw invalid_argument("CUDA memory allocation failed");
 	}
@@ -33,8 +36,55 @@ void Matrix2::copy(float* host_matrix) {
 	copyToHost();
 }
 
+void Matrix2::fill(FillFunction fillFunction) {
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			host[width * i + j] = fillFunction(i, j);
+		}
+	}
+	copyToDevice();
+}
+
+void Matrix2::constantFill(float c) {
+	int n = height * width;
+	int n4 = n >> 2 << 2;
+	__m128 C = _mm_set1_ps(c);
+	for (int i = 0; i < n4; i += 4) {
+		_mm_store_ps(&host[i], C);
+	}
+	for (int i = n4; i < n; i++) {
+		host[i] = c;
+	}
+	copyToDevice();
+}
+
+void Matrix2::scale(float c) {
+	int n = height * width;
+	int n4 = n >> 2 << 2;
+	__m128 C = _mm_set1_ps(c);
+	for (int i = 0; i < n4; i += 4) {
+		_mm_store_ps(&host[i], _mm_mul_ps(_mm_loadu_ps(&host[i]), C));
+	}
+	for (int i = n4; i < n; i++) {
+		host[i] *= c;
+	}
+	copyToDevice();
+}
+
+void Matrix2::sqrt(Matrix2& B, int num) {
+	int n = height * width;
+	int n4 = n >> 2 << 2;
+	for (int i = 0; i < n4; i += 4) {
+		_mm_store_ps(&B.host[i], _mm_sqrt_ps(_mm_loadu_ps(&host[i])));
+	}
+	for (int i = n4; i < n; i++) {
+		B.host[i] = std::sqrt(host[i]);
+	}
+	B.copyToDevice();
+}
+
 void Matrix2::allocateHost() {
-	cudaMallocHost(&host, maxHeight * maxWidth * sizeof(float));
+	cudaMallocHost(&host, maxLength * sizeof(float));
 	cudaMemcpy(host, device, height * width * sizeof(float), cudaMemcpyDeviceToHost);
 }
 
@@ -65,74 +115,135 @@ void Matrix2::print() {
 }
 
 void Matrix2::setDims(int height, int width) {
-	if (height > maxHeight || width > maxWidth) {
+	if (height * width > maxLength) {
 		throw invalid_argument("Set dimensions exceed max dimensions");
 	}
 	this->height = height;
 	this->width = width;
 }
 
-float Matrix2::rowColumnDot(Matrix2& A, Matrix2& B, int i, int j) {
-	int n4 = A.width >> 2 << 2;
-	float s = 0.0f, t[4];
-	__m128 vs = _mm_setzero_ps();
-	__m128 vx, vy;
-	for (int k = 0; k < n4; k += 4) {
-		vx = _mm_loadu_ps(&A.host[A.width * i + k]);
-		vy = _mm_setr_ps(B.host[B.e(k, j)], B.host[B.e(k + 1, j)], B.host[B.e(k + 2, j)], B.host[B.e(k + 3, j)]);
-		vs = _mm_add_ps(vs, _mm_mul_ps(vx, vy));
+void Matrix2::setHeight(int height) {
+	if (height * width > maxLength) {
+		throw invalid_argument("Set dimensions exceed max dimensions");
 	}
-	for (int k = n4; k < A.width; k++) {
-		s += A.host[A.width * i + k] * B.host[B.e(k, j)];
-	}
-	_mm_storeu_ps(t, vs);
-	s += t[0] + t[1] + t[2] + t[3];
-	return s;
+	this->height = height;
 }
 
-void Matrix2::simdMultiplyABC(Matrix2& A, Matrix2& B, Matrix2& C) {
-	for (int i = 0; i < A.height; i++) {
-		for (int j = 0; j < B.width; j++) {
-			C.host[C.e(i, j)] = rowColumnDot(A, B, i, j);
-		}
+void Matrix2::setWidth(int width) {
+	if (height * width > maxLength) {
+		throw invalid_argument("Set dimensions exceed max dimensions");
 	}
-	C.copyToDevice();
+	this->width = width;
+}
+
+__global__
+void Matrix2::kernelAdd(int N, const float* A, const float* B, const float* C) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		C[i] = A[i] + B[i];
+	}
+}
+
+
+
+
+
+__global__
+void Matrix2::kernelMultiply(int N, float* A, float* B, float* C) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		C[i] = A[i] * B[i];
+	}
 }
 
 void Matrix2::add(Matrix2& A, Matrix2& B, Matrix2& C) {
 	int N = A.height * A.width;
-	int N4 = N >> 2 << 2;
-	__m128 va, vb;
-	for (int i = 0; i < N4; i += 4) {
-		va = _mm_loadu_ps(&A.host[i]);
-		vb = _mm_loadu_ps(&B.host[i]);
-		_mm_storeu_ps(&C.host[i], _mm_add_ps(va, vb));
-	}
-	for (int i = N4; i < N; i++) {
-		C.host[i] = A.host[i] + B.host[i];
-	}
-	C.copyToDevice();
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	kernelMultiply <<< numBlocks, THREADS_PER_BLOCK >>> (N, A.device, B.device, C.device);
+	//int N = A.height * A.width;
+	//int N4 = N >> 2 << 2;
+	//__m128 va, vb;
+	//for (int i = 0; i < N4; i += 4) {
+	//	va = _mm_loadu_ps(&A.host[i]);
+	//	vb = _mm_loadu_ps(&B.host[i]);
+	//	_mm_storeu_ps(&C.host[i], _mm_add_ps(va, vb));
+	//}
+	//for (int i = N4; i < N; i++) {
+	//	C.host[i] = A.host[i] + B.host[i];
+	//}
+	//C.copyToDevice();
 }
 
 void Matrix2::elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C) {
 	int N = A.height * A.width;
-	int N4 = N >> 2 << 2;
-	__m128 va, vb;
-	for (int i = 0; i < N4; i += 4) {
-		va = _mm_loadu_ps(&A.host[i]);
-		vb = _mm_loadu_ps(&B.host[i]);
-		_mm_storeu_ps(&C.host[i], _mm_mul_ps(va, vb));
-	}
-	for (int i = N4; i < N; i++) {
-		C.host[i] = A.host[i] * B.host[i];
-	}
-	C.copyToDevice();
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	kernelAdd <<< numBlocks, THREADS_PER_BLOCK >>> (N, A.device, B.device, C.device);
+	//int N = A.height * A.width;
+	//int N4 = N >> 2 << 2;
+	//__m128 va, vb;
+	//for (int i = 0; i < N4; i += 4) {
+	//	va = _mm_loadu_ps(&A.host[i]);
+	//	vb = _mm_loadu_ps(&B.host[i]);
+	//	_mm_storeu_ps(&C.host[i], _mm_mul_ps(va, vb));
+	//}
+	//for (int i = N4; i < N; i++) {
+	//	C.host[i] = A.host[i] * B.host[i];
+	//}
+	//C.copyToDevice();
 }
 
-void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, C.width, C.height, A.width, &ALPHA, B.device, C.width, A.device, A.width, &BETA, C.device, C.width);
+void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite? BETA0:BETA1), C.device, B.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
 	C.copyToHost();
+}
+
+void Matrix2::multiplyAtBC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.height, &ALPHA, B.device, B.width, A.device, A.height, &(overwrite ? BETA0 : BETA1), C.device, B.width);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error("cuBLAS multiplication failed");
+	}
+	C.copyToHost();
+}
+
+void Matrix2::multiplyAtBtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.height, &ALPHA, B.device, B.height, A.device, A.height, &(overwrite ? BETA0 : BETA1), C.device, B.width);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error("cuBLAS multiplication failed");
+	}
+	C.copyToHost();
+}
+
+void Matrix2::multiplyABtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.height, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, B.width);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error("cuBLAS multiplication failed");
+	}
+	C.copyToHost();
+}
+
+Matrix2::ConstantFill::ConstantFill(float value) {
+	this->value = value;
+}
+
+float Matrix2::ConstantFill::operator()(int i, int j) {
+	return value;
+}
+
+Matrix2::NormalFill::NormalFill(float mean, float stdDeviation) {
+	distribution = new normal_distribution<float>(mean, stdDeviation);
+}
+
+float Matrix2::NormalFill::operator()(int i, int j) {
+	return (*distribution)(generator);
+}
+
+Matrix2::UniformFill::UniformFill(float lowerBound, float upperBound) {
+	distribution = new uniform_real_distribution<float>(lowerBound, upperBound);
+}
+
+float Matrix2::UniformFill::operator()(int i, int j) {
+	return (*distribution)(generator);
 }

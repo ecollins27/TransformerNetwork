@@ -92,7 +92,7 @@ long timeFunction(string header, Function function, Params... params) {
 	function(forward<Params>(params)...);
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<microseconds>(stop - start);
-	//printf("%s: %d microseconds\n", header.c_str(), duration.count());
+	printf("%s: %d microseconds\n", header.c_str(), duration.count());
 	return duration.count();
 }
 
@@ -128,6 +128,9 @@ int main4() {
 	printf("\n%d\n\n", size);
 	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1[0]), ref(B1[0]), ref(C1[0]), true);
 	timeFunction("cuBLAS", MatrixBatch::multiplyABC, ref(A2), ref(B2), ref(C2));
+	printf("\n");
+	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1[0]), ref(B1[0]), ref(C1[0]), true);
+	timeFunction("cuBLAS", MatrixBatch::multiplyABC, ref(A2), ref(B2), ref(C2));
 
 	C2.copyToHost();
 	for (int k = 0; k < batchSize; k++) {
@@ -145,62 +148,32 @@ int main4() {
 
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
-	int size = 1000;
-
+	int size = 2000;
+	int m = size, n = size, p = size;
 	Matrix2 A(size, size);
 	Matrix2 B(size, size);
 	Matrix2 C1(size, size);
 	Matrix2 C2(size, size);
+	A.setDims(m, n);
+	B.setDims(n, p);
+	C1.setDims(m, p);
+	C2.setDims(m, p);
 
-	int increment = 50;
-	ofstream file("runtime_data.csv");
-	for (int m = increment; m <= size; m += increment) {
-		for (int n = increment; n <= size; n += increment) {
-			for (int p = increment; p <= size; p += increment) {
-				A.setDims(m, n);
-				B.setDims(n, p);
-				C1.setDims(m, p);
-				C2.setDims(m, p);
-
-				for (int i = 0; i < m; i++) {
-					for (int j = 0; j < n; j++) {
-						A(i, j) = i * n + j;
-					}
-					for (int j = 0; j < p; j++) {
-						C1(i, j) = 0;
-						C2(i, j) = 0;
-					}
-				}
-				for (int i = 0; i < n; i++) {
-					for (int j = 0; j < p; j++) {
-						B(i, j) = n * p - i * p - j;
-					}
-				}
-				A.copyToDevice();
-				B.copyToDevice();
-				C1.copyToDevice();
-				C2.copyToDevice();
+	A.fill(Matrix2::UNIT_NORMAL_FILL);
+	B.fill(Matrix2::UNIT_NORMAL_FILL);
+	C1.constantFill(0);
+	C2.constantFill(0);
 				
-				long simdTime = timeFunction("SIMD", Matrix2::simdMultiplyABC, ref(A), ref(B), ref(C1));
-				long gpuTime = timeFunction("cuBLAS", Matrix2::multiplyABC, ref(A), ref(B), ref(C2));
-
-				if (simdTime < gpuTime) {
-					printf("%d %d %d SIMD\n", m, n, p);
-					file << m << "," << n << "," << p << "," << 0 << "\n";
-				}
-				else {
-					printf("%d %d %d GPU\n", m, n, p);
-					file << m << "," << n << "," << p << "," << 1 << "\n";
-				}
-			}
-		}
-		file.close();
-	}
+	long simdTime = timeFunction("SIMD", Matrix2::simdAdd, ref(A), ref(B), ref(C1));
+	long gpuTime = timeFunction("cuBLAS", Matrix2::add, ref(A), ref(B), ref(C2));
+	printf("\n");
+	simdTime = timeFunction("SIMD", Matrix2::simdAdd, ref(A), ref(B), ref(C1));
+	gpuTime = timeFunction("cuBLAS", Matrix2::add, ref(A), ref(B), ref(C2));
 
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
 			if (abs((C1(i, j) - C2(i, j)) / C1(i, j)) > 0.001) {
-				printf("Not Equal\n");
+				printf("%d %d %f %f Not Equal\n", i, j, C1(i, j), C2(i, j));
 				exit(0);
 			}
 		}

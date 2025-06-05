@@ -11,13 +11,6 @@ class Matrix2 {
 
 public:
 	class FillFunction;
-	class ConstantFill;
-	class NormalFill;
-	class UniformFill;
-
-	static ConstantFill ZERO_FILL;
-	static NormalFill UNIT_NORMAL_FILL;
-	static UniformFill UNIT_UNIFORM_FILL;
 
 	static float ALPHA;
 	static float BETA0, BETA1;
@@ -35,7 +28,7 @@ public:
 	Matrix2(int height, int width);
 	int e(int i, int j);
 	float& operator()(int i, int j);
-	void fill(FillFunction fillFunction);
+	void fill(FillFunction& fillFunction);
 	void constantFill(float fh);
 	void scale(float c);
 	void sqrt(Matrix2& B, int num);
@@ -49,12 +42,8 @@ public:
 	void setHeight(int height);
 	void setWidth(int width);
 
-	__global__
-	void kernelAdd(int N, const float* A, const float* B, const float* C);
-	__global__
-	void kernelMultiply(int N, const float* A, const float* B, const float* C);
-
 	static void add(Matrix2& A, Matrix2& B, Matrix2& C);
+	static void simdAdd(Matrix2& A, Matrix2& B, Matrix2& C);
 	static void elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C);
 
 	static void multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite);
@@ -64,14 +53,16 @@ public:
 
 	class FillFunction {
 	public:
-		float operator()(int i, int j) {};
+		virtual float operator()(int i, int j) { 
+			return 0.1;
+		};
 	};
 
 	class ConstantFill : public FillFunction {
 	public:
 		float value;
 		ConstantFill(float value);
-		float operator()(int i, int j);
+		float operator()(int i, int j) override;
 	};
 
 	class NormalFill : public FillFunction {
@@ -80,7 +71,7 @@ public:
 		normal_distribution<float>* distribution;
 
 		NormalFill(float mean, float stdDeviation);
-		float operator()(int i, int j);
+		float operator()(int i, int j) override;
 	};
 
 	class UniformFill : public FillFunction {
@@ -89,6 +80,16 @@ public:
 		uniform_real_distribution<float>* distribution;
 
 		UniformFill(float lowerBound, float upperBound);
-		float operator()(int i, int j);
+		float operator()(int i, int j) override;
 	};
+
+	static ConstantFill ZERO_FILL;
+	static NormalFill UNIT_NORMAL_FILL;
+	static UniformFill UNIT_UNIFORM_FILL;
 };
+
+__global__
+void kernelAdd(int N, float* A, float* B, float* C);
+
+__global__
+void kernelMultiply(int N, float* A, float* B, float* C);

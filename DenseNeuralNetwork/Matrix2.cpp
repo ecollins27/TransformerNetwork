@@ -36,7 +36,7 @@ void Matrix2::copy(float* host_matrix) {
 	copyToHost();
 }
 
-void Matrix2::fill(FillFunction fillFunction) {
+void Matrix2::fill(FillFunction& fillFunction) {
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
 			host[width * i + j] = fillFunction(i, j);
@@ -137,19 +137,15 @@ void Matrix2::setWidth(int width) {
 }
 
 __global__
-void Matrix2::kernelAdd(int N, const float* A, const float* B, const float* C) {
+void kernelAdd(int N, float* A, float* B, float* C) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < N) {
 		C[i] = A[i] + B[i];
 	}
 }
 
-
-
-
-
 __global__
-void Matrix2::kernelMultiply(int N, float* A, float* B, float* C) {
+void kernelMultiply(int N, float* A, float* B, float* C) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < N) {
 		C[i] = A[i] * B[i];
@@ -159,7 +155,8 @@ void Matrix2::kernelMultiply(int N, float* A, float* B, float* C) {
 void Matrix2::add(Matrix2& A, Matrix2& B, Matrix2& C) {
 	int N = A.height * A.width;
 	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-	kernelMultiply <<< numBlocks, THREADS_PER_BLOCK >>> (N, A.device, B.device, C.device);
+	kernelAdd <<< numBlocks, THREADS_PER_BLOCK >>> (N, A.device, B.device, C.device);
+	C.copyToHost();
 	//int N = A.height * A.width;
 	//int N4 = N >> 2 << 2;
 	//__m128 va, vb;
@@ -172,6 +169,21 @@ void Matrix2::add(Matrix2& A, Matrix2& B, Matrix2& C) {
 	//	C.host[i] = A.host[i] + B.host[i];
 	//}
 	//C.copyToDevice();
+}
+
+void Matrix2::simdAdd(Matrix2& A, Matrix2& B, Matrix2& C) {
+	int N = A.height * A.width;
+	int N4 = N >> 2 << 2;
+	__m128 va, vb;
+	for (int i = 0; i < N4; i += 4) {
+		va = _mm_loadu_ps(&A.host[i]);
+		vb = _mm_loadu_ps(&B.host[i]);
+		_mm_storeu_ps(&C.host[i], _mm_add_ps(va, vb));
+	}
+	for (int i = N4; i < N; i++) {
+		C.host[i] = A.host[i] + B.host[i];
+	}
+	C.copyToDevice();
 }
 
 void Matrix2::elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C) {

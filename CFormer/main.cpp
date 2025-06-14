@@ -148,6 +148,7 @@ int main4() {
 
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
+	cublasCreate(&MatrixBatch::HANDLE);
 	int size = 2000;
 	int m = size, n = size, p = size;
 	Matrix2 A(size, size);
@@ -163,13 +164,6 @@ int main() {
 	B.fill(Matrix2::UNIT_NORMAL_FILL);
 	C1.constantFill(0);
 	C2.constantFill(0);
-				
-	long simdTime = timeFunction("SIMD", Matrix2::simdAdd, ref(A), ref(B), ref(C1));
-	long gpuTime = timeFunction("cuBLAS", Matrix2::add, ref(A), ref(B), ref(C2));
-	printf("\n");
-	simdTime = timeFunction("SIMD", Matrix2::simdAdd, ref(A), ref(B), ref(C1));
-	gpuTime = timeFunction("cuBLAS", Matrix2::add, ref(A), ref(B), ref(C2));
-
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < size; j++) {
 			if (abs((C1(i, j) - C2(i, j)) / C1(i, j)) > 0.001) {

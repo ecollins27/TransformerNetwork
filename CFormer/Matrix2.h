@@ -1,4 +1,5 @@
 #pragma once
+#include "MatrixBatch.h"
 #include <iostream>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
@@ -24,14 +25,19 @@ public:
 	int height, width;
 
 
+
 	Matrix2() {};
 	Matrix2(int height, int width);
+	Matrix2(FillFunction& fillFunction, int height, int width);
 	int e(int i, int j);
 	float& operator()(int i, int j);
 	void fill(FillFunction& fillFunction);
 	void constantFill(float fh);
 	void scale(float c);
 	void sqrt(Matrix2& B, int num);
+	void mean(Matrix2& mean);
+	void std(Matrix2& mean, Matrix2& std);
+	//void normalize(Matrix2& mean, Matrix2& std);
 	void print();
 	void allocateHost();
 	void deallocateHost();
@@ -41,9 +47,9 @@ public:
 	void setDims(int height, int width);
 	void setHeight(int height);
 	void setWidth(int width);
+	MatrixBatch subMatrixBatch(int numMatrices, int subHeight);
 
 	static void add(Matrix2& A, Matrix2& B, Matrix2& C);
-	static void simdAdd(Matrix2& A, Matrix2& B, Matrix2& C);
 	static void elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C);
 
 	static void multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite);
@@ -93,3 +99,9 @@ void kernelAdd(int N, float* A, float* B, float* C);
 
 __global__
 void kernelMultiply(int N, float* A, float* B, float* C);
+
+__global__
+void kernelMean(float* input, float* output, int M, int N);
+
+__global__
+void kernelStd(float* input, float* mean, float* output, int M, int N);

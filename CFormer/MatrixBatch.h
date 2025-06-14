@@ -1,7 +1,6 @@
 #pragma once
 #include <iostream>
 #include <cublas_v2.h>
-#include "Matrix2.h"
 
 using namespace std;
 
@@ -11,12 +10,14 @@ public:
 	float** device;
 	float** deviceArray;
 	float** host = NULL;
-	int maxHeight, maxWidth;
+	int maxLength;
 	int batchSize, height, width;
 
 	static float ALPHA;
 	static float BETA;
+	static cublasHandle_t HANDLE;
 
+	MatrixBatch() {};
 	MatrixBatch(int batchSize, int height, int width);
 	int e(int i, int j);
 	float& operator()(int b, int i, int j);

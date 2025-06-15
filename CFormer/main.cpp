@@ -150,29 +150,16 @@ int main() {
 	cublasCreate(&Matrix2::HANDLE);
 	cublasCreate(&MatrixBatch::HANDLE);
 	int size = 2000;
-	int m = size, n = size, p = size;
 	Matrix2 A(size, size);
-	Matrix2 B(size, size);
-	Matrix2 C1(size, size);
-	Matrix2 C2(size, size);
-	A.setDims(m, n);
-	B.setDims(n, p);
-	C1.setDims(m, p);
-	C2.setDims(m, p);
+	Matrix2 AMean(1, size);
+	Matrix2 AStd(1, size);
 
 	A.fill(Matrix2::UNIT_NORMAL_FILL);
-	B.fill(Matrix2::UNIT_NORMAL_FILL);
-	C1.constantFill(0);
-	C2.constantFill(0);
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < size; j++) {
-			if (abs((C1(i, j) - C2(i, j)) / C1(i, j)) > 0.001) {
-				printf("%d %d %f %f Not Equal\n", i, j, C1(i, j), C2(i, j));
-				exit(0);
-			}
-		}
-	}
-	printf("Are Equal\n");
+	A.mean(AMean);
+	A.std(AMean, AStd);
+
+	AMean.print();
+	AStd.print();
 }
 
 

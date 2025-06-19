@@ -146,20 +146,81 @@ int main4() {
 	printf("Are Equal\n");
 }
 
+bool areSimiliar(int size, Matrix& A, Matrix2& B) {
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			if (abs((A(i, j) - B(i, j)) / A(i, j)) > 0.001) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+__global__
+void customKernel(float* A, float* B) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	B[i] = A[i] - 1;
+}
+
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
 	cublasCreate(&MatrixBatch::HANDLE);
-	int size = 2000;
-	Matrix2 A(size, size);
-	Matrix2 AMean(1, size);
-	Matrix2 AStd(1, size);
+	int size = 10;
+	Matrix A1(Matrix::ZERO_FILL, size, size, true);
+	Matrix2 A2(size, size, true);
+	Matrix B1(Matrix::ZERO_FILL, size, size, true);
+	Matrix2 B2(size, size, true);
+	Matrix C1(Matrix::ZERO_FILL, size, size, true);
+	Matrix2 C2(Matrix2::ZERO_FILL, size, size);
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			A1.r(i, j) = (i * size + j) / (float)size;
+			A2(i, j) = A1(i, j);
+			B1.r(i, j) = (size * size - i * size - j) / (float)size;
+			B2(i, j) = B1(i, j);
+		}
+	}
 
-	A.fill(Matrix2::UNIT_NORMAL_FILL);
-	A.mean(AMean);
-	A.std(AMean, AStd);
-
-	AMean.print();
-	AStd.print();
+	Matrix::multiplyABC(size, size, size, A1, B1, C1, true);
+	Matrix2::multiplyABC(A2, B2, C2, true);
+	if (areSimiliar(size, C1, C2)) {
+		printf("ABC Equal\n");
+	}
+	else {
+		printf("ABC Not Equal\n");
+	}
+	Matrix::multiplyAtBC(size, size, size, A1, B1, C1, true);
+	Matrix2::multiplyAtBC(A2, B2, C2, true);
+	if (areSimiliar(size, C1, C2)) {
+		printf("AtBC Equal\n");
+	}
+	else {
+		printf("AtBC Not Equal\n");
+	}
+	Matrix::multiplyABtC(size, size, size, A1, B1, C1, true);
+	Matrix2::multiplyABtC(A2, B2, C2, true);
+	if (areSimiliar(size, C1, C2)) {
+		printf("ABtC Equal\n");
+	}
+	else {
+		printf("ABtC Not Equal\n");
+	}
+	Matrix::multiplyAtBtC(size, size, size, A1, B1, C1, true);
+	Matrix2::multiplyAtBtC(A2, B2, C2, true);
+	if (areSimiliar(size, C1, C2)) {
+		printf("AtBtC Equal\n");
+	}
+	else {
+		printf("AtBtC Not Equal\n");
+	}
+	if (true) {
+		Matrix2::runElementKernel(size, size, 0, customKernel, A2.device, B2.device);
+		A2.copyToHost();
+		B2.copyToHost();
+		A2.print();
+		B2.print();
+	}
 }
 
 

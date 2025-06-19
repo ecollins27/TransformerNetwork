@@ -27,7 +27,7 @@ public:
 
 
 	Matrix2() {};
-	Matrix2(int height, int width);
+	Matrix2(int height, int width, bool allocateHost);
 	Matrix2(FillFunction& fillFunction, int height, int width);
 	int e(int i, int j);
 	float& operator()(int i, int j);
@@ -36,8 +36,8 @@ public:
 	void scale(float c);
 	void sqrt(Matrix2& B, int num);
 	void mean(Matrix2& mean);
-	void std(Matrix2& mean, Matrix2& std);
-	//void normalize(Matrix2& mean, Matrix2& std);
+	void variance(Matrix2& mean, Matrix2& variance);
+	void normalize(Matrix2& mean, Matrix2& std, Matrix2& normalizedOutput);
 	void print();
 	void allocateHost();
 	void deallocateHost();
@@ -57,10 +57,17 @@ public:
 	static void multiplyAtBtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite);
 	static void multiplyABtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite);
 
+	template<typename Function, typename... Params>
+	static void runElementKernel(int height, int width, int sharedMemory, Function function, Params... params);
+	template<typename Function, typename... Params>
+	void runRowKernel(int height, int width, int sharedMemory, Function function, Params... params);
+	template<typename Function, typename... Params>
+	void runColumnKernel(int height, int width, int sharedMemory, Function function, Params... params);
+
 	class FillFunction {
 	public:
 		virtual float operator()(int i, int j) { 
-			return 0.1;
+			return 0;
 		};
 	};
 
@@ -104,4 +111,7 @@ __global__
 void kernelMean(float* input, float* output, int M, int N);
 
 __global__
-void kernelStd(float* input, float* mean, float* output, int M, int N);
+void kernelVariance(float* input, float* mean, float* output, int M, int N);
+
+__global__
+void kernelNormalize(float* matrix, float* mean, float* std, float* output, int N, int width);

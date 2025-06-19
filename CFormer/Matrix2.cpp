@@ -9,7 +9,7 @@ Matrix2::ConstantFill Matrix2::ZERO_FILL = ConstantFill(0);
 Matrix2::NormalFill Matrix2::UNIT_NORMAL_FILL = NormalFill(0,1);
 Matrix2::UniformFill Matrix2::UNIT_UNIFORM_FILL = UniformFill(0,1);
 
-Matrix2::Matrix2(int height, int width) {
+Matrix2::Matrix2(int height, int width, bool allocateHost) {
 	maxLength = height * width;
 	this->height = height;
 	this->width = width;
@@ -17,7 +17,12 @@ Matrix2::Matrix2(int height, int width) {
 	if (err != cudaSuccess) {
 		throw invalid_argument("CUDA memory allocation failed");
 	}
-	allocateHost();
+	if (allocateHost) {
+		this->allocateHost();
+	}
+	else {
+		host = NULL;
+	}
 }
 
 Matrix2::Matrix2(FillFunction& fillFunction, int height, int width) {
@@ -38,7 +43,7 @@ int Matrix2::e(int i, int j) {
 
 float& Matrix2::operator()(int i, int j) {
 	if (host == NULL) {
-		throw invalid_argument("Matrix must be converted to host before accessing");
+		throw invalid_argument("Matrix must allocate host");
 	}
 	return host[e(i, j)];
 }
@@ -52,6 +57,9 @@ void Matrix2::copy(float* host_matrix) {
 }
 
 void Matrix2::fill(FillFunction& fillFunction) {
+	if (host == NULL) {
+		throw invalid_argument("Matrix must allocate host");
+	}
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
 			host[width * i + j] = fillFunction(i, j);
@@ -61,6 +69,9 @@ void Matrix2::fill(FillFunction& fillFunction) {
 }
 
 void Matrix2::constantFill(float c) {
+	if (host == NULL) {
+		throw invalid_argument("Matrix must allocate host");
+	}
 	int n = height * width;
 	int n4 = n >> 2 << 2;
 	__m128 C = _mm_set1_ps(c);
@@ -74,6 +85,9 @@ void Matrix2::constantFill(float c) {
 }
 
 void Matrix2::scale(float c) {
+	if (host == NULL) {
+		throw invalid_argument("Matrix must allocate host");
+	}
 	int n = height * width;
 	int n4 = n >> 2 << 2;
 	__m128 C = _mm_set1_ps(c);
@@ -87,6 +101,9 @@ void Matrix2::scale(float c) {
 }
 
 void Matrix2::sqrt(Matrix2& B, int num) {
+	if (host == NULL) {
+		throw invalid_argument("Matrix must allocate host");
+	}
 	int n = height * width;
 	int n4 = n >> 2 << 2;
 	for (int i = 0; i < n4; i += 4) {
@@ -132,7 +149,7 @@ void Matrix2::mean(Matrix2& mean) {
 }
 
 __global__
-void kernelStd(float* matrix, float* mean, float* output, int M, int N) {
+void kernelVariance(float* matrix, float* mean, float* output, int M, int N) {
 	extern __shared__ float shared[];
 
 	int row = blockIdx.x;
@@ -159,9 +176,33 @@ void kernelStd(float* matrix, float* mean, float* output, int M, int N) {
 	}
 }
 
-void Matrix2::std(Matrix2& mean, Matrix2& std) {
-	kernelStd <<< height, THREADS_PER_BLOCK, THREADS_PER_BLOCK * sizeof(float*) >> > (device, mean.device, std.device, height, width);
-	std.copyToHost();
+void Matrix2::variance(Matrix2& mean, Matrix2& variance) {
+	kernelVariance <<< height, THREADS_PER_BLOCK, THREADS_PER_BLOCK * sizeof(float*) >>> (device, mean.device, variance.device, height, width);
+	variance.copyToHost();
+}
+
+__global__
+void kernelNormalize(float* matrix, float* mean, float* std, float* output, int N, int width) {
+
+	int num = blockIdx.x * blockDim.x + threadIdx.x;
+	int row = num / width;
+
+	if (num >= N) {
+		return;
+	}
+	if (std[num] == 0) {
+		output[num] = (matrix[num] - mean[row]) / (0.0000001);
+	}
+	else {
+		output[num] = (matrix[num] - mean[row]) / std[row];
+	}
+}
+
+void Matrix2::normalize(Matrix2& mean, Matrix2& std, Matrix2& normalizedOutput) {
+	int N = height * width;
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	kernelNormalize <<< numBlocks, THREADS_PER_BLOCK >>> (device, mean.device, std.device, normalizedOutput.device, N, width);
+	normalizedOutput.copyToHost();
 }
 
 void Matrix2::allocateHost() {
@@ -321,6 +362,38 @@ void Matrix2::multiplyABtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
 	C.copyToHost();
+}
+
+template<typename Function, typename... Params>
+void Matrix2::runElementKernel(int height, int width, int sharedMemory, Function function, Params... params) {
+	int N = height * width;
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	if (sharedMemory == 0) {
+		function << < numBlocks, THREADS_PER_BLOCK >> > (forward<Params>(params)...);
+	}
+	else {
+		function <<< numBlocks, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
+	}
+}
+
+template<typename Function, typename... Params>
+void Matrix2::runRowKernel(int height, int width, int sharedMemory, Function function, Params... params) {
+	if (sharedMemory == 0) {
+		function <<< height, THREADS_PER_BLOCK >>> (forward<Params>(params)...);
+	}
+	else {
+		function <<< height, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
+	}
+}
+
+template<typename Function, typename... Params>
+void Matrix2::runColumnKernel(int height, int width, int sharedMemory, Function function, Params... params) {
+	if (sharedMemory == 0) {
+		function <<< width, THREADS_PER_BLOCK >>> (forward<Params>(params)...);
+	}
+	else {
+		function <<< width, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
+	}
 }
 
 Matrix2::ConstantFill::ConstantFill(float value) {

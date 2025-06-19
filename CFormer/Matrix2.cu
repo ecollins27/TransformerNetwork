@@ -333,7 +333,7 @@ void Matrix2::elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C) {
 }
 
 void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite? BETA0:BETA1), C.device, C.width);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite? BETA0:BETA1), C.device, B.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
@@ -341,7 +341,7 @@ void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 }
 
 void Matrix2::multiplyAtBC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, B.width, A.width, A.height, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite? BETA0 : BETA1), C.device, C.width);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.height, &ALPHA, B.device, B.width, A.device, A.height, &(overwrite ? BETA0 : BETA1), C.device, B.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
@@ -349,7 +349,7 @@ void Matrix2::multiplyAtBC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 }
 
 void Matrix2::multiplyAtBtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_T, CUBLAS_OP_T, B.height, A.width, A.height, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.height, &ALPHA, B.device, B.height, A.device, A.height, &(overwrite ? BETA0 : BETA1), C.device, B.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
@@ -357,11 +357,43 @@ void Matrix2::multiplyAtBtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) 
 }
 
 void Matrix2::multiplyABtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, B.height, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.height, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, B.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
 	C.copyToHost();
+}
+
+template<typename Function, typename... Params>
+void Matrix2::runElementKernel(int height, int width, int sharedMemory, Function function, Params... params) {
+	int N = height * width;
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	if (sharedMemory == 0) {
+		function << < numBlocks, THREADS_PER_BLOCK >> > (forward<Params>(params)...);
+	}
+	else {
+		function <<< numBlocks, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
+	}
+}
+
+template<typename Function, typename... Params>
+void Matrix2::runRowKernel(int height, int width, int sharedMemory, Function function, Params... params) {
+	if (sharedMemory == 0) {
+		function <<< height, THREADS_PER_BLOCK >>> (forward<Params>(params)...);
+	}
+	else {
+		function <<< height, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
+	}
+}
+
+template<typename Function, typename... Params>
+void Matrix2::runColumnKernel(int height, int width, int sharedMemory, Function function, Params... params) {
+	if (sharedMemory == 0) {
+		function <<< width, THREADS_PER_BLOCK >>> (forward<Params>(params)...);
+	}
+	else {
+		function <<< width, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
+	}
 }
 
 Matrix2::ConstantFill::ConstantFill(float value) {

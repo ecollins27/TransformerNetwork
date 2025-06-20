@@ -96,6 +96,56 @@ long timeFunction(string header, Function function, Params... params) {
 	return duration.count();
 }
 
+int main4() {
+	cublasCreate(&Matrix2::HANDLE);
+	int size = 150;
+	int batchSize = 25;
+	Matrix* A1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, false);
+	Matrix* B1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, true);
+	Matrix* C1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, size, false);
+
+	MatrixBatch A2(batchSize, size, size);
+	MatrixBatch B2(batchSize, size, size);
+	MatrixBatch C2(batchSize, size, size);
+
+	A2.allocateHost();
+	B2.allocateHost();
+	C2.allocateHost();
+	for (int k = 0; k < batchSize; k++) {
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				A1[k].r(i, j) = (i * size + j) / (float)size;
+				B1[k].r(i, j) = (size * size - i * size - j) / (float)size;
+				A2(k, i, j) = A1[k](i, j);
+				B2(k, i, j) = B1[k](i, j);
+				C2(k, i, j) = C1[k](i, j);
+			}
+		}
+	}
+	A2.deallocateHost();
+	B2.deallocateHost();
+	C2.copyToDevice();
+	printf("\n%d\n\n", size);
+	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1[0]), ref(B1[0]), ref(C1[0]), true);
+	timeFunction("cuBLAS", MatrixBatch::multiplyABC, ref(A2), ref(B2), ref(C2));
+	printf("\n");
+	timeFunction("SIMD", Matrix::multiplyABC, size, size, size, ref(A1[0]), ref(B1[0]), ref(C1[0]), true);
+	timeFunction("cuBLAS", MatrixBatch::multiplyABC, ref(A2), ref(B2), ref(C2));
+
+	C2.copyToHost();
+	for (int k = 0; k < batchSize; k++) {
+		for (int i = 0; i < size; i++) {
+			for (int j = 0; j < size; j++) {
+				if (abs((C1[0](i, j) - C2(k, i, j)) / C1[0](i, j)) > 0.001) {
+					printf("Not Equal %f %f %d %d %d\n", C1[0](i, j), C2(k, i, j), k, i, j);
+					exit(0);
+				}
+			}
+		}
+	}
+	printf("Are Equal\n");
+}
+
 bool areSimiliar(int m, int p, Matrix& A, Matrix2& B) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {

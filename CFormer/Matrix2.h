@@ -1,17 +1,16 @@
 #pragma once
 #include "MatrixBatch.h"
+#include "FillFunction.h"
 #include <iostream>
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <xmmintrin.h>
-#include <random>
 
 using namespace std;
 
 class Matrix2 {
 
 public:
-	class FillFunction;
 
 	static float ALPHA;
 	static float BETA0, BETA1;
@@ -86,55 +85,4 @@ public:
 			function << < width, THREADS_PER_BLOCK, sharedMemory >> > (forward<Params>(params)...);
 		}
 	}
-
-	class FillFunction {
-	public:
-		virtual float operator()(int i, int j) { 
-			return 0;
-		};
-	};
-
-	class ConstantFill : public FillFunction {
-	public:
-		float value;
-		ConstantFill(float value);
-		float operator()(int i, int j) override;
-	};
-
-	class NormalFill : public FillFunction {
-	public:
-		default_random_engine generator;
-		normal_distribution<float>* distribution;
-
-		NormalFill(float mean, float stdDeviation);
-		float operator()(int i, int j) override;
-	};
-
-	class UniformFill : public FillFunction {
-	public:
-		default_random_engine generator;
-		uniform_real_distribution<float>* distribution;
-
-		UniformFill(float lowerBound, float upperBound);
-		float operator()(int i, int j) override;
-	};
-
-	static ConstantFill ZERO_FILL;
-	static NormalFill UNIT_NORMAL_FILL;
-	static UniformFill UNIT_UNIFORM_FILL;
 };
-
-__global__
-void kernelAdd(int N, float* A, float* B, float* C);
-
-__global__
-void kernelMultiply(int N, float* A, float* B, float* C);
-
-__global__
-void kernelMean(float* input, float* output, int M, int N);
-
-__global__
-void kernelVariance(float* input, float* mean, float* output, int M, int N);
-
-__global__
-void kernelNormalize(float* matrix, float* mean, float* std, float* output, int N, int width);

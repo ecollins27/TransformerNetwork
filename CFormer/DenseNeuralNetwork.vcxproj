@@ -27,6 +27,7 @@
     <ClCompile Include="Dense2D.cpp" />
     <ClCompile Include="Dropout1D.cpp" />
     <ClCompile Include="Dropout2D.cpp" />
+    <ClCompile Include="FillFunction.cpp" />
     <ClCompile Include="Gated1D.cpp" />
     <ClCompile Include="Gated2D.cpp" />
     <ClCompile Include="Input1D.cpp" />
@@ -66,6 +67,7 @@
     <ClInclude Include="Dense2D.h" />
     <ClInclude Include="Dropout1D.h" />
     <ClInclude Include="Dropout2D.h" />
+    <ClInclude Include="FillFunction.h" />
     <ClInclude Include="Gated1D.h" />
     <ClInclude Include="Gated2D.h" />
     <ClInclude Include="Input1D.h" />

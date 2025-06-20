@@ -5,9 +5,6 @@ float Matrix2::BETA0 = 0.0f;
 float Matrix2::BETA1 = 1.0f;
 int Matrix2::THREADS_PER_BLOCK = 256;
 cublasHandle_t Matrix2::HANDLE = NULL;
-Matrix2::ConstantFill Matrix2::ZERO_FILL = ConstantFill(0);
-Matrix2::NormalFill Matrix2::UNIT_NORMAL_FILL = NormalFill(0,1);
-Matrix2::UniformFill Matrix2::UNIT_UNIFORM_FILL = UniformFill(0,1);
 
 Matrix2::Matrix2(int height, int width, bool allocateHost) {
 	maxLength = height * width;
@@ -333,7 +330,7 @@ void Matrix2::elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C) {
 }
 
 void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite? BETA0:BETA1), C.device, B.width);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite? BETA0:BETA1), C.device, C.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
@@ -341,7 +338,7 @@ void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 }
 
 void Matrix2::multiplyAtBC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.height, &ALPHA, B.device, B.width, A.device, A.height, &(overwrite ? BETA0 : BETA1), C.device, B.width);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, B.width, A.width, A.height, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite? BETA0 : BETA1), C.device, C.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
@@ -349,7 +346,7 @@ void Matrix2::multiplyAtBC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 }
 
 void Matrix2::multiplyAtBtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.height, &ALPHA, B.device, B.height, A.device, A.height, &(overwrite ? BETA0 : BETA1), C.device, B.width);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_T, CUBLAS_OP_T, B.height, A.width, A.height, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
@@ -357,65 +354,9 @@ void Matrix2::multiplyAtBtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) 
 }
 
 void Matrix2::multiplyABtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
-	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.height, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, B.width);
+	cublasStatus_t stat = cublasSgemm(HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, B.height, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
 	C.copyToHost();
-}
-
-template<typename Function, typename... Params>
-void Matrix2::runElementKernel(int height, int width, int sharedMemory, Function function, Params... params) {
-	int N = height * width;
-	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-	if (sharedMemory == 0) {
-		function << < numBlocks, THREADS_PER_BLOCK >> > (forward<Params>(params)...);
-	}
-	else {
-		function <<< numBlocks, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
-	}
-}
-
-template<typename Function, typename... Params>
-void Matrix2::runRowKernel(int height, int width, int sharedMemory, Function function, Params... params) {
-	if (sharedMemory == 0) {
-		function <<< height, THREADS_PER_BLOCK >>> (forward<Params>(params)...);
-	}
-	else {
-		function <<< height, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
-	}
-}
-
-template<typename Function, typename... Params>
-void Matrix2::runColumnKernel(int height, int width, int sharedMemory, Function function, Params... params) {
-	if (sharedMemory == 0) {
-		function <<< width, THREADS_PER_BLOCK >>> (forward<Params>(params)...);
-	}
-	else {
-		function <<< width, THREADS_PER_BLOCK, sharedMemory >>> (forward<Params>(params)...);
-	}
-}
-
-Matrix2::ConstantFill::ConstantFill(float value) {
-	this->value = value;
-}
-
-float Matrix2::ConstantFill::operator()(int i, int j) {
-	return value;
-}
-
-Matrix2::NormalFill::NormalFill(float mean, float stdDeviation) {
-	distribution = new normal_distribution<float>(mean, stdDeviation);
-}
-
-float Matrix2::NormalFill::operator()(int i, int j) {
-	return (*distribution)(generator);
-}
-
-Matrix2::UniformFill::UniformFill(float lowerBound, float upperBound) {
-	distribution = new uniform_real_distribution<float>(lowerBound, upperBound);
-}
-
-float Matrix2::UniformFill::operator()(int i, int j) {
-	return (*distribution)(generator);
 }

@@ -106,6 +106,7 @@
     </ClCompile>
     <ClCompile Include="Matrix2.cpp" />
     <ClCompile Include="MatrixBatch.cpp" />
+    <ClCompile Include="FillFunction.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Layer.h">
@@ -212,6 +213,7 @@
     </ClInclude>
     <ClInclude Include="Matrix2.h" />
     <ClInclude Include="MatrixBatch.h" />
+    <ClInclude Include="FillFunction.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="DNN">

@@ -5,9 +5,6 @@ float Matrix2::BETA0 = 0.0f;
 float Matrix2::BETA1 = 1.0f;
 int Matrix2::THREADS_PER_BLOCK = 256;
 cublasHandle_t Matrix2::HANDLE = NULL;
-Matrix2::ConstantFill Matrix2::ZERO_FILL = ConstantFill(0);
-Matrix2::NormalFill Matrix2::UNIT_NORMAL_FILL = NormalFill(0,1);
-Matrix2::UniformFill Matrix2::UNIT_UNIFORM_FILL = UniformFill(0,1);
 
 Matrix2::Matrix2(int height, int width, bool allocateHost) {
 	maxLength = height * width;
@@ -56,63 +53,66 @@ void Matrix2::copy(float* host_matrix) {
 	copyToHost();
 }
 
+__global__
+void kernelFill(FillFunction& fillFunction, float* matrix, int M, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int row = i / N;
+	int col = i % N;
+	if (i < M * N) {
+		matrix[i] = fillFunction(row, col);
+	}
+}
+
 void Matrix2::fill(FillFunction& fillFunction) {
-	if (host == NULL) {
-		throw invalid_argument("Matrix must allocate host");
+	int N = height * width;
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	kernelFill < << numBlocks, THREADS_PER_BLOCK >> > (fillFunction, device, height, width);
+	copyToHost();
+}
+
+__global__
+void kernelConstantFill(float c, float* matrix, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		matrix[i] = c;
 	}
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			host[width * i + j] = fillFunction(i, j);
-		}
-	}
-	copyToDevice();
 }
 
 void Matrix2::constantFill(float c) {
-	if (host == NULL) {
-		throw invalid_argument("Matrix must allocate host");
+	int N = height * width;
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	kernelConstantFill < << numBlocks, THREADS_PER_BLOCK >> > (c, device, N);
+	copyToHost();
+}
+
+__global__
+void kernelScale(float c, float* matrix, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		matrix[i] *= c;
 	}
-	int n = height * width;
-	int n4 = n >> 2 << 2;
-	__m128 C = _mm_set1_ps(c);
-	for (int i = 0; i < n4; i += 4) {
-		_mm_store_ps(&host[i], C);
-	}
-	for (int i = n4; i < n; i++) {
-		host[i] = c;
-	}
-	copyToDevice();
 }
 
 void Matrix2::scale(float c) {
-	if (host == NULL) {
-		throw invalid_argument("Matrix must allocate host");
+	int N = height * width;
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	kernelScale < << numBlocks, THREADS_PER_BLOCK >> > (c, device, N);
+	copyToHost();
+}
+
+__global__
+void kernelSqrt(float* matrix, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		matrix[i] = sqrt(matrix[i]);
 	}
-	int n = height * width;
-	int n4 = n >> 2 << 2;
-	__m128 C = _mm_set1_ps(c);
-	for (int i = 0; i < n4; i += 4) {
-		_mm_store_ps(&host[i], _mm_mul_ps(_mm_loadu_ps(&host[i]), C));
-	}
-	for (int i = n4; i < n; i++) {
-		host[i] *= c;
-	}
-	copyToDevice();
 }
 
 void Matrix2::sqrt(Matrix2& B, int num) {
-	if (host == NULL) {
-		throw invalid_argument("Matrix must allocate host");
-	}
-	int n = height * width;
-	int n4 = n >> 2 << 2;
-	for (int i = 0; i < n4; i += 4) {
-		_mm_store_ps(&B.host[i], _mm_sqrt_ps(_mm_loadu_ps(&host[i])));
-	}
-	for (int i = n4; i < n; i++) {
-		B.host[i] = std::sqrt(host[i]);
-	}
-	B.copyToDevice();
+	int N = height * width;
+	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
+	kernelSqrt < << numBlocks, THREADS_PER_BLOCK >> > (device, N);
+	copyToHost();
 }
 
 __global__
@@ -362,28 +362,4 @@ void Matrix2::multiplyABtC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 		throw std::runtime_error("cuBLAS multiplication failed");
 	}
 	C.copyToHost();
-}
-
-Matrix2::ConstantFill::ConstantFill(float value) {
-	this->value = value;
-}
-
-float Matrix2::ConstantFill::operator()(int i, int j) {
-	return value;
-}
-
-Matrix2::NormalFill::NormalFill(float mean, float stdDeviation) {
-	distribution = new normal_distribution<float>(mean, stdDeviation);
-}
-
-float Matrix2::NormalFill::operator()(int i, int j) {
-	return (*distribution)(generator);
-}
-
-Matrix2::UniformFill::UniformFill(float lowerBound, float upperBound) {
-	distribution = new uniform_real_distribution<float>(lowerBound, upperBound);
-}
-
-float Matrix2::UniformFill::operator()(int i, int j) {
-	return (*distribution)(generator);
 }

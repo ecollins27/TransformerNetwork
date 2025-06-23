@@ -9,6 +9,7 @@
 #include "MatrixBatch.h"
 #include <typeinfo>
 #include <thread>
+#include "MatrixKernel.h"
 
 using namespace std::chrono;
 
@@ -107,6 +108,14 @@ bool areSimiliar(int m, int p, Matrix& A, Matrix2& B) {
 	return true;
 }
 
+__global__
+void customKernel(float* A, float* B, int N) {
+	int num = blockIdx.x * blockDim.x + threadIdx.x;
+	if (num < N) {
+		B[num] = A[num] - 1;
+	}
+}
+
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
 	cublasCreate(&MatrixBatch::HANDLE);
@@ -142,6 +151,10 @@ int main() {
 		printf("\n");
 		C2.print();
 	}
+	A2.print();
+	MatrixKernel::runElementKernel(m ,n1, 0, customKernel, A2.device, A2.device, A2.height * A2.width);
+	A2.copyToHost();
+	A2.print();
 }
 
 

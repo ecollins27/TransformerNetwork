@@ -3,7 +3,6 @@
 float Matrix2::ALPHA = 1.0f;
 float Matrix2::BETA0 = 0.0f;
 float Matrix2::BETA1 = 1.0f;
-int Matrix2::THREADS_PER_BLOCK = 256;
 cublasHandle_t Matrix2::HANDLE = NULL;
 
 Matrix2::Matrix2(int height, int width, bool allocateHost) {
@@ -53,21 +52,13 @@ void Matrix2::copy(float* host_matrix) {
 	copyToHost();
 }
 
-__global__
-void kernelFill(FillFunction& fillFunction, float* matrix, int M, int N) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	int row = i / N;
-	int col = i % N;
-	if (i < M * N) {
-		matrix[i] = fillFunction(row, col);
-	}
-}
-
 void Matrix2::fill(FillFunction& fillFunction) {
-	int N = height * width;
-	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-	kernelFill < << numBlocks, THREADS_PER_BLOCK >> > (fillFunction, device, height, width);
-	copyToHost();
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			host[e(i, j)] = fillFunction(i, j);
+		}
+	}
+	copyToDevice();
 }
 
 __global__
@@ -81,7 +72,7 @@ void kernelConstantFill(float c, float* matrix, int N) {
 void Matrix2::constantFill(float c) {
 	int N = height * width;
 	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-	kernelConstantFill < << numBlocks, THREADS_PER_BLOCK >> > (c, device, N);
+	kernelConstantFill <<< numBlocks, THREADS_PER_BLOCK >>> (c, device, N);
 	copyToHost();
 }
 
@@ -96,7 +87,7 @@ void kernelScale(float c, float* matrix, int N) {
 void Matrix2::scale(float c) {
 	int N = height * width;
 	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-	kernelScale < << numBlocks, THREADS_PER_BLOCK >> > (c, device, N);
+	kernelScale <<< numBlocks, THREADS_PER_BLOCK >>> (c, device, N);
 	copyToHost();
 }
 
@@ -111,7 +102,7 @@ void kernelSqrt(float* matrix, int N) {
 void Matrix2::sqrt(Matrix2& B, int num) {
 	int N = height * width;
 	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-	kernelSqrt < << numBlocks, THREADS_PER_BLOCK >> > (device, N);
+	kernelSqrt <<< numBlocks, THREADS_PER_BLOCK >>> (device, N);
 	copyToHost();
 }
 

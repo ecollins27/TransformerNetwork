@@ -47,7 +47,7 @@ float& Matrix2::operator()(int i, int j) {
 void Matrix2::copy(float* host_matrix) {
 	cudaError_t err = cudaMemcpy(device, host_matrix, height * width * sizeof(float), cudaMemcpyHostToDevice);
 	if (err != cudaSuccess) {
-		throw invalid_argument("CUDA memory allocation failed");
+		throw invalid_argument("CUDA memory copy failed");
 	}
 	copyToHost();
 }
@@ -99,7 +99,7 @@ void kernelSqrt(float* matrix, int N) {
 	}
 }
 
-void Matrix2::sqrt(Matrix2& B, int num) {
+void Matrix2::sqrt(Matrix2& B) {
 	int N = height * width;
 	int numBlocks = (N + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
 	kernelSqrt <<< numBlocks, THREADS_PER_BLOCK >>> (device, N);
@@ -203,7 +203,7 @@ void Matrix2::allocateHost() {
 	}
 	err = cudaMemcpy(host, device, height * width * sizeof(float), cudaMemcpyDeviceToHost);
 	if (err != cudaSuccess) {
-		throw invalid_argument("CUDA memory allocation failed");
+		throw invalid_argument("CUDA memory copy failed");
 	}
 }
 
@@ -211,7 +211,7 @@ void Matrix2::deallocateHost() {
 	copyToDevice();
 	cudaError_t err = cudaFreeHost(&host);
 	if (err != cudaSuccess) {
-		throw invalid_argument("CUDA memory allocation failed");
+		throw invalid_argument("CUDA memory deallocation failed");
 	}
 	host = NULL;
 }
@@ -219,20 +219,20 @@ void Matrix2::deallocateHost() {
 void Matrix2::copyToDevice() {
 	cudaError_t err = cudaMemcpy(device, host, height * width * sizeof(float), cudaMemcpyHostToDevice);
 	if (err != cudaSuccess) {
-		throw invalid_argument("CUDA memory allocation failed");
+		throw invalid_argument("CUDA memory copy failed");
 	}
 }
 
 void Matrix2::copyToHost() {
 	cudaError_t err = cudaMemcpy(host, device, height * width * sizeof(float), cudaMemcpyDeviceToHost);
 	if (err != cudaSuccess) {
-		throw invalid_argument("CUDA memory allocation failed");
+		throw invalid_argument("CUDA memory copy failed");
 	}
 }
 
 void Matrix2::print() {
 	if (host == NULL) {
-		throw invalid_argument("Matrix must be converted to host before printing");
+		throw invalid_argument("Matrix must allocate host before printing");
 	}
 	for (int i = 0; i < height; i++) {
 		for (int j = 0; j < width; j++) {
@@ -277,17 +277,17 @@ MatrixBatch Matrix2::subMatrixBatch(int numMatrices, int subHeight) {
 	if (err != cudaSuccess) {
 		throw invalid_argument("CUDA memory allocation failed");
 	}
-	err = cudaMallocHost(&matrixBatch.deviceArray, numMatrices * sizeof(float*));
+	err = cudaMallocHost(&matrixBatch.hostDevice, numMatrices * sizeof(float*));
 	if (err != cudaSuccess) {
 		throw invalid_argument("CUDA memory allocation failed");
 	}
 	for (int i = 0; i < numMatrices; i++) {
 		matrixBatch.host[i] = &host[i * subHeight * width];
-		matrixBatch.deviceArray[i] = device + (i * subHeight * width * sizeof(float));
+		matrixBatch.hostDevice[i] = device + (i * subHeight * width * sizeof(float));
 	}
-	err = cudaMemcpy(matrixBatch.device, matrixBatch.deviceArray, numMatrices * sizeof(float*), cudaMemcpyHostToDevice);
+	err = cudaMemcpy(matrixBatch.device, matrixBatch.hostDevice, numMatrices * sizeof(float*), cudaMemcpyHostToDevice);
 	if (err != cudaSuccess) {
-		throw invalid_argument("CUDA memory allocation failed");
+		throw invalid_argument("CUDA memory copy failed");
 	}
 	return matrixBatch;
 }

@@ -33,7 +33,7 @@ public:
 	void fill(FillFunction& fillFunction);
 	void constantFill(float fh);
 	void scale(float c);
-	void sqrt(Matrix2& B, int num);
+	void sqrt(Matrix2& B);
 	void mean(Matrix2& mean);
 	void variance(Matrix2& mean, Matrix2& variance);
 	void normalize(Matrix2& mean, Matrix2& std, Matrix2& normalizedOutput);

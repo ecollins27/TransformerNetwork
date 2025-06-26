@@ -97,10 +97,10 @@ long timeFunction(string header, Function function, Params... params) {
 	return duration.count();
 }
 
-bool areSimiliar(int m, int p, Matrix& A, Matrix2& B) {
+bool areSimiliar(int m, int p, Matrix& A, MatrixBatch& B) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
-			if (abs(((A(i, j) - B(i, j)) / A(i, j))) > 0.001) {
+			if (abs(((A(i, j) - B(0, i, j)) / A(i, j))) > 0.001) {
 				return false;
 			}
 		}
@@ -109,39 +109,46 @@ bool areSimiliar(int m, int p, Matrix& A, Matrix2& B) {
 }
 
 __global__
-void customKernel(float* A, float* B, int N) {
-	int num = blockIdx.x * blockDim.x + threadIdx.x;
-	if (num < N) {
-		B[num] = A[num] - 1;
+void customKernel(float** A, float** B, int N) {
+	int n = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+
+	if (n < N) {
+		B[batch][n] = A[batch][n] - 1;
 	}
 }
 
 int main() {
 	cublasCreate(&Matrix2::HANDLE);
 	cublasCreate(&MatrixBatch::HANDLE);
+	int batchSize = 10;
 	int m = 10, n1 = 5, n2 = 8, p = 5;
 	Matrix A1(Matrix::ZERO_FILL, m, n1, true);
-	Matrix2 A2(m, n1, true);
+	MatrixBatch A2(batchSize, m, n1, true);
 	Matrix B1(Matrix::ZERO_FILL, n2, p, true);
-	Matrix2 B2(n2, p, true);
+	MatrixBatch B2(batchSize, n2, p, true);
 	Matrix C1(Matrix::ZERO_FILL, m, n2, true);
-	Matrix2 C2(FillFunction::ZERO_FILL, m, n2);
+	MatrixBatch C2(FillFunction::ZERO_FILL, batchSize, m, n2);
 	for (int j = 0; j < n1; j++) {
 		for (int i = 0; i < m; i++) {
 			A1.r(i, j) = (i * n1 + j) / (float)n1;
-			A2(i, j) = A1(i, j);
+			for (int k = 0; k < batchSize; k++) {
+				A2(k, i, j) = A1(i, j);
+			}
 		}
 	}
 	for (int j = 0; j < n2; j++){
 		for (int k = 0; k < p; k++) {
 			B1.r(j, k) = (n2 * p - j * p - k) / (float)p;
-			B2(j, k) = B1(j, k);
+			for (int i = 0; i < batchSize; i++) {
+				B2(i, j, k) = B1(j, k);
+			}
 		}
 	}
 	A2.copyToDevice();
 	B2.copyToDevice();
 	Matrix::multiplyABtC(m, n1, n2, A1, B1, C1, true);
-	Matrix2::multiplyABtC(A2, B2, C2, true);
+	MatrixBatch::multiplyABtC(A2, B2, C2, true);
 	if (areSimiliar(m, n2, C1, C2)) {
 		printf("AtBtC Equal\n");
 	}
@@ -151,8 +158,9 @@ int main() {
 		printf("\n");
 		C2.print();
 	}
+	A2.sqrt(A2);
 	A2.print();
-	MatrixKernel::runElementKernel(m ,n1, 0, customKernel, A2.device, A2.device, A2.height * A2.width);
+	MatrixKernel::runElementKernelBatched(batchSize, m ,n1, 0, customKernel, A2.device, A2.device, A2.height * A2.width);
 	A2.copyToHost();
 	A2.print();
 }

@@ -2,7 +2,7 @@
 #include <cmath>
 #include <fstream>
 #include <climits>
-#include "Matrix3D.h"
+#include "Matrix2.h"
 
 class Activation {
 	public:
@@ -18,8 +18,10 @@ class Activation {
 		static Activation* ALL_ACTIVATIONS[NUM_ACTIVATIONS];
 
 		bool condenseGradient = true;
-		virtual void operate(int batchSize, int size, Matrix input, Matrix output) = 0;
-		virtual void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad) = 0;
+		virtual void operate(Matrix2& input, Matrix2& output) = 0;
+		virtual void operate(MatrixBatch& input, MatrixBatch& output) = 0;
+		virtual void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient) = 0;
+		virtual void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient) = 0;
 		virtual Activation* clone() = 0;
 		virtual bool isDiagonal() { return true; };
 		virtual void save(ofstream& file) {
@@ -32,24 +34,30 @@ class Activation {
 class None : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix input, Matrix output);
-	void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
 };
 
 class Sigmoid : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix input, Matrix output);
-	void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
 };
 
 class Relu : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix input, Matrix output);
-	void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
 };
 
@@ -58,40 +66,50 @@ class Elu : public Activation {
 public:
 	float alpha;
 	Elu(float alpha);
-	void operate(int batchSize, int size, Matrix input, Matrix output);
-	void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
 	void save(ofstream& file);
 };
 
 class Selu : public Activation {
 public:
-	void operate(int batchSize, int size, Matrix input, Matrix output);
-	void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
 };
 
 class Tanh : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix input, Matrix output);
-	void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
 };
 
 class Swish : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix input, Matrix output);
-	void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
 };
 
 class Softmax : public Activation {
 
 public:
-	void operate(int batchSize, int size, Matrix input, Matrix output);
-	void differentiate(int batchSize, int size, Matrix A, Matrix Ao, Matrix& AGrad, Matrix AoGrad);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
 	bool isDiagonal();
 };

@@ -9,11 +9,11 @@ public:
 	Layer1D* prevLayer = NULL;
 
 	float momentum;
-	Matrix mean, batchMean;
-	Matrix variance, batchVariance;
-	Matrix std;
-	Matrix parameters;
-	Matrix parameterGradient;
+	Matrix2 mean, batchMean;
+	Matrix2 variance, batchVariance;
+	Matrix2 std;
+	Matrix2 parameters;
+	Matrix2 parameterGradient;
 
 	Optimizer* optimizer;
 

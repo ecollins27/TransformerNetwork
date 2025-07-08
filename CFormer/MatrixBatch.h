@@ -5,6 +5,8 @@
 
 using namespace std;
 
+class Matrix2;
+
 class MatrixBatch {
 
 public:
@@ -17,7 +19,7 @@ public:
 	float** device;
 	float** hostDevice;
 	float** host = NULL;
-	int maxLength;
+	int length, maxLength;
 	int batchSize, height, width;
 
 
@@ -31,6 +33,7 @@ public:
 	void constantFill(float fh);
 	void scale(float c);
 	void sqrt(MatrixBatch& B);
+	void condense(Matrix2& B);
 	void print();
 	void allocateHost();
 	void deallocateHost();
@@ -38,16 +41,23 @@ public:
 	void copyToHost();
 	void copy(float* matrix);
 	void copy(float** matrix);
+	void copy(MatrixBatch& B);
 	void setDims(int height, int width);
 	void setHeight(int height);
 	void setWidth(int width);
 
 	static void add(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C);
 	static void elementMultiply(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C);
+	static void linearCombo(float c1, MatrixBatch& A, float c2, MatrixBatch& B, MatrixBatch& C);
 
 	static void multiplyABC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C, bool overwrite);
+	static void multiplyABC(Matrix2& A, MatrixBatch& B, MatrixBatch& C, bool overwrite);
 	static void multiplyAtBC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C, bool overwrite);
+	static void multiplyAtBC(Matrix2& A, MatrixBatch& B, MatrixBatch& C, bool overwrite);
 	static void multiplyAtBtC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C, bool overwrite);
 	static void multiplyABtC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C, bool overwrite);
+
+	static MatrixBatch* allocateMatrixBatchArray(FillFunction& fill, int arrayLength, int batchSize, int height, int width);
+	static MatrixBatch* allocateMatrixBatchArray(int arrayLength, int batchSize, int height, int width, bool allocateHost);
 };
 

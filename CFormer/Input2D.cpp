@@ -6,18 +6,16 @@ Input2D::Input2D(int size) {
 }
 
 void Input2D::setInput(int num, float** input) {
-	for (int i = 0; i < numTokens[num]; i++) {
-		for (int j = 0; j < size; j++) {
-			neurons[num].r(i, j) = input[i][j];
-		}
-	}
+	neurons[num].copy(input);
 }
 
 void Input2D::setSparseInput(int num, int* input) {
-	neurons[num].constantFill(0, numTokens[num], size);
+	neurons[num].constantFill(0);
 	for (int i = 0; i < numTokens[num]; i++) {
-		neurons[num].r(i, input[i]) = 1;
+		neurons[num](i, input[i]) = 1;
+		neurons[num](i, size) = 1;
 	}
+	neurons[num].copyToDevice();
 }
 
 void Input2D::propagateLayer(int num) {
@@ -30,6 +28,16 @@ void Input2D::backPropagate(int num) {
 
 void Input2D::setPrevLayer(Layer* prevLayer) {
 	throw invalid_argument("Input1D cannot have previous layer");
+}
+
+void Input2D::setBatchSize(int batchSize) {
+	Layer2D::initNeurons(batchSize);
+	for (int i = 0; i < batchSize; i++) {
+		neurons[i].allocateHost();
+	}
+	if (nextLayer != NULL) {
+		nextLayer->setBatchSize(batchSize);
+	}
 }
 
 void Input2D::save(ofstream& file) {

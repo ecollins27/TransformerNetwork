@@ -159,21 +159,6 @@ void Model2DTo1D::addTransformer(int numHeads, int keySize, int valueSize) {
 	this->addLayer({ new LayerNormalization2D() });
 }
 
-void Model2DTo1D::addLinformer(int numHeads, int keySize, int valueSize, int projSize) {
-	int size = tempLayer->size;
-	ResidualSave2D* rs1 = { new ResidualSave2D() };
-	this->addLayer(rs1);
-	this->addLayer({ new LinformerAttention(numHeads, keySize, valueSize, projSize) });
-	this->addLayer({ new ResidualAdd2D(rs1) });
-	this->addLayer({ new LayerNormalization2D() });
-	ResidualSave2D* rs2 = { new ResidualSave2D() };
-	this->addLayer(rs2);
-	this->addLayer({ new Dense2D(Activation::SWISH, size) });
-	this->addLayer({ new Dense2D(Activation::SWISH, size) });
-	this->addLayer({ new ResidualAdd2D(rs2) });
-	this->addLayer({ new LayerNormalization2D() });
-}
-
 void Model2DTo1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params) {
 	if (outputLayer == NULL) {
 		throw invalid_argument("Model2DTo1D must have 1D output");

@@ -13,7 +13,7 @@ float MeanSquaredError1D::loss(Layer1D* layer, float** yTrue) {
 void MeanSquaredError1D::differentiate(Layer1D* layer, float** yTrue) {
 	for (int i = 0; i < layer->batchSize; i++) {
 		for (int j = 0; j < layer->size; j++) {
-			layer->neuronGradient.r(i, j) = 2 * (layer->neurons(i, j) - yTrue[i][j]) / layer->size;
+			layer->neuronGradient(i, j) = 2 * (layer->neurons(i, j) - yTrue[i][j]) / layer->size;
 		}
 	}
 }
@@ -40,7 +40,7 @@ float BinaryCrossEntropy1D::loss(Layer1D* layer, float** yTrue) {
 void BinaryCrossEntropy1D::differentiate(Layer1D* layer, float** yTrue) {
 	for (int i = 0; i < layer->batchSize; i++) {
 		for (int j = 0; j < layer->size; j++) {
-			layer->neuronGradient.r(i, j) = (-yTrue[i][j] / (layer->neurons(i, j) + 0.0000001) + (1 - yTrue[i][j]) / (1 - layer->neurons(i, j) + 0.0000001)) / layer->size;
+			layer->neuronGradient(i, j) = (-yTrue[i][j] / (layer->neurons(i, j) + 0.0000001) + (1 - yTrue[i][j]) / (1 - layer->neurons(i, j) + 0.0000001)) / layer->size;
 		}
 	}
 }
@@ -66,10 +66,10 @@ void CategoricalCrossEntropy1D::differentiate(Layer1D* layer, float** yTrue) {
 	for (int i = 0; i < layer->batchSize; i++) {
 		for (int j = 0; j < layer->size; j++) {
 			if (yTrue[i][j] != 0) {
-				layer->neuronGradient.r(i, j) = -yTrue[i][j] / (layer->size * layer->neurons(i, j) + 0.0000001);
+				layer->neuronGradient(i, j) = -yTrue[i][j] / (layer->size * layer->neurons(i, j) + 0.0000001);
 			}
 			else {
-				layer->neuronGradient.r(i, j) = 0;
+				layer->neuronGradient(i, j) = 0;
 			}
 		}
 	}

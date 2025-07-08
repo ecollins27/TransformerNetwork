@@ -10,36 +10,40 @@ public:
 
 	int numHeads, keySize, valueSize;
 
-	Matrix* Wq;
-	Matrix** WqGrad;
-	Matrix* Wk;
-	Matrix** WkGrad;
-	Matrix* Wv;
-	Matrix** WvGrad;
-	Matrix Wo;
-	Matrix* WoGrad;
+	MatrixBatch* prevNeuronGradient;
 
-	Matrix** Q;
-	Matrix** QGrad;
-	Matrix** K;
-	Matrix** KGrad;
-	Matrix** V;
-	Matrix** VGrad;
+	MatrixBatch Wq;
+	MatrixBatch* WqGrad;
+	MatrixBatch Wk;
+	MatrixBatch* WkGrad;
+	MatrixBatch Wv;
+	MatrixBatch* WvGrad;
+	Matrix2 Wo;
+	Matrix2* WoGrad;
 
-	Matrix** A;
-	Matrix** AGrad;
+	MatrixBatch* Q;
+	MatrixBatch* QGrad;
+	MatrixBatch* K;
+	MatrixBatch* KGrad;
+	MatrixBatch* V;
+	MatrixBatch* VGrad;
 
-	Matrix* Ac;
-	Matrix** AcSub;
-	Matrix* AcGrad;
-	Matrix** AcSubGrad;
+	MatrixBatch* A;
+	MatrixBatch* AGrad;
+	MatrixBatch* Ao;
+	MatrixBatch* AoGrad;
+
+	Matrix2* Ac;
+	MatrixBatch* AcSub;
+	Matrix2* AcGrad;
+	MatrixBatch* AcSubGrad;
 
 	Activation* softmax;
 
 	Optimizer* outputOptimizer;
-	Optimizer** keyOptimizers;
-	Optimizer** queryOptimizers;
-	Optimizer** valueOptimizers;
+	OptimizerBatch* keyOptimizers;
+	OptimizerBatch* queryOptimizers;
+	OptimizerBatch* valueOptimizers;
 
 	TransformerAttention(int numHeads, int keySize, int valueSize);
 
@@ -50,6 +54,7 @@ public:
 	void save(ofstream& file);
 	static void load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize);
 
+	void setNumTokens(int* numTokens);
 	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	int getNumParameters();

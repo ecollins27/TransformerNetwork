@@ -9,7 +9,7 @@ ResidualSave1D::~ResidualSave1D() {
 }
 
 void ResidualSave1D::propagateLayer(int num) {
-	prevLayer->neurons.copy(batchSize, size, neurons);
+	neurons.copy(prevLayer->neurons);
 }
 
 void ResidualSave1D::backPropagate(int num) {
@@ -50,6 +50,6 @@ void ResidualSave1D::backPropagateWithResidual(int num) {
 		prevLayer->backPropagate(num);
 		return;
 	}
-	neuronGradient.copy(batchSize, size, prevLayer->neuronGradient);
+	prevLayer->neuronGradient.copy(neuronGradient);
 	prevLayer->backPropagate(num);
 }

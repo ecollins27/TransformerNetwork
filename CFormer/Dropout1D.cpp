@@ -22,15 +22,16 @@ void Dropout1D::propagateLayer(int num) {
 		for (int j = 0; j < size; j++) {
 			float randValue = distribution(generator);
 			if (randValue < dropoutRate) {
-				neurons.r(i, j) = 0;
+				neurons(i, j) = 0;
 				dropped[i][j] = true;
 			}
 			else {
-				neurons.r(i, j) = prevLayer->neurons(i, j) / dropoutRate;
+				neurons(i, j) = prevLayer->neurons(i, j) / dropoutRate;
 				dropped[i][j] = false;
 			}
 		}
 	}
+	neurons.copyToDevice();
 }
 
 void Dropout1D::backPropagate(int num) {
@@ -41,13 +42,14 @@ void Dropout1D::backPropagate(int num) {
 	for (int i = 0; i < batchSize; i++) {
 		for (int j = 0; j < size; j++) {
 			if (!dropped[i][j]) {
-				prevLayer->neuronGradient.r(i, j) = neuronGradient(i, j) / dropoutRate;
+				prevLayer->neuronGradient(i, j) = neuronGradient(i, j) / dropoutRate;
 			}
 			else {
-				prevLayer->neuronGradient.r(i, j) = 0;
+				prevLayer->neuronGradient(i, j) = 0;
 			}
 		}
 	}
+	neuronGradient.copyToDevice();
 	if (prevLayer != NULL) {
 		prevLayer->backPropagate(num);
 	}
@@ -65,6 +67,8 @@ void Dropout1D::setPrevLayer(Layer* prevLayer) {
 
 void Dropout1D::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
+	neurons.allocateHost();
+	neuronGradient.allocateHost();
 	dropped = new bool* [batchSize];
 	for (int i = 0; i < batchSize; i++) {
 		dropped[i] = new bool[size];
@@ -90,7 +94,7 @@ void Dropout1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, i
 }
 
 void Dropout1D::predict(int num) {
-	prevLayer->neurons.copy(batchSize, size, neurons);
+	neurons.copy(prevLayer->neurons);
 	if (nextLayer != NULL) {
 		nextLayer->predict(num);
 	}

@@ -4,7 +4,7 @@
 const string ResidualSave2D::LAYER_NAME = "ResidualSave2D";
 
 void ResidualSave2D::propagateLayer(int num) {
-	prevLayer->neurons[num].copy(numTokens[num], size, neurons[num]);
+	neurons[num].copy(prevLayer->neurons[num]);
 }
 
 void ResidualSave2D::backPropagate(int num) {
@@ -34,6 +34,6 @@ void ResidualSave2D::load(Model* nn, ifstream& file, string& line, int* commaInd
 }
 
 void ResidualSave2D::backPropagateWithResidual(int num) {
-	neuronGradient[num].copy(numTokens[num], size, prevLayer->neuronGradient[num]);
+	prevLayer->neuronGradient[num].copy(neuronGradient[num]);
 	prevLayer->backPropagate(num);
 }

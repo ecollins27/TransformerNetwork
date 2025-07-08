@@ -12,16 +12,12 @@ Dense1D::Dense1D(Activation* activation, int size) {
 Dense1D::~Dense1D() {
 	delete activation;
 	delete optimizer;
-	weights.free();
-	weightGradient.free();
-	linearCombo.free();
-	backPropIntermediate.free();
 	Layer1D::~Layer1D();
 }
 
 void Dense1D::propagateLayer(int num) {
-	Matrix::multiplyABtC(batchSize, prevSize, size, prevLayer->neurons, weights, linearCombo, true);
-	activation->operate(batchSize, size, linearCombo, neurons);
+	Matrix2::multiplyABtC(prevLayer->neurons, weights, linearCombo, true);
+	activation->operate(linearCombo, neurons);
 }
 
 void Dense1D::backPropagate(int num) {
@@ -29,9 +25,9 @@ void Dense1D::backPropagate(int num) {
 		prevLayer->backPropagate(num);
 		return;
 	}
-	activation->differentiate(batchSize, size, linearCombo, neurons, backPropIntermediate, neuronGradient);
-	Matrix::multiplyABC(batchSize, size, prevSize, backPropIntermediate, weights, prevLayer->neuronGradient, true);
-	Matrix::multiplyAtBC(size, batchSize, prevSize, backPropIntermediate, prevLayer->neurons, weightGradient, true);
+	activation->differentiate(linearCombo, neurons, backPropIntermediate, neuronGradient);
+	Matrix2::multiplyABC(backPropIntermediate, weights, prevLayer->neuronGradient, true);
+	Matrix2::multiplyAtBC(backPropIntermediate, prevLayer->neurons, weightGradient, true);
 	prevLayer->backPropagate(num);
 }
 
@@ -49,13 +45,18 @@ void Dense1D::setPrevLayer(Layer* prevLayer) {
 	else if (instanceOf<Selu>(activation)) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
-	weights = Matrix(new Matrix::NormalFill(0, stdDeviation), size, prevSize, true);
+	FillFunction fill = NormalFill(0, stdDeviation);
+	weights = Matrix2(fill, size, prevSize);
+	weights.deallocateHost();
 }
 
 void Dense1D::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
-	linearCombo = Matrix(Matrix::ZERO_FILL, batchSize, size + 1, false);
-	backPropIntermediate = Matrix(Matrix::ZERO_FILL, batchSize, size, true);
+	optimizer->setBatchSize(batchSize, NULL);
+	linearCombo = Matrix2(batchSize, size, false);
+	linearCombo.constantFill(0);
+	backPropIntermediate = Matrix2(batchSize, size, false);
+	backPropIntermediate.constantFill(0);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
@@ -65,12 +66,14 @@ void Dense1D::save(ofstream& file) {
 	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
+	weights.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights(i, j) << ",";
 		}
 		file << "\n";
 	}
+	weights.deallocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
@@ -81,17 +84,19 @@ void Dense1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	Dense1D* denseLayer = new Dense1D(activation, size);
 	nn->addLayer(denseLayer);
+	denseLayer->weights.allocateHost();
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			denseLayer->weights.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			denseLayer->weights(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
+	denseLayer->weights.deallocateHost();
 	*prevSize = size + 1;
 }
 
 void Dense1D::applyGradients(float learningRate, int t) {
-	optimizer->applyGradient(weights, t, learningRate, batchSize);
+	optimizer->applyGradient(weights, t, learningRate);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);
 	}

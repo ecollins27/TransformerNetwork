@@ -36,7 +36,6 @@
     <ClCompile Include="Layer1D.cpp" />
     <ClCompile Include="Layer2D.cpp" />
     <ClCompile Include="LayerNormalization2D.cpp" />
-    <ClCompile Include="LinformerAttention.cpp" />
     <ClCompile Include="Loss1D.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix.cpp" />
@@ -46,10 +45,10 @@
     <ClCompile Include="MatrixKernel.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelParser.cpp" />
+    <ClCompile Include="OptimizerBatch.cpp" />
     <ClCompile Include="TransformerAttention.cpp" />
     <ClCompile Include="Model1D.cpp" />
     <ClCompile Include="Optimizer.cpp" />
-    <ClCompile Include="PerformerAttention.cpp" />
     <ClCompile Include="PositionalEncoding2D.cpp" />
     <ClCompile Include="ResidualAdd1D.cpp" />
     <ClCompile Include="ResidualAdd2D.cpp" />
@@ -77,7 +76,6 @@
     <ClInclude Include="Layer1D.h" />
     <ClInclude Include="Layer2D.h" />
     <ClInclude Include="LayerNormalization2D.h" />
-    <ClInclude Include="LinformerAttention.h" />
     <ClInclude Include="Loss1D.h" />
     <ClInclude Include="Matrix.h" />
     <ClInclude Include="Matrix2.h" />
@@ -86,10 +84,10 @@
     <ClInclude Include="MatrixKernel.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelParser.h" />
+    <ClInclude Include="OptimizerBatch.h" />
     <ClInclude Include="TransformerAttention.h" />
     <ClInclude Include="Model1D.h" />
     <ClInclude Include="Optimizer.h" />
-    <ClInclude Include="PerformerAttention.h" />
     <ClInclude Include="PositionalEncoding2D.h" />
     <ClInclude Include="ResidualAdd1D.h" />
     <ClInclude Include="ResidualAdd2D.h" />

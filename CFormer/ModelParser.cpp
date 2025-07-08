@@ -79,8 +79,6 @@ void ModelParser::addLayer(Model* nn, ifstream& file, string& line, int* commaIn
 		Gated2D::load(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	} else if (layerName.compare(LayerNormalization2D::LAYER_NAME) == 0) {
 		LayerNormalization2D::load(nn, file, line, commaIndex, newCommaIndex, prevSize);
-	} else if (layerName.compare(LinformerAttention::LAYER_NAME) == 0) {
-		LinformerAttention::load(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	} else if (layerName.compare(TransformerAttention::LAYER_NAME) == 0) {
 		TransformerAttention::load(nn, file, line, commaIndex, newCommaIndex, prevSize);
 	} else if (layerName.compare(PositionalEncoding2D::LAYER_NAME) == 0) {

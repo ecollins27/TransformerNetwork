@@ -10,20 +10,20 @@ Gated2D::Gated2D(Activation* activation, int size) {
 }
 
 void Gated2D::propagateLayer(int num) {
-	Matrix::multiplyABtC(numTokens[num], prevSize, size, prevLayer->neurons[num], weights1, A1[num], true);
-	Matrix::multiplyABtC(numTokens[num], prevSize, size, prevLayer->neurons[num], weights2, A2[num], true);
-	activation->operate(numTokens[num], size, A1[num], Ao[num]);
-	Matrix::elementMultiply(numTokens[num], size, Ao[num], A2[num], neurons[num]);
+	Matrix2::multiplyABtC(prevLayer->neurons[num], weights1, A1[num], true);
+	Matrix2::multiplyABtC(prevLayer->neurons[num], weights2, A2[num], true);
+	activation->operate(A1[num], Ao[num]);
+	Matrix2::elementMultiply(Ao[num], A2[num], neurons[num]);
 }
 
 void Gated2D::backPropagate(int num) {
-	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], A2[num], AoGrad[num]);
-	Matrix::elementMultiply(numTokens[num], size, neuronGradient[num], Ao[num], A2Grad[num]);
-	activation->differentiate(numTokens[num], size, A1[num], Ao[num], A1Grad[num], AoGrad[num]);
-	Matrix::multiplyABC(numTokens[num], size, prevSize, A1Grad[num], weights1, prevLayer->neuronGradient[num], true);
-	Matrix::multiplyABC(numTokens[num], size, prevSize, A2Grad[num], weights2, prevLayer->neuronGradient[num], false);
-	Matrix::multiplyAtBC(size, numTokens[num], prevSize, A1Grad[num], prevLayer->neurons[num], weightGradient1[num], true);
-	Matrix::multiplyAtBC(size, numTokens[num], prevSize, A2Grad[num], prevLayer->neurons[num], weightGradient2[num], true);
+	Matrix2::elementMultiply(neuronGradient[num], A2[num], AoGrad[num]);
+	Matrix2::elementMultiply(neuronGradient[num], Ao[num], A2Grad[num]);
+	activation->differentiate(A1[num], Ao[num], A1Grad[num], AoGrad[num]);
+	Matrix2::multiplyABC(A1Grad[num], weights1, prevLayer->neuronGradient[num], true);
+	Matrix2::multiplyABC(A2Grad[num], weights2, prevLayer->neuronGradient[num], false);
+	Matrix2::multiplyAtBC(A1Grad[num], prevLayer->neurons[num], weightGradient1[num], true);
+	Matrix2::multiplyAtBC(A2Grad[num], prevLayer->neurons[num], weightGradient2[num], true);
 	prevLayer->backPropagate(num);
 }
 
@@ -41,21 +41,25 @@ void Gated2D::setPrevLayer(Layer* prevLayer) {
 	else if (instanceOf<Selu>(activation)) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
-	weights1 = Matrix(new Matrix::NormalFill(0, stdDeviation), size, prevSize, true);
-	weights2 = Matrix(new Matrix::NormalFill(0, stdDeviation), size, prevSize, true);
+	FillFunction fill = NormalFill(0, stdDeviation);
+	weights1 = Matrix2(fill, size, prevSize);
+	weights2 = Matrix2(fill, size, prevSize);
 }
 
 void Gated2D::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	weightGradient1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, prevSize, false);
-	weightGradient2 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, prevSize, false);
+	weightGradient1 = Matrix2::allocateMatrixArray(batchSize, size, prevSize, false);
+	weightGradient2 = Matrix2::allocateMatrixArray(batchSize, size, prevSize, false);
 
-	A1 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
-	A1Grad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, true);
-	A2 = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
-	A2Grad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, true);
-	Ao = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
-	AoGrad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, size, false);
+	optimizer1->setBatchSize(batchSize, weightGradient1);
+	optimizer2->setBatchSize(batchSize, weightGradient2);
+
+	A1 = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
+	A1Grad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
+	A2 = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
+	A2Grad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
+	Ao = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
+	AoGrad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
@@ -65,18 +69,22 @@ void Gated2D::save(ofstream& file) {
 	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
+	weights1.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights1(i, j) << ",";
 		}
 		file << "\n";
 	}
+	weights1.deallocateHost();
+	weights2.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights2(i, j) << ",";
 		}
 		file << "\n";
 	}
+	weights2.deallocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
@@ -87,28 +95,48 @@ void Gated2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	Gated2D* gatedLayer = { new Gated2D(activation, size) };
 	nn->addLayer(gatedLayer);
+	gatedLayer->weights1.allocateHost();
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights1.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			gatedLayer->weights1(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
+	gatedLayer->weights1.deallocateHost();
+	gatedLayer->weights2.allocateHost();
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights2.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			gatedLayer->weights2(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
 		}
 	}
+	gatedLayer->weights2.deallocateHost();
 	*prevSize = size + 1;
 }
 
-void Gated2D::applyGradients(float learningRate, int t) {
+void Gated2D::setNumTokens(int* numTokens) {
+	this->numTokens = numTokens;
+	updateNeuronDimensions();
+	int height;
 	for (int i = 0; i < batchSize; i++) {
-		optimizer1->addGradient(weightGradient1[i]);
-		optimizer2->addGradient(weightGradient2[i]);
+		height = numTokens[i];
+		A1[i].setHeight(height);
+		A1Grad[i].setHeight(height);
+		A2[i].setHeight(height);
+		A2Grad[i].setHeight(height);
+		Ao[i].setHeight(height);
+		AoGrad[i].setHeight(height);
 	}
-	optimizer1->applyGradient(weights1, t, learningRate, batchSize);
-	optimizer2->applyGradient(weights2, t, learningRate, batchSize);
+	if (nextLayer != NULL && instanceOf<Layer2D>(nextLayer)) {
+		((Layer2D*)nextLayer)->setNumTokens(numTokens);
+	}
+}
+
+void Gated2D::applyGradients(float learningRate, int t) {
+	optimizer1->condenseGradients();
+	optimizer2->condenseGradients();
+	optimizer1->applyGradient(weights1, t, learningRate);
+	optimizer2->applyGradient(weights2, t, learningRate);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);
 	}

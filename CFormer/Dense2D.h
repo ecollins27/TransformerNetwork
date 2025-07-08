@@ -8,10 +8,10 @@ public:
 
 	Layer2D* prevLayer = NULL;
 
-	Matrix weights;
-	Matrix* weightGradient;
-	Matrix* linearCombo;
-	Matrix* backPropIntermediate;
+	Matrix2 weights;
+	Matrix2* weightGradient;
+	Matrix2* linearCombo;
+	Matrix2* backPropIntermediate;
 
 	Activation* activation;
 	Optimizer* optimizer;
@@ -25,6 +25,7 @@ public:
 	void save(ofstream& file);
 	static void load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize);
 
+	void setNumTokens(int* numTokens);
 	void applyGradients(float learningRate, int t);
 	void setOptimizer(Optimizer* optimizer);
 	int getNumParameters();

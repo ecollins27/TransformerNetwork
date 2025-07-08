@@ -15,8 +15,8 @@ public:
 
 	Activation* activation;
 
-	Matrix means;
-	Matrix backPropIntermediate;
+	Matrix2 means;
+	Matrix2 backPropIntermediate;
 
 	SequenceMean(Activation* activation);
 	~SequenceMean();

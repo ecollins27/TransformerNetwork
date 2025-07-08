@@ -8,9 +8,9 @@ public:
 
 	Layer2D* prevLayer = NULL;
 
-	Matrix mean;
-	Matrix variance;
-	Matrix std;
+	Matrix2 mean;
+	Matrix2 variance;
+	Matrix2 std;
 
 	void propagateLayer(int num);
 	void backPropagate(int num);

@@ -13,40 +13,46 @@ TransformerAttention::TransformerAttention(int numHeads, int keySize, int valueS
 
 void TransformerAttention::propagateLayer(int num) {
 	double scalar = 1.0 / sqrt(keySize);
-	for (int i = 0; i < numHeads; i++) {
-		Matrix::multiplyABtC(numTokens[num], prevSize, keySize, prevLayer->neurons[num], Wq[i], Q[num][i], true);
-		Matrix::multiplyABtC(numTokens[num], prevSize, keySize, prevLayer->neurons[num], Wk[i], K[num][i], true);
-		Matrix::multiplyABtC(numTokens[num], keySize, numTokens[num], Q[num][i], K[num][i], A[num][i], true);
-		A[num][i].scale(numTokens[num], numTokens[num], scalar);
-		softmax->operate(numTokens[num], numTokens[num], A[num][i], A[num][i]);
-		Matrix::multiplyABtC(valueSize, prevSize, numTokens[num], Wv[i], prevLayer->neurons[num], V[num][i], true);
-		Matrix::multiplyABtC(numTokens[num], numTokens[num], valueSize, A[num][i], V[num][i], AcSub[num][i], true);
-	}
-	Matrix::multiplyABtC(numTokens[num], numHeads * valueSize, size, Ac[num], Wo, neurons[num], true);
+	MatrixBatch::multiplyABC(prevLayer->neurons[num], Wq, Q[num], true);
+	MatrixBatch::multiplyAtBC(prevLayer->neurons[num], Wk, K[num], true);
+	MatrixBatch::multiplyABtC(Q[num], K[num], A[num], true);
+	A[num].scale(scalar);
+	softmax->operate(A[num], Ao[num]);
+	MatrixBatch::multiplyAtBC(prevLayer->neurons[num], Wv, V[num], true);
+	MatrixBatch::multiplyABC(Ao[num], V[num], AcSub[num], true);
+	Matrix2::multiplyABC(Ac[num], Wo, neurons[num], true);
+
+
+
+	//MatrixBatch::multiplyABtC(prevLayer->neurons[num], Wq, Q[num], true);
+	//MatrixBatch::multiplyABtC(prevLayer->neurons[num], Wk, K[num], true);
+	//MatrixBatch::multiplyABtC(Q[num], K[num], A[num], true);
+	//A[num].scale(scalar);
+	//softmax->operate(A[num], A[num]);
+	//MatrixBatch::multiplyABtC(Wv, prevLayer->neurons[num], V[num], true);
+	//MatrixBatch::multiplyABtC(A[num], V[num], AcSub[num], true);
+	//Matrix2::multiplyABtC(Ac[num], Wo, neurons[num], true);
 }
 
 void TransformerAttention::backPropagate(int num) {
-	Matrix::multiplyABC(numTokens[num], size, numHeads * valueSize, neuronGradient[num], Wo, AcGrad[num], true);
-	Matrix::multiplyAtBC(size, numTokens[num], numHeads * valueSize, neuronGradient[num], Ac[num], WoGrad[num], true);
-	prevLayer->neuronGradient[num].constantFill(0, numTokens[num], prevSize);
 	float scalar = 1.0 / sqrt(keySize);
-	for (int i = 0; i < numHeads; i++) {
-		Matrix::multiplyABC(numTokens[num], valueSize, numTokens[num], AcSubGrad[num][i], V[num][i], AGrad[num][i], true);
-		Matrix::multiplyAtBC(valueSize, numTokens[num], numTokens[num], AcSubGrad[num][i], A[num][i], VGrad[num][i], true);
-		Matrix::multiplyABC(valueSize, numTokens[num], prevSize, VGrad[num][i], prevLayer->neurons[num], WvGrad[num][i], true);
-		Matrix::multiplyAtBC(numTokens[num], valueSize, prevSize, VGrad[num][i], Wv[i], prevLayer->neuronGradient[num], false);
+	Matrix2::multiplyABtC(Wo, neuronGradient[num], AcGrad[num], true);
+	Matrix2::multiplyABC(Ac[num], neuronGradient[num], WoGrad[num], true);
 
-		softmax->differentiate(numTokens[num], numTokens[num], A[num][i], A[num][i], AGrad[num][i], AGrad[num][i]);
-		Matrix::multiplyABC(numTokens[num], numTokens[num], keySize, AGrad[num][i], K[num][i], QGrad[num][i], true);
-		QGrad[num][i].scale(numTokens[num], keySize, scalar);
-		Matrix::multiplyAtBC(numTokens[num], numTokens[num], keySize, AGrad[num][i], Q[num][i], KGrad[num][i], true);
-		KGrad[num][i].scale(numTokens[num], keySize, scalar);
-
-		Matrix::multiplyABC(numTokens[num], keySize, prevSize, QGrad[num][i], Wq[i], prevLayer->neuronGradient[num], false);
-		Matrix::multiplyAtBC(keySize, numTokens[num], prevSize, QGrad[num][i], prevLayer->neurons[num], WqGrad[num][i], true);
-		Matrix::multiplyABC(numTokens[num], keySize, prevSize, KGrad[num][i], Wk[i], prevLayer->neuronGradient[num], false);
-		Matrix::multiplyAtBC(keySize, numTokens[num], prevSize, KGrad[num][i], prevLayer->neuronGradient[num], WkGrad[num][i], true);
-	}
+	MatrixBatch::multiplyAtBtC(A[num], AcSubGrad[num], VGrad[num], true);
+	MatrixBatch::multiplyAtBtC(AcSubGrad[num], V[num], AoGrad[num], true);
+	MatrixBatch::multiplyABtC(VGrad[num], Wv, prevNeuronGradient[num], true);
+	MatrixBatch::multiplyAtBC(prevLayer->neurons[num], VGrad[num], WvGrad[num], true);
+	softmax->differentiate(A[num], Ao[num], AGrad[num], AoGrad[num]);
+	MatrixBatch::multiplyABC(AGrad[num], K[num], QGrad[num], true);
+	MatrixBatch::multiplyAtBC(AGrad[num], Q[num], KGrad[num], true);
+	QGrad[num].scale(scalar);
+	KGrad[num].scale(scalar);
+	MatrixBatch::multiplyABtC(KGrad[num], Wk, prevNeuronGradient[num], false);
+	MatrixBatch::multiplyAtBC(prevLayer->neurons[num], KGrad[num], WkGrad[num], true);
+	MatrixBatch::multiplyABtC(QGrad[num], Wq, prevNeuronGradient[num], false);
+	MatrixBatch::multiplyAtBC(prevLayer->neurons[num], QGrad[num], WqGrad[num], true);
+	prevNeuronGradient[num].condense(prevLayer->neuronGradient[num]);
 	prevLayer->backPropagate(num);
 }
 
@@ -59,38 +65,49 @@ void TransformerAttention::setPrevLayer(Layer* prevLayer) {
 	size = prevLayer->size;
 	prevSize = prevLayer->size + 1;
 	float std = 1.0 / size;
-	Matrix::NormalFill* normal = new Matrix::NormalFill(0, std);
-	Wq = Matrix::allocateMatrixArray(normal, numHeads, keySize, prevSize, true);
-	Wk = Matrix::allocateMatrixArray(normal, numHeads, keySize, prevSize, true);
-	Wv = Matrix::allocateMatrixArray(normal, numHeads, valueSize, prevSize, true);
-	Wo = Matrix(normal, size, numHeads * valueSize, true);
+	NormalFill normal = NormalFill(0, std);
+	Wq = MatrixBatch(normal, numHeads, keySize, prevSize);
+	Wq.deallocateHost();
+	Wk = MatrixBatch(normal, numHeads, keySize, prevSize);
+	Wk.deallocateHost();
+	Wv = MatrixBatch(normal, numHeads, valueSize, prevSize);
+	Wv.deallocateHost();
+	Wo = Matrix2(normal, numHeads * valueSize, size);
+	Wo.deallocateHost();
 }
 
 void TransformerAttention::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	WqGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, keySize, prevSize, false);
-	WkGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, keySize, prevSize, false);
-	WvGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, valueSize, prevSize, false);
-	WoGrad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, size, numHeads * valueSize, false);
-	K = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, true);
-	KGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, true);
-	Q = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, true);
-	QGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, keySize, true);
-	V = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, valueSize, maxNumTokens, true);
-	VGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, valueSize, maxNumTokens, true);
-	A = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, true);
-	AGrad = Matrix::allocateMatrixArray2D(Matrix::ZERO_FILL, batchSize, numHeads, maxNumTokens, maxNumTokens, true);
-	Ac = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, numHeads * valueSize, true);
-	AcGrad = Matrix::allocateMatrixArray(Matrix::ZERO_FILL, batchSize, maxNumTokens, numHeads * valueSize, true);
-	AcSub = new Matrix * [batchSize];
-	AcSubGrad = new Matrix * [batchSize];
 	for (int i = 0; i < batchSize; i++) {
-		AcSub[i] = new Matrix[numHeads];
-		AcSubGrad[i] = new Matrix[numHeads];
-		for (int j = 0; j < numHeads; j++) {
-			AcSub[i][j] = Ac[i].subMatrix(0, j * valueSize, maxNumTokens, valueSize);
-			AcSubGrad[i][j] = AcGrad[i].subMatrix(0, j * valueSize, maxNumTokens, valueSize);
-		}
+		prevLayer->neurons[i].allocateBatchDevice(batchSize);
+	}
+	WqGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, keySize, false);
+	WkGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, keySize, false);
+	WvGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, valueSize, false);
+	WoGrad = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, size, false);
+
+	outputOptimizer->setBatchSize(batchSize, WoGrad);
+	queryOptimizers->setBatchSize(batchSize, WqGrad);
+	keyOptimizers->setBatchSize(batchSize, WkGrad);
+	valueOptimizers->setBatchSize(batchSize, WvGrad);
+
+	K = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize, false);
+	KGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize, false);
+	Q = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize, false);
+	QGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize, false);
+	V = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, valueSize, false);
+	VGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, valueSize, false);
+	A = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens, false);
+	AGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens, false);
+	Ao = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens, false);
+	AoGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens, false);
+	Ac = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, maxNumTokens, false);
+	AcGrad = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, maxNumTokens, false);
+	AcSub = new MatrixBatch[batchSize];
+	AcSubGrad = new MatrixBatch[batchSize];
+	for (int i = 0; i < batchSize; i++) {
+		AcSub[i] = Ac[i].subMatrixBatch(numHeads, valueSize);
+		AcSubGrad[i] = AcGrad[i].subMatrixBatch(numHeads, valueSize);
 	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
@@ -100,32 +117,40 @@ void TransformerAttention::setBatchSize(int batchSize) {
 void TransformerAttention::save(ofstream& file) {
 	file << LAYER_NAME << ",";
 	file << numHeads << "," << keySize << "," << valueSize << ",\n";
+	Wq.allocateHost();
+	Wk.allocateHost();
+	Wv.allocateHost();
 	for (int i = 0; i < numHeads; i++) {
-		for (int j = 0; j < keySize; j++) {
-			for (int k = 0; k < prevSize; k++) {
-				file << Wq[i](j,k) << ",";
+		for (int j = 0; j < prevSize; j++) {
+			for (int k = 0; k < keySize; k++) {
+				file << Wq(i, j, k) << ",";
 			}
 			file << "\n";
 		}
-		for (int j = 0; j < keySize; j++) {
-			for (int k = 0; k < prevSize; k++) {
-				file << Wk[i](j,k) << ",";
+		for (int j = 0; j < prevSize; j++) {
+			for (int k = 0; k < keySize; k++) {
+				file << Wk(i, j, k) << ",";
 			}
 			file << "\n";
 		}
-		for (int j = 0; j < valueSize; j++) {
-			for (int k = 0; k < prevSize; k++) {
-				file << Wv[i](j,k) << ",";
+		for (int j = 0; j < prevSize; j++) {
+			for (int k = 0; k < valueSize; k++) {
+				file << Wv(i, j, k) << ",";
 			}
 			file << "\n";
 		}
 	}
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < numHeads * valueSize; j++) {
-			file << Wo(i,j) << ",";
+	Wq.deallocateHost();
+	Wk.deallocateHost();
+	Wv.deallocateHost();
+	Wo.allocateHost();
+	for (int i = 0; i < numHeads * valueSize; i++) {
+		for (int j = 0; j < size; j++) {
+			file << Wo(i, j) << ",";
 		}
 		file << "\n";
 	}
+	Wo.deallocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
@@ -137,49 +162,77 @@ void TransformerAttention::load(Model* nn, ifstream& file, string& line, int* co
 	int valueSize = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	TransformerAttention* multiHeadAttentionLayer = { new TransformerAttention(numHeads, keySize, valueSize) };
 	nn->addLayer(multiHeadAttentionLayer);
+	multiHeadAttentionLayer->Wq.allocateHost();
+	multiHeadAttentionLayer->Wk.allocateHost();
+	multiHeadAttentionLayer->Wv.allocateHost();
 	for (int i = 0; i < numHeads; i++) {
-		for (int j = 0; j < keySize; j++) {
+		for (int j = 0; j < *prevSize; j++) {
 			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
-			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wq[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			for (int k = 0; k < keySize; k++) {
+				multiHeadAttentionLayer->Wq(i, j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
-		for (int j = 0; j < keySize; j++) {
+		for (int j = 0; j < *prevSize; j++) {
 			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
-			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wk[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			for (int k = 0; k < keySize; k++) {
+				multiHeadAttentionLayer->Wk(i, j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
-		for (int j = 0; j < valueSize; j++) {
+		for (int j = 0; j < *prevSize; j++) {
 			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
-			for (int k = 0; k < *prevSize; k++) {
-				multiHeadAttentionLayer->Wv[i].r(j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			for (int k = 0; k < valueSize; k++) {
+				multiHeadAttentionLayer->Wv(i, j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
 			}
 		}
 	}
-	for (int i = 0; i < *prevSize - 1; i++) {
+	multiHeadAttentionLayer->Wq.deallocateHost();
+	multiHeadAttentionLayer->Wk.deallocateHost();
+	multiHeadAttentionLayer->Wv.deallocateHost();
+	multiHeadAttentionLayer->Wo.allocateHost();
+	for (int i = 0; i < numHeads * valueSize; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
-		for (int j = 0; j < numHeads * valueSize; j++) {
-			multiHeadAttentionLayer->Wo.r(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		for (int j = 0; j < *prevSize - 1; j++) {
+			multiHeadAttentionLayer->Wo(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
 		}
+	}
+	multiHeadAttentionLayer->Wo.deallocateHost();
+}
+
+void TransformerAttention::setNumTokens(int* numTokens) {
+	this->numTokens = numTokens;
+	updateNeuronDimensions();
+	for (int i = 0; i < batchSize; i++) {
+		prevNeuronGradient[i].setHeight(numTokens[i]);
+		prevNeuronGradient[i].constantFill(0);
+		K[i].setHeight(numTokens[i]);
+		KGrad[i].setHeight(numTokens[i]);
+		Q[i].setHeight(numTokens[i]);
+		QGrad[i].setHeight(numTokens[i]);
+		V[i].setWidth(numTokens[i]);
+		VGrad[i].setWidth(numTokens[i]);
+		A[i].setDims(numTokens[i], numTokens[i]);
+		AGrad[i].setDims(numTokens[i], numTokens[i]);
+		Ao[i].setDims(numTokens[i], numTokens[i]);
+		AoGrad[i].setDims(numTokens[i], numTokens[i]);
+		Ac[i].setWidth(numTokens[i]);
+		AcGrad[i].setWidth(numTokens[i]);
+		AcSub[i].setWidth(numTokens[i]);
+		AcSubGrad[i].setWidth(numTokens[i]);
+	}
+	if (nextLayer != NULL && instanceOf<Layer2D>(nextLayer)) {
+		((Layer2D*)nextLayer)->setNumTokens(numTokens);
 	}
 }
 
 void TransformerAttention::applyGradients(float learningRate, int t) {
-	for (int i = 0; i < batchSize; i++) {
-		outputOptimizer->addGradient(WoGrad[i]);
-		for (int j = 0; j < numHeads; j++) {
-			keyOptimizers[j]->addGradient(WkGrad[i][j]);
-			queryOptimizers[j]->addGradient(WqGrad[i][j]);
-			valueOptimizers[j]->addGradient(WvGrad[i][j]);
-		}
-	}
-	outputOptimizer->applyGradient(Wo, t, learningRate, batchSize);
-	for (int i = 0; i < numHeads; i++) {
-		queryOptimizers[i]->applyGradient(Wq[i], t, learningRate, batchSize);
-		keyOptimizers[i]->applyGradient(Wk[i], t, learningRate, batchSize);
-		valueOptimizers[i]->applyGradient(Wv[i], t, learningRate, batchSize);
-	}
+	outputOptimizer->condenseGradients();
+	keyOptimizers->condenseGradients();
+	queryOptimizers->condenseGradients();
+	valueOptimizers->condenseGradients();
+	outputOptimizer->applyGradient(Wo, t, learningRate);
+	queryOptimizers->applyGradient(Wq, t, learningRate);
+	keyOptimizers->applyGradient(Wk, t, learningRate);
+	valueOptimizers->applyGradient(Wv, t, learningRate);
 	if (nextLayer != NULL) {
 		nextLayer->applyGradients(learningRate, t);
 	}
@@ -187,18 +240,13 @@ void TransformerAttention::applyGradients(float learningRate, int t) {
 
 void TransformerAttention::setOptimizer(Optimizer* optimizer) {
 	outputOptimizer = optimizer->clone();
-	outputOptimizer->setDimensions(size, numHeads * valueSize);
-	queryOptimizers = new Optimizer * [numHeads];
-	keyOptimizers = new Optimizer * [numHeads];
-	valueOptimizers = new Optimizer * [numHeads];
-	for (int i = 0; i < numHeads; i++) {
-		queryOptimizers[i] = optimizer->clone();
-		queryOptimizers[i]->setDimensions(keySize, prevSize);
-		keyOptimizers[i] = optimizer->clone();
-		keyOptimizers[i]->setDimensions(keySize, prevSize);
-		valueOptimizers[i] = optimizer->clone();
-		valueOptimizers[i]->setDimensions(valueSize, prevSize);
-	}
+	outputOptimizer->setDimensions(numHeads * valueSize, size);
+	queryOptimizers = optimizer->cloneBatch();
+	queryOptimizers->setDimensions(numHeads, prevSize, keySize);
+	keyOptimizers = optimizer->cloneBatch();
+	keyOptimizers->setDimensions(numHeads, prevSize, keySize);
+	valueOptimizers = optimizer->cloneBatch();
+	valueOptimizers->setDimensions(numHeads, prevSize, valueSize);
 	if (nextLayer != NULL) {
 		nextLayer->setOptimizer(optimizer);
 	}

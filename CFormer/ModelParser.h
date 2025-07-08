@@ -15,7 +15,7 @@
 #include "Gated2D.h"
 #include "Input2D.h"
 #include "LayerNormalization2D.h"
-#include "LinformerAttention.h"
+
 #include "TransformerAttention.h"
 #include "PositionalEncoding2D.h"
 #include "ResidualAdd2D.h"

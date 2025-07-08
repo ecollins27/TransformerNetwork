@@ -8,10 +8,10 @@ public:
 
 	Layer1D* prevLayer = NULL;
 
-	Matrix weights;
-	Matrix weightGradient;
-	Matrix linearCombo;
-	Matrix backPropIntermediate;
+	Matrix2 weights;
+	Matrix2 weightGradient;
+	Matrix2 linearCombo;
+	Matrix2 backPropIntermediate;
 
 	Activation* activation;
 	Optimizer* optimizer;

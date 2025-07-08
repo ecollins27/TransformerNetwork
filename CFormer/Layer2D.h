@@ -1,5 +1,6 @@
 #pragma once
 #include "Layer.h"
+#include "Matrix2.h"
 
 class Layer2D : public Layer {
 
@@ -7,11 +8,12 @@ public:
 	int maxNumTokens;
 	int* numTokens;
 
-	Matrix* neurons;
-	Matrix* neuronGradient;
+	Matrix2* neurons;
+	Matrix2* neuronGradient;
 
 	virtual void setNumTokens(int* numTokens) {
 		this->numTokens = numTokens;
+		updateNeuronDimensions();
 		if (nextLayer != NULL && instanceOf<Layer2D>(nextLayer)){
 			((Layer2D*)nextLayer)->setNumTokens(numTokens);
 		}
@@ -25,6 +27,7 @@ public:
 	}
 
 	void initNeurons(int batchSize);
+	void updateNeuronDimensions();
 
 	virtual void setBatchSize(int batchSize) {
 		initNeurons(batchSize);

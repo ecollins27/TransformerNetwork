@@ -10,18 +10,15 @@ Input1D::~Input1D() {
 }
 
 void Input1D::setInput(float** input) {
-	for (int i = 0; i < batchSize; i++) {
-		for (int j = 0; j < size; j++) {
-			neurons.r(i, j) = input[i][j];
-		}
-	}
+	neurons.copy(input);
 }
 
 void Input1D::setSparseInput(int* input) {
-	neurons.constantFill(0, batchSize, size);
+	neurons.constantFill(0);
 	for (int i = 0; i < batchSize; i++) {
-		neurons.r(i, input[i]) = 1;
+		neurons(i, input[i]) = 1;
 	}
+	neurons.copyToDevice();
 }
 
 void Input1D::propagateLayer(int num) {
@@ -38,6 +35,7 @@ void Input1D::setPrevLayer(Layer* prevLayer) {
 
 void Input1D::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
+	neurons.allocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}

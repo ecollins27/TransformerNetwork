@@ -5,7 +5,6 @@
 #include <thread>
 #include <functional>
 #include "Dataset.h"
-#include "LinformerAttention.h"
 #include "Model.h"
 #include <chrono>
 
@@ -34,7 +33,6 @@ public:
 
 	int getNumParameters();
 	void addTransformer(int numHeads, int keySize, int valueSize);
-	void addLinformer(int numHeads, int keySize, int valueSize, int projSize);
 
 	void fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params);
 	void test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics);

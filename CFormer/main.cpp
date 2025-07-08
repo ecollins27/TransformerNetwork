@@ -9,7 +9,6 @@
 #include "MatrixBatch.h"
 #include <typeinfo>
 #include <thread>
-#include "MatrixKernel.h"
 
 using namespace std::chrono;
 
@@ -97,10 +96,10 @@ long timeFunction(string header, Function function, Params... params) {
 	return duration.count();
 }
 
-bool areSimiliar(int m, int p, Matrix& A, MatrixBatch& B) {
+bool areSimiliar(int m, int p, Matrix& A, Matrix2& B) {
 	for (int i = 0; i < m; i++) {
 		for (int j = 0; j < p; j++) {
-			if (abs(((A(i, j) - B(0, i, j)) / A(i, j))) > 0.001) {
+			if (abs(((A(i, j) - B(i, j)) / A(i, j))) > 0.001) {
 				return false;
 			}
 		}
@@ -108,170 +107,91 @@ bool areSimiliar(int m, int p, Matrix& A, MatrixBatch& B) {
 	return true;
 }
 
-__global__
-void customKernel(float** A, float** B, int N) {
-	int n = blockIdx.x * blockDim.x + threadIdx.x;
-	int batch = blockIdx.y;
-
-	if (n < N) {
-		B[batch][n] = A[batch][n] - 1;
+void allocateMatrices(int m, int n, int p, Matrix& A1, Matrix2& A2, Matrix& B1, Matrix2& B2, bool t1, bool t2) {
+	if (t1) {
+		A1 = Matrix(Matrix::ZERO_FILL, n, m, true);
+		A2 = Matrix2(n, m, true);
 	}
-}
-
-int main() {
-	cublasCreate(&Matrix2::HANDLE);
-	cublasCreate(&MatrixBatch::HANDLE);
-	int batchSize = 10;
-	int m = 10, n1 = 5, n2 = 8, p = 5;
-	Matrix A1(Matrix::ZERO_FILL, m, n1, true);
-	MatrixBatch A2(batchSize, m, n1, true);
-	Matrix B1(Matrix::ZERO_FILL, n2, p, true);
-	MatrixBatch B2(batchSize, n2, p, true);
-	Matrix C1(Matrix::ZERO_FILL, m, n2, true);
-	MatrixBatch C2(FillFunction::ZERO_FILL, batchSize, m, n2);
-	for (int j = 0; j < n1; j++) {
-		for (int i = 0; i < m; i++) {
-			A1.r(i, j) = (i * n1 + j) / (float)n1;
-			for (int k = 0; k < batchSize; k++) {
-				A2(k, i, j) = A1(i, j);
-			}
+	else {
+		A1 = Matrix(Matrix::ZERO_FILL, m, n, true);
+		A2 = Matrix2(m, n, true);
+	}
+	if (t2) {
+		B1 = Matrix(Matrix::ZERO_FILL, p, n, true);
+		B2 = Matrix2(p, n, true);
+	}
+	else {
+		B1 = Matrix(Matrix::ZERO_FILL, n, p, true);
+		B2 = Matrix2(n, p, true);
+	}
+	for (int i = 0; i < A2.height; i++) {
+		for (int j = 0; j < A2.width; j++) {
+			A1.r(i, j) = i * A2.width + j;
+			A2(i, j) = A1(i, j);
 		}
 	}
-	for (int j = 0; j < n2; j++){
-		for (int k = 0; k < p; k++) {
-			B1.r(j, k) = (n2 * p - j * p - k) / (float)p;
-			for (int i = 0; i < batchSize; i++) {
-				B2(i, j, k) = B1(j, k);
-			}
+	for (int i = 0; i < B2.height; i++) {
+		for (int j = 0; j < B2.width; j++) {
+			B1.r(i, j) = B2.length - i * B2.width - j;
+			B2(i, j) = B1(i, j);
 		}
 	}
 	A2.copyToDevice();
 	B2.copyToDevice();
-	Matrix::multiplyABtC(m, n1, n2, A1, B1, C1, true);
-	MatrixBatch::multiplyABtC(A2, B2, C2, true);
-	if (areSimiliar(m, n2, C1, C2)) {
-		printf("AtBtC Equal\n");
+}
+
+int main() {
+	cublasCreate(&MatrixBatch::HANDLE);
+	int batchSize = 10;
+	int m = 10, n = 5, p = 6;
+	Matrix A1, B1;
+	Matrix2 A2, B2;
+	Matrix C1(Matrix::ZERO_FILL, m, p, true);
+	Matrix2 C2(m, p, true);
+
+	allocateMatrices(m, n, p, A1, A2, B1, B2, false, false);
+
+	Matrix::multiplyABC(m, n, p, A1, B1, C1, true);
+	Matrix2::multiplyABC(A2, B2, C2, true);
+	if (areSimiliar(m, p, C1, C2)) {
+		printf("ABC Multiply Correct\n");
 	}
 	else {
-		printf("AtBtC Not Equal\n");
-		C1.print(m, n2);
-		printf("\n");
-		C2.print();
+		printf("ABC Multiply Incorrect\n");
 	}
-	A2.sqrt(A2);
-	A2.print();
-	MatrixKernel::runElementKernelBatched(batchSize, m ,n1, 0, customKernel, A2.device, A2.device, A2.height * A2.width);
-	A2.copyToHost();
-	A2.print();
-}
 
+	allocateMatrices(m, n, p, A1, A2, B1, B2, true, false);
 
-int main1() {
-	int numData = 10000;
-	int valData = 1000;
-	string* reviews = new string[numData];
-	string* valReviews = new string[valData];
-	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
-	float** yVal = Matrix::allocateMatrix(Matrix::ZERO_FILL, valData, 2);
-	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\IMDB Dataset.csv", reviews, y, 0, numData);
-	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\IMDB Dataset.csv", valReviews, yVal, numData, valData);
-	BytePairTokenizer tokenizer("imdb_tokens.txt");
-
-	printf("Size: %d\n", reviews[0].length());
-	int* numTokens = new int[numData];
-	int* valNumTokens = new int[valData];
-	int** X = tokenizer.toSparseTokens(numData, reviews, numTokens);
-	int** XVal = tokenizer.toSparseTokens(valData, valReviews, valNumTokens);
-
-	unsigned int maxReviewSize = 0;
-	for (int i = 0; i < numData; i++) {
-		if (reviews[i].length() > maxReviewSize) {
-			maxReviewSize = reviews[i].length();
-		}
+	Matrix::multiplyAtBC(m, n, p, A1, B1, C1, true);
+	Matrix2::multiplyAtBC(A2, B2, C2, true);
+	if (areSimiliar(m, p, C1, C2)) {
+		printf("AtBC Multiply Correct\n");
 	}
-	printf("MaxReviewSize: %d\n", maxReviewSize);
-
-	Model2DTo1D* model = new Model2DTo1D(1000);
-	model->addLayer(new Dense2D(Activation::NONE, 500));
-	model->addLayer(new Dense2D(Activation::NONE, 300));
-	model->addLayer(new Dense2D(Activation::NONE, 100));
-	model->addLayer(new PositionalEncoding2D());
-	//model->addTransformerBlock(20, 100, 50);
-	//model->addTransformerBlock(20, 100, 30);
-	model->addLinformer(20, 100, 10, 10);
-	model->addLinformer(20, 100, 10, 10);
-	model->addLayer(new Dense2D(Activation::SWISH, 75));
-	model->addLayer(new SequenceMean(Activation::NONE));
-	model->addLayer(new Dense1D(Activation::SWISH, 20));
-	model->addLayer(new Dense1D(Activation::SOFTMAX, 2));
-
-	TrainingParams* params = new TrainingParams(0.00001f, Model2DTo1D::NUM_CORES, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
-	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D() }, params);
-	model->save("linformer.txt");
-	return 0;
-}
-
-int main2(int argc, char* args[]) {
-	int numData = 10000;
-	int valData = 1000;
-	string* reviews = new string[numData];
-	string* valReviews = new string[valData];
-	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
-	float** yVal = Matrix::allocateMatrix(Matrix::ZERO_FILL, valData, 2);
-	getIMDBData(string(args[1]), reviews, y, 0, numData);
-	getIMDBData(string(args[1]), valReviews, yVal, numData, valData);
-	string tokenPath(args[2]);
-	BytePairTokenizer tokenizer(tokenPath);
-
-	int* numTokens = new int[numData];
-	int* valNumTokens = new int[valData];
-	int** X = tokenizer.toSparseTokens(numData, reviews, numTokens);
-	int** XVal = tokenizer.toSparseTokens(valData, valReviews, valNumTokens);
-
-	unsigned int maxReviewSize = 0;
-	for (int i = 0; i < numData; i++) {
-		if (reviews[i].length() > maxReviewSize) {
-			maxReviewSize = reviews[i].length();
-		}
+	else {
+		printf("AtBC Multiply Incorrect\n");
 	}
-	printf("MaxReviewSize: %d\n", maxReviewSize);
 
-	printf("Constructing Model:\n");
-	Model2DTo1D* model = new Model2DTo1D(1000);
-	model->addLayer(new Dense2D(Activation::NONE, 500));
-	model->addLayer(new Dense2D(Activation::NONE, 300));
-	model->addLayer(new Dense2D(Activation::NONE, 100));
-	model->addLayer(new PositionalEncoding2D());
-	//model->addTransformerBlock(20, 100, 50);
-	//model->addTransformerBlock(20, 100, 30);
-	model->addLinformer(20, 100, 10, 10);
-	model->addLinformer(20, 100, 10, 10);
-	model->addLayer(new Dense2D(Activation::SWISH, 75));
-	model->addLayer(new SequenceMean(Activation::NONE));
-	model->addLayer(new Dense1D(Activation::SWISH, 20));
-	model->addLayer(new Dense1D(Activation::SOFTMAX, 2));
+	allocateMatrices(m, n, p, A1, A2, B1, B2, true, true);
 
-	TrainingParams* params = new TrainingParams(0.00001f, Model2DTo1D::NUM_CORES, 5, 0.1f, Optimizer::ADEMAMIX, new Dataset(valData, valNumTokens, XVal, yVal, true));
+	Matrix::multiplyAtBtC(m, n, p, A1, B1, C1, true);
+	Matrix2::multiplyAtBtC(A2, B2, C2, true);
+	if (areSimiliar(m, p, C1, C2)) {
+		printf("AtBtC Multiply Correct\n");
+	}
+	else {
+		printf("AtBtC Multiply Incorrect\n");
+	}
 
-	printf("Training Model:\n");
-	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D() }, params);
-	model->save("linformer.txt");
-	return 0;
-}
+	allocateMatrices(m, n, p, A1, A2, B1, B2, false, true);
 
-int main3() {
-	int numData = 1000;
-	string* reviews = new string[numData];
-	float** y = Matrix::allocateMatrix(Matrix::ZERO_FILL, numData, 2);
-	getIMDBData("C:\\Users\\Owner\\OneDrive\\Desktop\\IMDB Dataset.csv", reviews, y, 2000, numData);
-
-	BytePairTokenizer tokenizer("imdb_tokens.txt");
-	int* numTokens = new int[numData];
-	int** X = tokenizer.toSparseTokens(numData, reviews, numTokens);
-
-	Model2DTo1D* model = (Model2DTo1D*)ModelParser::parseModel("linformer.txt");
-	model->test(new CategoricalCrossEntropy1D(), new Dataset(numData, numTokens, X, y, true), 1, new Loss1D * [1] { new Accuracy1D() });
-	return 0;
+	Matrix::multiplyABtC(m, n, p, A1, B1, C1, true);
+	Matrix2::multiplyABtC(A2, B2, C2, true);
+	if (areSimiliar(m, p, C1, C2)) {
+		printf("ABtC Multiply Correct\n");
+	}
+	else {
+		printf("ABtC Multiply Incorrect\n");
+	}
 }
 
 // TODO:

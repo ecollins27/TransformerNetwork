@@ -21,6 +21,8 @@ void getMNIST(string fileName, float** X, float** y, int num) {
 		istringstream ss(line);
 		int j = 0;
 		string n;
+		X[i] = new float[784];
+		y[i] = new float[10];
 		for (int k = 0; k < 10; k++) {
 			y[i][k] = 0;
 		}
@@ -142,56 +144,22 @@ void allocateMatrices(int m, int n, int p, Matrix& A1, Matrix2& A2, Matrix& B1, 
 
 int main() {
 	cublasCreate(&MatrixBatch::HANDLE);
-	int batchSize = 10;
-	int m = 10, n = 5, p = 6;
-	Matrix A1, B1;
-	Matrix2 A2, B2;
-	Matrix C1(Matrix::ZERO_FILL, m, p, true);
-	Matrix2 C2(m, p, true);
 
-	allocateMatrices(m, n, p, A1, A2, B1, B2, false, false);
+	string filePath = "";
+	int numData = 60000;
+	float** X = new float* [numData];
+	float** y = new float* [numData];
+	getMNIST(filePath, X, y, numData);
 
-	Matrix::multiplyABC(m, n, p, A1, B1, C1, true);
-	Matrix2::multiplyABC(A2, B2, C2, true);
-	if (areSimiliar(m, p, C1, C2)) {
-		printf("ABC Multiply Correct\n");
-	}
-	else {
-		printf("ABC Multiply Incorrect\n");
-	}
+	Model1D* model = new Model1D(784);
+	model->addLayer(new Dense1D(Activation::SWISH, 300));
+	model->addLayer(new Dense1D(Activation::SWISH, 100));
+	model->addLayer(new Dense1D(Activation::SWISH, 30));
+	model->addLayer(new Dense1D(Activation::SOFTMAX, 10));
 
-	allocateMatrices(m, n, p, A1, A2, B1, B2, true, false);
-
-	Matrix::multiplyAtBC(m, n, p, A1, B1, C1, true);
-	Matrix2::multiplyAtBC(A2, B2, C2, true);
-	if (areSimiliar(m, p, C1, C2)) {
-		printf("AtBC Multiply Correct\n");
-	}
-	else {
-		printf("AtBC Multiply Incorrect\n");
-	}
-
-	allocateMatrices(m, n, p, A1, A2, B1, B2, true, true);
-
-	Matrix::multiplyAtBtC(m, n, p, A1, B1, C1, true);
-	Matrix2::multiplyAtBtC(A2, B2, C2, true);
-	if (areSimiliar(m, p, C1, C2)) {
-		printf("AtBtC Multiply Correct\n");
-	}
-	else {
-		printf("AtBtC Multiply Incorrect\n");
-	}
-
-	allocateMatrices(m, n, p, A1, A2, B1, B2, false, true);
-
-	Matrix::multiplyABtC(m, n, p, A1, B1, C1, true);
-	Matrix2::multiplyABtC(A2, B2, C2, true);
-	if (areSimiliar(m, p, C1, C2)) {
-		printf("ABtC Multiply Correct\n");
-	}
-	else {
-		printf("ABtC Multiply Incorrect\n");
-	}
+	TrainingParams* params = TrainingParams::DEFAULT->with<TrainingParams::NUM_EPOCHS>(10);
+	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, X, y, false), 1, new Loss1D*[1]{new Accuracy1D()}, params);
+	model->save("mnist.model");
 }
 
 // TODO:

@@ -14,7 +14,7 @@ MatrixBatch::MatrixBatch(int batchSize, int height, int width, bool allocateHost
 	this->width = width;
 	cudaError_t err = cudaMalloc(&device, batchSize * sizeof(float*));
 	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
+		throw runtime_error(string("CUDA memory allocation failed: ") + cudaGetErrorString(err));
 	}
 	err = cudaMallocHost(&hostDevice, batchSize * sizeof(float*));
 	for (int i = 0; i < batchSize; i++) {
@@ -37,24 +37,54 @@ MatrixBatch::MatrixBatch(FillFunction& fillFunction, int batchSize, int height, 
 	this->width = width;
 	cudaError_t err = cudaMalloc(&device, batchSize * sizeof(float*));
 	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
+		throw runtime_error(string("CUDA memory allocation failed: ") + cudaGetErrorString(err));
 	}
 	err = cudaMallocHost(&hostDevice, batchSize * sizeof(float*));
 	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
+		throw runtime_error(string("CUDA memory allocation failed: ") + cudaGetErrorString(err));
 	}
 	for (int i = 0; i < batchSize; i++) {
 		err = cudaMalloc(&hostDevice[i], maxLength * sizeof(float));
 		if (err != cudaSuccess) {
-			throw runtime_error("CUDA memory allocation failed");
+			throw runtime_error(string("CUDA memory allocation failed: ") + cudaGetErrorString(err));
 		}
 	}
 	err = cudaMemcpy(device, hostDevice, batchSize * sizeof(float*), cudaMemcpyHostToDevice);
 	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory copy failed");
+		throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 	}
 	allocateHost();
 	fill(fillFunction);
+}
+
+void MatrixBatch::free() {
+	cudaError_t err;
+	if (host != NULL) {
+		for (int i = 0; i < batchSize; i++) {
+			err = cudaFreeHost(host[i]);
+			if (err != cudaSuccess) {
+				throw runtime_error(string("CUDA memory deallocation failed: ") + cudaGetErrorString(err));
+			}
+		}
+		err = cudaFreeHost(host);
+		if (err != cudaSuccess) {
+			throw runtime_error(string("CUDA memory deallocation failed: ") + cudaGetErrorString(err));
+		}
+	}
+	for (int i = 0; i < batchSize; i++) {
+		err = cudaFree(hostDevice[i]);
+		if (err != cudaSuccess) {
+			throw runtime_error(string("CUDA memory deallocation failed: ") + cudaGetErrorString(err));
+		}
+	}
+	err = cudaFreeHost(hostDevice);
+	if (err != cudaSuccess) {
+		throw runtime_error(string("CUDA memory deallocation failed: ") + cudaGetErrorString(err));
+	}
+	err = cudaFree(device);
+	if (err != cudaSuccess) {
+		throw runtime_error(string("CUDA memory deallocation failed: ") + cudaGetErrorString(err));
+	}
 }
 
 int MatrixBatch::e(int i, int j) {
@@ -169,7 +199,7 @@ void MatrixBatch::allocateHost() {
 	for (int i = 0; i < batchSize; i++) {
 		err = cudaMallocHost(&host[i], maxLength * sizeof(float));
 		if (err != cudaSuccess) {
-			throw runtime_error("CUDA memory allocation failed");
+			throw runtime_error(string("CUDA memory allocation failed: ") + cudaGetErrorString(err));
 		}
 	}
 	copyToHost();
@@ -181,12 +211,12 @@ void MatrixBatch::deallocateHost() {
 	for (int i = 0; i < batchSize; i++) {
 		cudaFreeHost(&host[i]);
 		if (err != cudaSuccess) {
-			throw runtime_error("CUDA memory deallocation failed");
+			throw runtime_error(string("CUDA memory deallocation failed: ") + cudaGetErrorString(err));
 		}
 	}
 	err = cudaFreeHost(&host);
 	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory deallocation failed");
+		throw runtime_error(string("CUDA memory deallocation failed: ") + cudaGetErrorString(err));
 	}
 	host = NULL;
 }
@@ -196,7 +226,7 @@ void MatrixBatch::copyToDevice() {
 	for (int i = 0; i < batchSize; i++) {
 		err = cudaMemcpy(hostDevice[i], host[i], length * sizeof(float), cudaMemcpyHostToDevice);
 		if (err != cudaSuccess) {
-			throw runtime_error("CUDA memory copy failed");
+			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
 }
@@ -209,7 +239,7 @@ void MatrixBatch::copyToHost() {
 	for (int i = 0; i < batchSize; i++) {
 		err = cudaMemcpy(host[i], hostDevice[i], length * sizeof(float), cudaMemcpyDeviceToHost);
 		if (err != cudaSuccess) {
-			throw runtime_error("CUDA memory copy failed");
+			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
 }
@@ -219,11 +249,11 @@ void MatrixBatch::copy(float* matrix) {
 	for (int i = 0; i < batchSize; i++) {
 		err = cudaMemcpy(host[i], matrix, length * sizeof(float), cudaMemcpyHostToHost);
 		if (err != cudaSuccess) {
-			throw runtime_error("CUDA memory copy failed");
+			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 		err = cudaMemcpy(hostDevice[i], matrix, length * sizeof(float), cudaMemcpyHostToDevice);
 		if (err != cudaSuccess) {
-			throw runtime_error("CUDA memory copy failed");
+			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
 }
@@ -233,7 +263,7 @@ void MatrixBatch::copy(MatrixBatch& B) {
 	for (int i = 0; i < batchSize; i++) {
 		err = cudaMemcpy(hostDevice[i], B.hostDevice[i], length * sizeof(float), cudaMemcpyDeviceToDevice);
 		if (err != cudaSuccess) {
-			throw runtime_error("CUDA memory copy failed");
+			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
 	copyToHost();
@@ -333,7 +363,7 @@ void MatrixBatch::multiplyABC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C, bo
 	//cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width, C.batchSize);
 	cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, A.height, B.width, A.width, &ALPHA, A.device, A.height, B.device, B.height, &(overwrite ? BETA0 : BETA1), C.device, C.height, C.batchSize);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
-		throw std::runtime_error("cuBLAS multiplication failed");
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
 	}
 	C.copyToHost();
 }
@@ -342,7 +372,7 @@ void MatrixBatch::multiplyABC(Matrix2& A, MatrixBatch& B, MatrixBatch& C, bool o
 	//cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, B.width, A.height, A.width, &ALPHA, B.device, B.width, A.batchDevice, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width, C.batchSize);
 	cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, A.height, B.width, A.width, &ALPHA, A.batchDevice, A.height, B.device, B.height, &(overwrite ? BETA0 : BETA1), C.device, C.height, C.batchSize);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
-		throw std::runtime_error("cuBLAS multiplication failed");
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
 	}
 	C.copyToHost();
 }
@@ -351,7 +381,7 @@ void MatrixBatch::multiplyAtBC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C, b
 	//cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, B.width, A.width, A.height, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width, C.batchSize);
 	cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, A.width, B.width, A.height, &ALPHA, A.device, A.height, B.device, B.height, &(overwrite ? BETA0 : BETA1), C.device, C.height, C.batchSize);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
-		throw std::runtime_error("cuBLAS multiplication failed");
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
 	}
 	C.copyToHost();
 }
@@ -360,7 +390,7 @@ void MatrixBatch::multiplyAtBC(Matrix2& A, MatrixBatch& B, MatrixBatch& C, bool 
 	//cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, B.width, A.width, A.height, &ALPHA, B.device, B.width, A.batchDevice, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width, C.batchSize);
 	cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, A.width, B.width, A.height, &ALPHA, A.batchDevice, A.height, B.device, B.height, &(overwrite ? BETA0 : BETA1), C.device, C.height, C.batchSize);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
-		throw std::runtime_error("cuBLAS multiplication failed");
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
 	}
 	C.copyToHost();
 }
@@ -369,7 +399,7 @@ void MatrixBatch::multiplyAtBtC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C, 
 	//cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_T, CUBLAS_OP_T, B.height, A.width, A.height, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width, C.batchSize);
 	cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_T, CUBLAS_OP_T, A.width, B.height, A.height, &ALPHA, A.device, A.height, B.device, B.height, &(overwrite ? BETA0 : BETA1), C.device, C.height, C.batchSize);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
-		throw std::runtime_error("cuBLAS multiplication failed");
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
 	}
 	C.copyToHost();
 }
@@ -378,7 +408,7 @@ void MatrixBatch::multiplyABtC(MatrixBatch& A, MatrixBatch& B, MatrixBatch& C, b
 	//cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, B.height, A.height, A.width, &ALPHA, B.device, B.width, A.device, A.width, &(overwrite ? BETA0 : BETA1), C.device, C.width, C.batchSize);
 	cublasStatus_t stat = cublasSgemmBatched(HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, A.height, B.height, A.width, &ALPHA, A.device, A.height, B.device, B.height, &(overwrite ? BETA0 : BETA1), C.device, C.height, C.batchSize);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
-		throw std::runtime_error("cuBLAS multiplication failed");
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
 	}
 	C.copyToHost();
 }

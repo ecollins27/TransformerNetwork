@@ -29,7 +29,7 @@ public:
 	Matrix2() {};
 	Matrix2(int height, int width, bool allocateHost);
 	Matrix2(FillFunction& fillFunction, int height, int width);
-	~Matrix2();
+	void free();
 	int e(int i, int j);
 	float& operator()(int i, int j);
 	void fill(FillFunction& fillFunction);

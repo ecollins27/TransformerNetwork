@@ -27,6 +27,7 @@ public:
 	MatrixBatch() {};
 	MatrixBatch(int batchSize, int height, int width, bool allocateHost);
 	MatrixBatch(FillFunction& fillFunction, int batchSize, int height, int width);
+	void free();
 	int e(int i, int j);
 	float& operator()(int i, int j, int k);
 	void fill(FillFunction& fillFunction);

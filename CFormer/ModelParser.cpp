@@ -1,6 +1,6 @@
 #include "ModelParser.h"
 
-float ModelParser::getNextFloat(string line, int* commaIndex, int* newCommaIndex) {
+float ModelParser::getNextfloat(string line, int* commaIndex, int* newCommaIndex) {
 	float value = stof(line.substr(*commaIndex + 1, *newCommaIndex - *commaIndex - 1));
 	*commaIndex = *newCommaIndex;
 	*newCommaIndex = line.find_first_of(",", *commaIndex + 1);
@@ -36,16 +36,19 @@ Activation* ModelParser::readActivation(string& line, int* commaIndex, int* newC
 		return { new Relu() };
 	}
 	else if (activationName.compare("Elu") == 0) {
-		return { new Elu(getNextFloat(line,commaIndex, newCommaIndex)) };
+		return { new Elu(getNextfloat(line,commaIndex, newCommaIndex)) };
 	}
 	else if (activationName.compare("Selu") == 0) {
 		return { new Selu() };
+	}
+	else if (activationName.compare("Loglu") == 0) {
+		return { new Loglu(getNextfloat(line, commaIndex, newCommaIndex)) };
 	}
 	else if (activationName.compare("Tanh") == 0) {
 		return { new Tanh() };
 	}
 	else if (activationName.compare("Swish") == 0) {
-		return { new Swish() };
+		return { new Swish(getNextfloat(line, commaIndex, newCommaIndex)) };
 	}
 	else if (activationName.compare("Softmax") == 0) {
 		return { new Softmax() };

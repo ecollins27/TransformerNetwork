@@ -77,7 +77,7 @@ void Dropout2D::save(ofstream& file) {
 }
 
 void Dropout2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
-	Dropout2D* dropout = { new Dropout2D(ModelParser::getNextFloat(line, commaIndex, newCommaIndex)) };
+	Dropout2D* dropout = { new Dropout2D(ModelParser::getNextfloat(line, commaIndex, newCommaIndex)) };
 	nn->addLayer(dropout);
 }
 

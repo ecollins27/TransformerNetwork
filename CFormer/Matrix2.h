@@ -44,8 +44,9 @@ public:
 	void copyToDevice();
 	void copyToHost();
 	void copy(float* matrix);
-	void copy(float** matrix);
+	void copy(int height, int width, float** matrix);
 	void copy(Matrix2& B);
+	void copyTo(Matrix2& B);
 	void transpose(Matrix2& B, int N);
 	void setDims(int height, int width);
 	void setHeight(int height);

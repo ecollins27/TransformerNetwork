@@ -15,6 +15,9 @@ using namespace std::chrono;
 void getMNIST(string fileName, float** X, float** y, int num) {
 	string line;
 	ifstream file(fileName);
+	if (file.fail()) {
+		throw invalid_argument("Specified file does not exist");
+	}
 	int i = 0;
 	while (i < num && getline(file, line)) {
 		printf("\r%f", 100 * (float)i / (num));
@@ -98,69 +101,60 @@ long timeFunction(string header, Function function, Params... params) {
 	return duration.count();
 }
 
-bool areSimiliar(int m, int p, Matrix& A, Matrix2& B) {
-	for (int i = 0; i < m; i++) {
-		for (int j = 0; j < p; j++) {
-			if (abs(((A(i, j) - B(i, j)) / A(i, j))) > 0.001) {
-				return false;
+void getDummyData(int numData, float** X, float** y) {
+	NormalFill normalFill(0, 1);
+	for (int i = 0; i < numData; i++) {
+		X[i] = new float[784];
+		y[i] = new float[10];
+		for (int j = 0; j < 784; j++) {
+			if (j == 0) {
+				y[i][j] = 1;
 			}
+			else if (j < 10) {
+				y[i][j] = 0;
+			}
+			X[i][j] = 0.1;
 		}
 	}
-	return true;
-}
-
-void allocateMatrices(int m, int n, int p, Matrix& A1, Matrix2& A2, Matrix& B1, Matrix2& B2, bool t1, bool t2) {
-	if (t1) {
-		A1 = Matrix(Matrix::ZERO_FILL, n, m, true);
-		A2 = Matrix2(n, m, true);
-	}
-	else {
-		A1 = Matrix(Matrix::ZERO_FILL, m, n, true);
-		A2 = Matrix2(m, n, true);
-	}
-	if (t2) {
-		B1 = Matrix(Matrix::ZERO_FILL, p, n, true);
-		B2 = Matrix2(p, n, true);
-	}
-	else {
-		B1 = Matrix(Matrix::ZERO_FILL, n, p, true);
-		B2 = Matrix2(n, p, true);
-	}
-	for (int i = 0; i < A2.height; i++) {
-		for (int j = 0; j < A2.width; j++) {
-			A1.r(i, j) = i * A2.width + j;
-			A2(i, j) = A1(i, j);
-		}
-	}
-	for (int i = 0; i < B2.height; i++) {
-		for (int j = 0; j < B2.width; j++) {
-			B1.r(i, j) = B2.length - i * B2.width - j;
-			B2(i, j) = B1(i, j);
-		}
-	}
-	A2.copyToDevice();
-	B2.copyToDevice();
 }
 
 int main() {
 	cublasCreate(&MatrixBatch::HANDLE);
 
-	string filePath = "";
 	int numData = 60000;
 	float** X = new float* [numData];
 	float** y = new float* [numData];
-	getMNIST(filePath, X, y, numData);
+	//getDummyData(numData, X, y);
+	getMNIST("/mnt/c/Users/eetcollins/Desktop/emnist-mnist-train.csv", X, y, numData);
 
 	Model1D* model = new Model1D(784);
 	model->addLayer(new Dense1D(Activation::SWISH, 300));
 	model->addLayer(new Dense1D(Activation::SWISH, 100));
+	//model->addLayer(new BatchNormalization1D(0.9));
 	model->addLayer(new Dense1D(Activation::SWISH, 30));
 	model->addLayer(new Dense1D(Activation::SOFTMAX, 10));
 
-	TrainingParams* params = TrainingParams::DEFAULT->with<TrainingParams::NUM_EPOCHS>(10);
+	TrainingParams* params = TrainingParams::DEFAULT->with<TrainingParams::NUM_EPOCHS>(10)->with<TrainingParams::OPTIMIZER>(Optimizer::ADEMAMIX)->with<TrainingParams::LEARNING_RATE>(0.001);
 	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, X, y, false), 1, new Loss1D*[1]{new Accuracy1D()}, params);
 	model->save("mnist.model");
+	return 0;
 }
+
+int main1() {
+	cublasCreate(&MatrixBatch::HANDLE);
+	int numData = 60000;
+	float** X = new float* [numData];
+	float** y = new float* [numData];
+	//getDummyData(numData, X, y);
+	getMNIST("/mnt/c/Users/eetcollins/Desktop/emnist-mnist-train.csv", X, y, numData);
+
+	Model1D* model = (Model1D*)ModelParser::parseModel("mnist.model");
+	model->printLayers();
+	model->test(new CategoricalCrossEntropy1D(), new Dataset(numData, X, y, false), 1, new Loss1D * [1] {new Accuracy1D()});
+
+}
+
+
 
 // TODO:
 // Finish deconstructors for Layer2D, activations, optimizers, and models

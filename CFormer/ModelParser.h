@@ -26,7 +26,7 @@
 class ModelParser {
 
 public:
-	static float getNextFloat(string line, int* commaIndex, int* newCommaIndex);
+	static float getNextfloat(string line, int* commaIndex, int* newCommaIndex);
 	static int getNextInt(string line, int* commaIndex, int* newCommaIndex);
 	static string getNextString(string& line, int* commaIndex, int* newCommaIndex);
 	static void getNextLine(ifstream& file, string& line, int* commaIndex, int* newCommaIndex);

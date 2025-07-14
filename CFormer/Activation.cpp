@@ -6,17 +6,17 @@ Activation* Activation::SIGMOID = new Sigmoid();
 Activation* Activation::RELU = new Relu();
 Activation* Activation::ELU = new Elu(1);
 Activation* Activation::SELU = new Selu();
+Activation* Activation::LOGLU = new Loglu(1);
 Activation* Activation::TANH = new Tanh();
-Activation* Activation::SWISH = new Swish();
+Activation* Activation::SWISH = new Swish(10);
 Activation* Activation::SOFTMAX = new Softmax();
-Activation* Activation::ALL_ACTIVATIONS[Activation::NUM_ACTIVATIONS] = {NONE, SIGMOID, RELU, ELU, SELU, TANH, SWISH, SOFTMAX };
 
 void None::operate(Matrix2& input, Matrix2& output) {
-	output.copy(input);
+	input.copyTo(output);
 }
 
 void None::operate(MatrixBatch& input, MatrixBatch& output) {
-	output.copy(input);
+	input.copyTo(output);
 }
 
 void None::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
@@ -279,6 +279,76 @@ Activation* Selu::clone() {
 	return new Selu();
 }
 
+Loglu::Loglu(float alpha) {
+	this->alpha = alpha;
+}
+
+__global__
+void kernelLoglu(float alpha, float* input, float* output, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		float value = input[i];
+		output[i] = value < 0 ? -log(-alpha * value + 1) : value;
+	}
+}
+
+void Loglu::operate(Matrix2& input, Matrix2& output) {
+	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelLoglu, alpha, input.device, output.device, input.length);
+	output.copyToHost();
+}
+
+__global__
+void kernelLogluBatched(float alpha, float** input, float** output, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+	if (i < N) {
+		float value = input[batch][i];
+		output[batch][i] = value < 0 ? -log(-alpha * value + 1) : value;
+	}
+}
+
+void Loglu::operate(MatrixBatch& input, MatrixBatch& output) {
+	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelLogluBatched, alpha, input.device, output.device, input.length);
+	output.copyToHost();
+}
+
+__global__
+void kernelLogluDifferentiate(float alpha, float* input, float* output, float* inputGrad, float* outputGrad, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		float value = output[i];
+		inputGrad[i] = value < 0 ? (outputGrad[i] * alpha / (-alpha * value + 1)) : outputGrad[i];
+	}
+}
+
+void Loglu::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
+	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelLogluDifferentiate, alpha, input.device, output.device, inputGrad.device, outputGrad.device, input.length);
+	inputGrad.copyToHost();
+}
+
+__global__
+void kernelLogluDifferentiateBatched(float alpha, float** input, float** output, float** inputGrad, float** outputGrad, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+	if (i < N) {
+		float value = output[batch][i];
+		inputGrad[batch][i] = value < 0 ? (outputGrad[batch][i] * alpha / (-alpha * value + 1)) : outputGrad[batch][i];
+	}
+}
+
+void Loglu::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
+	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelLogluDifferentiateBatched, alpha, input.device, output.device, inputGrad.device, outputGrad.device, input.length);
+	inputGrad.copyToHost();
+}
+
+Activation* Loglu::clone() {
+	return new Loglu(alpha);
+}
+
+void Loglu::save(ofstream& file) {
+	file << "Loglu" << "," << alpha << ",";
+}
+
 __global__
 void kernelTanh(float* input, float* output, int N) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -345,68 +415,76 @@ Activation* Tanh::clone() {
 	return new Tanh();
 }
 
+Swish::Swish(float alpha) {
+	this->alpha = alpha;
+}
+
 __global__
-void kernelSwish(float* input, float* output, int N){
+void kernelSwish(float alpha, float* input, float* output, int N){
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < N) {
 		float value = input[i];
-		output[i] = value / (1 + exp(-value));
+		output[i] = value / (1 + exp(-value / alpha));
 	}
 }
 
 void Swish::operate(Matrix2& input, Matrix2& output) {
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSwish, input.device, output.device, input.length);
+	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSwish, alpha, input.device, output.device, input.length);
 	output.copyToHost();
 }
 
 __global__
-void kernelSwishBatched(float** input, float** output, int N) {
+void kernelSwishBatched(float alpha, float** input, float** output, int N) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int batch = blockIdx.y;
 	if (i < N) {
 		float value = input[batch][i];
-		output[batch][i] = value / (1 + exp(-value));
+		output[batch][i] = value / (1 + exp(-value / alpha));
 	}
 }
 
 void Swish::operate(MatrixBatch& input, MatrixBatch& output) {
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSwishBatched, input.device, output.device, input.length);
+	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSwishBatched, alpha, input.device, output.device, input.length);
 	output.copyToHost();
 }
 
 __global__
-void kernelSwishDifferentiate(float* input, float* output, float* inputGrad, float* outputGrad, int N) {
+void kernelSwishDifferentiate(float alpha, float* input, float* output, float* inputGrad, float* outputGrad, int N) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < N) {
 		float in = input[i];
 		float out = output[i];
-		inputGrad[i] = in == 0 ? (0.5 * outputGrad[i]) : (outputGrad[i] * out * (in - out + 1) / in);
+		inputGrad[i] = in == 0 ? (0.5 * outputGrad[i]) : (outputGrad[i] * out * (1 + (in - out) / alpha) / in);
 	}
 }
 
 void Swish::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSwishDifferentiate, input.device, output.device, inputGrad.device, outputGrad.device, input.length);
+	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSwishDifferentiate, alpha, input.device, output.device, inputGrad.device, outputGrad.device, input.length);
 	inputGrad.copyToHost();
 }
 
 __global__
-void kernelSwishDifferentiateBatched(float** input, float** output, float** inputGrad, float** outputGrad, int N) {
+void kernelSwishDifferentiateBatched(float alpha, float** input, float** output, float** inputGrad, float** outputGrad, int N) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	int batch = blockIdx.y;
 	if (i < N) {
 		float in = input[batch][i];
 		float out = output[batch][i];
-		inputGrad[batch][i] = in == 0 ? (0.5 * outputGrad[batch][i]) : (outputGrad[batch][i] * out * (in - out + 1) / in);
+		inputGrad[batch][i] = in == 0 ? (0.5 * outputGrad[batch][i]) : (outputGrad[batch][i] * out * (1 + (in - out) / alpha) / in);
 	}
 }
 
 void Swish::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSwishDifferentiateBatched, input.device, output.device, inputGrad.device, outputGrad.device, input.length);
+	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSwishDifferentiateBatched, alpha, input.device, output.device, inputGrad.device, outputGrad.device, input.length);
 	inputGrad.copyToHost();
 }
 
 Activation* Swish::clone() {
-	return new Swish();
+	return new Swish(alpha);
+}
+
+void Swish::save(ofstream& file) {
+	file << "Swish" << "," << alpha << ",";
 }
 
 __global__
@@ -520,9 +598,9 @@ void kernelSoftmaxDifferentiate(float* input, float* output, float* inputGradien
 		int j = id / height;
 		float sum = 0.0f;
 		for (int k = 0; k < width; k++) {
-			sum += outputGradient[i + height * k] * output[i + height * j] * ((j == k ? 1 : 0) - output[i + height * k]);
+			sum += outputGradient[i + height * k] * ((j == k ? 1 : 0) - output[i + height * k]);
 		}
-		inputGradient[i + height * j] = sum;
+		inputGradient[i + height * j] = output[i + height * j] * sum;
 	}
 }
 
@@ -547,7 +625,7 @@ void kernelSoftmaxDifferentiateBatched(float** input, float** output, float** in
 }
 
 void Softmax::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSoftmaxDifferentiateBatched, input.device, output.device, inputGrad.device, outputGrad.device, input.width, input.length);
+	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSoftmaxDifferentiateBatched, input.device, output.device, inputGrad.device, outputGrad.device, input.height, input.width);
 	inputGrad.copyToHost();
 }
 

@@ -52,7 +52,7 @@ void Gated1D::setPrevLayer(Layer* prevLayer) {
 	else if (instanceOf<Selu>(activation)) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
-	FillFunction fill = NormalFill(0, stdDeviation);
+	NormalFill fill = NormalFill(0, stdDeviation);
 	weights1 = Matrix2(fill, size, prevSize);
 	weights1.deallocateHost();
 	weights2 = Matrix2(fill, size, prevSize);
@@ -109,13 +109,13 @@ void Gated1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights1(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			gatedLayer->weights1(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights2(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			gatedLayer->weights2(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	gatedLayer->weights1.deallocateHost();

@@ -10,7 +10,7 @@ Input1D::~Input1D() {
 }
 
 void Input1D::setInput(float** input) {
-	neurons.copy(input);
+	neurons.copy(batchSize, size, input);
 }
 
 void Input1D::setSparseInput(int* input) {

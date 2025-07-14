@@ -54,7 +54,7 @@ void GradientDescent::applyGradient(Matrix2& weights, float t, float learningRat
 	weightGradient.scale(1.0 / batchSize);
 	Matrix2::linearCombo(1, weights, -learningRate, weightGradient, weights);
 	if (regConstant != 0) {
-		Matrix2::linearCombo(1, weights, -2 * regConstant, weights, weights);
+		Matrix2::linearCombo(1, weights, -2 * regConstant * learningRate, weights, weights);
 	}
 	weightGradient.constantFill(0);
 }
@@ -175,7 +175,7 @@ void AdEMAMix::applyGradient(Matrix2& weights, float t, float learningRate) {
 	Matrix2::linearCombo(beta2, S, 1 - beta2, weightGradient, S);
 	float mScalar = 1.0 / (1 - pow(beta1, t));
 	float sScalar = 1.0 / (1 - pow(beta2, t));
-	MatrixKernel::runElementKernel(weights.height, weights.width, 0, kernelAdEMAMix, weights.device, M1.device, M2.device, S.device, learningRate, mScalar, sScalar, alpha, weights.length);
+	//MatrixKernel::runElementKernel(weights.height, weights.width, 0, kernelAdEMAMix, weights.device, M1.device, M2.device, S.device, learningRate, mScalar, sScalar, alpha, weights.length);
 	weights.copyToHost();
 	weightGradient.constantFill(0);
 }

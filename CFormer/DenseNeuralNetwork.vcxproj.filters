@@ -14,9 +14,6 @@
     <ClCompile Include="Activation.cpp">
       <Filter>DNN\Util</Filter>
     </ClCompile>
-    <ClCompile Include="Matrix3D.cpp">
-      <Filter>DNN\Matrix</Filter>
-    </ClCompile>
     <ClCompile Include="Layer1D.cpp">
       <Filter>DNN\Layers\Layers1D</Filter>
     </ClCompile>
@@ -74,9 +71,6 @@
     <ClCompile Include="TransformerAttention.cpp">
       <Filter>DNN\Layers\Layers2D</Filter>
     </ClCompile>
-    <ClCompile Include="Matrix.cpp">
-      <Filter>DNN\Matrix</Filter>
-    </ClCompile>
     <ClCompile Include="Model1D.cpp">
       <Filter>DNN\Models</Filter>
     </ClCompile>
@@ -116,9 +110,6 @@
     </ClInclude>
     <ClInclude Include="Activation.h">
       <Filter>DNN\Util</Filter>
-    </ClInclude>
-    <ClInclude Include="Matrix3D.h">
-      <Filter>DNN\Matrix</Filter>
     </ClInclude>
     <ClInclude Include="Layer1D.h">
       <Filter>DNN\Layers\Layers1D</Filter>
@@ -176,9 +167,6 @@
     </ClInclude>
     <ClInclude Include="TransformerAttention.h">
       <Filter>DNN\Layers\Layers2D</Filter>
-    </ClInclude>
-    <ClInclude Include="Matrix.h">
-      <Filter>DNN\Matrix</Filter>
     </ClInclude>
     <ClInclude Include="Model1D.h">
       <Filter>DNN\Models</Filter>

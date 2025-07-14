@@ -76,7 +76,7 @@ void Dense2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			denseLayer->weights(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			denseLayer->weights(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	denseLayer->weights.deallocateHost();

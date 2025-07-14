@@ -89,7 +89,7 @@ void Dropout1D::save(ofstream& file){
 }
 
 void Dropout1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
-	Dropout1D* dropout = { new Dropout1D(ModelParser::getNextFloat(line, commaIndex, newCommaIndex)) };
+	Dropout1D* dropout = { new Dropout1D(ModelParser::getNextfloat(line, commaIndex, newCommaIndex)) };
 	nn->addLayer(dropout);
 }
 

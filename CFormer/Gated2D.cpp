@@ -99,7 +99,7 @@ void Gated2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights1(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			gatedLayer->weights1(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	gatedLayer->weights1.deallocateHost();
@@ -107,7 +107,7 @@ void Gated2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			gatedLayer->weights2(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			gatedLayer->weights2(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	gatedLayer->weights2.deallocateHost();

@@ -67,9 +67,8 @@ void Model1D::evaluateValidation(Loss1D* lossFunction, Dataset* valData, int bat
 	for (int i = 0; i < numMetrics + 1; i++) {
 		averages[i] = 0;
 	}
-	thread* threads = new thread[batchSize];
 	for (int i = 0; i < valSize; i += batchSize) {
-		predict(valData->X[i], valData->sparseX);
+		predict(&valData->X[i], valData->sparseX);
 		updateAverages(lossFunction, (float**)(&valData->y[i]), averages, numMetrics, metrics);
 	}
 	printf("  ValLoss:%f  ", averages[numMetrics] / valSize);
@@ -106,7 +105,11 @@ void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** 
 	}
 	trainingNum -= trainingNum % batchSize;
 	valNum -= valNum % batchSize;
+	printf("TrainingNum: %d\n", trainingNum);
+	printf("ValNum: %d\n", valNum);
 	inputLayer->setBatchSize(batchSize);
+	outputLayer->neurons.allocateHost();
+	outputLayer->neuronGradient.allocateHost();
 	float* averages = new float[numMetrics + 1];
 	for (int epoch = 0; epoch < numEpochs; epoch++) {
 		trainingData->shuffle();
@@ -141,7 +144,27 @@ void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** 
 }
 
 void Model1D::test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics) {
-	return;
+	int trainingNum = data->numData;
+	inputLayer->setBatchSize(1);
+	outputLayer->neurons.allocateHost();
+	outputLayer->neuronGradient.allocateHost();
+	float* averages = new float[numMetrics + 1];
+	for (int i = 0; i < numMetrics + 1; i++) {
+		averages[i] = 0;
+	}
+	for (int i = 0; i < trainingNum; i ++) {
+		printf("\r%d/%d  TestLoss:%f  ", i, trainingNum, averages[numMetrics] / i);
+		for (int j = 0; j < numMetrics; j++) {
+			printf("Test%s:%f  ", metrics[j]->toString().c_str(), averages[j] / i);
+		}
+		predict((float**)&data->X[i], data->sparseX);
+		updateAverages(lossFunction, (float**)&data->y[i], averages, numMetrics, metrics);
+	}
+	printf("\r%d/%d  TestLoss:%f  ", trainingNum, trainingNum, averages[numMetrics] / trainingNum);
+	for (int j = 0; j < numMetrics; j++) {
+		printf("Test%s:%f  ", metrics[j]->toString().c_str(), averages[j] / trainingNum);
+	}
+	printf("\n");
 }
 
 void Model1D::save(string filename) {

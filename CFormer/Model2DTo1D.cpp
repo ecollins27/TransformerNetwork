@@ -240,7 +240,7 @@ void Model2DTo1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1
 		//}
 		for (int i = 0; i < trainingNum; i += batchSize) {
 			if (i % (batchSize * 10) == 0 && i != 0) {
-				timeEstimation = estimateTime(start, (double)(i + batchSize) / trainingNum);
+				timeEstimation = estimateTime(start, (float)(i + batchSize) / trainingNum);
 			}
 			printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, numEpochs, i, trainingNum, averages[numMetrics] / i);
 			for (int j = 0; j < numMetrics; j++) {
@@ -316,7 +316,7 @@ void Model2DTo1D::test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss
 	}
 }
 
-string Model2DTo1D::estimateTime(auto start, double progress) {
+string Model2DTo1D::estimateTime(auto start, float progress) {
 	auto current = high_resolution_clock::now();
 	auto duration = duration_cast<seconds>(current - start);
 	int seconds = duration.count();

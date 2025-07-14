@@ -6,7 +6,7 @@ Input2D::Input2D(int size) {
 }
 
 void Input2D::setInput(int num, float** input) {
-	neurons[num].copy(input);
+	neurons[num].copy(numTokens[num], size, input);
 }
 
 void Input2D::setSparseInput(int num, int* input) {

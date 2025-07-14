@@ -43,6 +43,7 @@ public:
 	void copy(float* matrix);
 	void copy(float** matrix);
 	void copy(MatrixBatch& B);
+	void copyTo(MatrixBatch& B);
 	void setDims(int height, int width);
 	void setHeight(int height);
 	void setWidth(int width);

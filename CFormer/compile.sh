@@ -33,4 +33,4 @@ rm *.cu
 rm d2*
 
 echo "== Running program =="
-./main
+gdb ./main

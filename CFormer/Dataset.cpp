@@ -1,7 +1,7 @@
 #include "Dataset.h"
 
 Dataset* Dataset::getMiniBatch(int index, int batchSize) {
-	return new Dataset(batchSize, &numTokens[index], &X[index], &y[index], sparseX);
+	return new Dataset(batchSize, numTokens == NULL? NULL:&numTokens[index], &X[index], &y[index], sparseX);
 }
 
 int Dataset::getMaxNumTokens() {
@@ -24,6 +24,8 @@ void Dataset::shuffle() {
 		int index = (int)distribution(generator);
 		swap(X[i], X[index]);
 		swap(y[i], y[index]);
-		swap(numTokens[i], numTokens[index]);
+		if (numTokens != NULL) {
+			swap(numTokens[i], numTokens[index]);
+		}
 	}
 }

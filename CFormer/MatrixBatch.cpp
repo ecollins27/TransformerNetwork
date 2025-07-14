@@ -269,6 +269,17 @@ void MatrixBatch::copy(MatrixBatch& B) {
 	copyToHost();
 }
 
+void MatrixBatch::copyTo(MatrixBatch& B) {
+	cudaError_t err;
+	for (int i = 0; i < batchSize; i++) {
+		err = cudaMemcpy(B.hostDevice[i], hostDevice[i], length * sizeof(float), cudaMemcpyDeviceToDevice);
+		if (err != cudaSuccess) {
+			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
+		}
+	}
+	B.copyToHost();
+}
+
 void MatrixBatch::copy(float** matrix) {
 	cudaError_t err;
 	for (int i = 0; i < batchSize; i++) {

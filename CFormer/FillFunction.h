@@ -17,7 +17,7 @@ public:
 	static UniformFill UNIT_UNIFORM_FILL;
 
 	virtual float operator()(int i, int j) {
-		return 0;
+		return 0.1;
 	};
 };
 

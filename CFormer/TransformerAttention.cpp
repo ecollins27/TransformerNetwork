@@ -12,7 +12,7 @@ TransformerAttention::TransformerAttention(int numHeads, int keySize, int valueS
 }
 
 void TransformerAttention::propagateLayer(int num) {
-	double scalar = 1.0 / sqrt(keySize);
+	float scalar = 1.0 / sqrt(keySize);
 	MatrixBatch::multiplyABC(prevLayer->neurons[num], Wq, Q[num], true);
 	MatrixBatch::multiplyAtBC(prevLayer->neurons[num], Wk, K[num], true);
 	MatrixBatch::multiplyABtC(Q[num], K[num], A[num], true);
@@ -169,19 +169,19 @@ void TransformerAttention::load(Model* nn, ifstream& file, string& line, int* co
 		for (int j = 0; j < *prevSize; j++) {
 			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < keySize; k++) {
-				multiHeadAttentionLayer->Wq(i, j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wq(i, j, k) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 			}
 		}
 		for (int j = 0; j < *prevSize; j++) {
 			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < keySize; k++) {
-				multiHeadAttentionLayer->Wk(i, j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wk(i, j, k) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 			}
 		}
 		for (int j = 0; j < *prevSize; j++) {
 			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 			for (int k = 0; k < valueSize; k++) {
-				multiHeadAttentionLayer->Wv(i, j, k) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+				multiHeadAttentionLayer->Wv(i, j, k) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 			}
 		}
 	}
@@ -192,7 +192,7 @@ void TransformerAttention::load(Model* nn, ifstream& file, string& line, int* co
 	for (int i = 0; i < numHeads * valueSize; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize - 1; j++) {
-			multiHeadAttentionLayer->Wo(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			multiHeadAttentionLayer->Wo(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	multiHeadAttentionLayer->Wo.deallocateHost();

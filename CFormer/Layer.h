@@ -2,7 +2,6 @@
 #include "TrainingParams.h"
 #include "Optimizer.h"
 #include "Activation.h"
-#include "Matrix3D.h"
 #include <fstream>
 
 class InputLayer;

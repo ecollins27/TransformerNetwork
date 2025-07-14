@@ -26,6 +26,9 @@ void Dense1D::backPropagate(int num) {
 		return;
 	}
 	activation->differentiate(linearCombo, neurons, backPropIntermediate, neuronGradient);
+	//prevLayer->neurons.allocateHost();
+	//prevLayer->neurons.print();
+	//exit(0);
 	Matrix2::multiplyABC(backPropIntermediate, weights, prevLayer->neuronGradient, true);
 	Matrix2::multiplyAtBC(backPropIntermediate, prevLayer->neurons, weightGradient, true);
 	prevLayer->backPropagate(num);
@@ -45,18 +48,18 @@ void Dense1D::setPrevLayer(Layer* prevLayer) {
 	else if (instanceOf<Selu>(activation)) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
-	FillFunction fill = NormalFill(0, stdDeviation);
+	NormalFill fill = NormalFill(0, stdDeviation);
 	weights = Matrix2(fill, size, prevSize);
 	weights.deallocateHost();
 }
 
 void Dense1D::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
-	optimizer->setBatchSize(batchSize, NULL);
+	if (optimizer != NULL) {
+		optimizer->setBatchSize(batchSize, NULL);
+	}
 	linearCombo = Matrix2(batchSize, size, false);
-	linearCombo.constantFill(0);
 	backPropIntermediate = Matrix2(batchSize, size, false);
-	backPropIntermediate.constantFill(0);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
@@ -88,7 +91,7 @@ void Dense1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
-			denseLayer->weights(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			denseLayer->weights(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	denseLayer->weights.deallocateHost();

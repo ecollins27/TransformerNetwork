@@ -76,7 +76,7 @@ void kernelParameterNormalize(float* mean, float* std, float* parameters, float*
 	if (i < N) {
 		int column = i / height;
 		if (std[column] == 0) {
-			B[i] = parameters[column];
+			B[i] = parameters[2 * column];
 		}
 		else {
 			B[i] = parameters[2 * column] + parameters[2 * column + 1] * (A[i] - mean[column]) / std[column];
@@ -132,14 +132,13 @@ void kernelBackPropagate(float c, float* batchMean, float* mean, float* variance
 	int id;
 	for (int j = tid; j < width; j += stride) {
 		id = i + height * j;
-		parameterGradient[j] += neuronGradient[id];
+		parameterGradient[2 * j] += neuronGradient[id];
 		if (std[j] != 0) {
-			parameterGradient[2 * j] += neuronGradient[id] * (prevNeurons[id] - mean[j]) / std[j];
+			parameterGradient[2 * j + 1] += neuronGradient[id] * neurons[id];
 			sum = 0;
 			for (int k = 0; k < height; k++) {
-				float grad = ((k == i ? 1 : 0) - c) - c * (prevNeurons[id] - batchMean[j]) * (prevNeurons[k + height * j] - mean[j]) / variance[j];
-				grad /= std[j];
-				sum += parameters[2 * j] * neuronGradient[k + height * j] * grad;
+				float grad = std[j] * ((k == i ? 1 : 0) - c) - (c / std[j]) * (prevNeurons[id] - batchMean[j]) * (prevNeurons[k + height * j] - mean[j]);
+				sum += parameters[2 * j + 1] * neuronGradient[k + height * j] * grad / variance[j];
 			}
 			prevNeuronGradient[id] = sum;
 		}
@@ -151,6 +150,7 @@ void BatchNormalization1D::backPropagate(int num) {
 		prevLayer->backPropagate(num);
 		return;
 	}
+	parameterGradient.constantFill(0);
 	float c = (1 - momentum) / batchSize;
 	MatrixKernel::runRowKernel(batchSize, size, 0, kernelBackPropagate, c, batchMean.device, mean.device, variance.device, std.device, parameters.device, parameterGradient.device, neurons.device, neuronGradient.device, prevLayer->neurons.device, prevLayer->neuronGradient.device, batchSize, size);
 	prevLayer->neuronGradient.copyToHost();
@@ -179,7 +179,11 @@ void BatchNormalization1D::setPrevLayer(Layer* prevLayer) {
 	this->prevLayer = (Layer1D*)prevLayer;
 	size = prevLayer->size;
 	prevSize = size + 1;
+	NormalFill mean1Fill = NormalFill(1, 1);
 	parameters = Matrix2(FillFunction::UNIT_NORMAL_FILL, 2, size);
+	for (int i = 0; i < size; i++) {
+		parameters(1, i) = mean1Fill(1, i);
+	}
 	parameters.deallocateHost();
 	mean = Matrix2(1, size, false);
 	batchMean = Matrix2(1, size, false);
@@ -230,20 +234,20 @@ void BatchNormalization1D::load(Model* nn, ifstream& file, string& line, int* co
 	for (int i = 0; i < 2; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize - 1; j++) {
-			batchNormalization->parameters(i, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+			batchNormalization->parameters(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
 	batchNormalization->parameters.deallocateHost();
 	batchNormalization->mean.allocateHost();
 	ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 	for (int j = 0; j < *prevSize - 1; j++) {
-		batchNormalization->mean(0, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		batchNormalization->mean(0, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 	}
 	batchNormalization->mean.deallocateHost();
 	batchNormalization->variance.allocateHost();
 	ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 	for (int j = 0; j < *prevSize - 1; j++) {
-		batchNormalization->variance(0, j) = ModelParser::getNextFloat(line, commaIndex, newCommaIndex);
+		batchNormalization->variance(0, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 	}
 	batchNormalization->variance.deallocateHost();
 	batchNormalization->variance.sqrt(batchNormalization->std);

@@ -40,7 +40,7 @@ public:
 	void printLayers();
 
 private:
-	string estimateTime(auto start, double progress);
+	string estimateTime(auto start, float progress);
 	void applyGradients(float learningRate);
 	void updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics);
 	void predict(void* input, bool sparse, int thread);

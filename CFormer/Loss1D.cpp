@@ -16,6 +16,7 @@ void MeanSquaredError1D::differentiate(Layer1D* layer, float** yTrue) {
 			layer->neuronGradient(i, j) = 2 * (layer->neurons(i, j) - yTrue[i][j]) / layer->size;
 		}
 	}
+	layer->neuronGradient.copyToDevice();
 }
 
 string MeanSquaredError1D::toString() {
@@ -43,6 +44,7 @@ void BinaryCrossEntropy1D::differentiate(Layer1D* layer, float** yTrue) {
 			layer->neuronGradient(i, j) = (-yTrue[i][j] / (layer->neurons(i, j) + 0.0000001) + (1 - yTrue[i][j]) / (1 - layer->neurons(i, j) + 0.0000001)) / layer->size;
 		}
 	}
+	layer->neuronGradient.copyToDevice();
 }
 
 string BinaryCrossEntropy1D::toString() {
@@ -73,6 +75,7 @@ void CategoricalCrossEntropy1D::differentiate(Layer1D* layer, float** yTrue) {
 			}
 		}
 	}
+	layer->neuronGradient.copyToDevice();
 }
 
 string CategoricalCrossEntropy1D::toString() {

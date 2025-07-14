@@ -12,10 +12,10 @@ class Activation {
 		static Activation* RELU;
 		static Activation* ELU;
 		static Activation* SELU;
+		static Activation* LOGLU;
 		static Activation* TANH;
 		static Activation* SWISH;
 		static Activation* SOFTMAX;
-		static Activation* ALL_ACTIVATIONS[NUM_ACTIVATIONS];
 
 		bool condenseGradient = true;
 		virtual void operate(Matrix2& input, Matrix2& output) = 0;
@@ -25,7 +25,7 @@ class Activation {
 		virtual Activation* clone() = 0;
 		virtual bool isDiagonal() { return true; };
 		virtual void save(ofstream& file) {
-			string name(& typeid(*this).name()[6]);
+			string name(&typeid(*this).name()[1]);
 			file << name << ",";
 		};
 
@@ -83,6 +83,18 @@ public:
 	Activation* clone();
 };
 
+class Loglu : public Activation {
+public:
+	float alpha;
+	Loglu(float alpha);
+	void operate(Matrix2& input, Matrix2& output);
+	void operate(MatrixBatch& input, MatrixBatch& output);
+	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
+	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
+	Activation* clone();
+	void save(ofstream& file);
+};
+
 class Tanh : public Activation {
 
 public:
@@ -96,11 +108,14 @@ public:
 class Swish : public Activation {
 
 public:
+	float alpha;
+	Swish(float alpha);
 	void operate(Matrix2& input, Matrix2& output);
 	void operate(MatrixBatch& input, MatrixBatch& output);
 	void differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGradient, Matrix2& outputGradient);
 	void differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGradient, MatrixBatch& outputGradient);
 	Activation* clone();
+	void save(ofstream& file);
 };
 
 class Softmax : public Activation {

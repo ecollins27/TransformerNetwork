@@ -164,9 +164,17 @@ float** BytePairTokenizer::tokenize(string str, int& length) {
 		}
 	}
 	length = tokens.size();
-	float** matrix = Matrix::allocateMatrix(Matrix::ZERO_FILL, tokens.size(), tokenValues.size());
+	float** matrix = new float* [tokens.size()];
 	for (int i = 0; i < tokens.size(); i++) {
-		matrix[i][tokens[i]] = 1;
+		matrix[i] = new float[tokenValues.size()];
+		for (int j = 0; j < tokenValues.size(); j++) {
+			if (j == tokens[i]) {
+				matrix[i][j] = 1;
+			}
+			else {
+				matrix[i][j] = 0;
+			}
+		}
 	}
 	return matrix;
 }

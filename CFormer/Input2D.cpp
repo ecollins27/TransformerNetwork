@@ -15,7 +15,6 @@ void Input2D::setSparseInput(int num, int* input) {
 		neurons[num](i, input[i]) = 1;
 		neurons[num](i, size) = 1;
 	}
-	neurons[num].copyToDevice();
 }
 
 void Input2D::propagateLayer(int num) {
@@ -32,9 +31,6 @@ void Input2D::setPrevLayer(Layer* prevLayer) {
 
 void Input2D::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	for (int i = 0; i < batchSize; i++) {
-		neurons[i].allocateHost();
-	}
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}

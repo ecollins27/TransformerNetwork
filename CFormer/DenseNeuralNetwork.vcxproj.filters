@@ -97,6 +97,7 @@
     <ClCompile Include="FillFunction.cpp" />
     <ClCompile Include="MatrixKernel.cpp" />
     <ClCompile Include="OptimizerBatch.cpp" />
+    <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Layer.h">
@@ -194,6 +195,7 @@
     <ClInclude Include="FillFunction.h" />
     <ClInclude Include="MatrixKernel.h" />
     <ClInclude Include="OptimizerBatch.h" />
+    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="DNN">

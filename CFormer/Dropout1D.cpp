@@ -31,7 +31,6 @@ void Dropout1D::propagateLayer(int num) {
 			}
 		}
 	}
-	neurons.copyToDevice();
 }
 
 void Dropout1D::backPropagate(int num) {
@@ -49,7 +48,6 @@ void Dropout1D::backPropagate(int num) {
 			}
 		}
 	}
-	neuronGradient.copyToDevice();
 	if (prevLayer != NULL) {
 		prevLayer->backPropagate(num);
 	}
@@ -67,8 +65,6 @@ void Dropout1D::setPrevLayer(Layer* prevLayer) {
 
 void Dropout1D::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
-	neurons.allocateHost();
-	neuronGradient.allocateHost();
 	dropped = new bool* [batchSize];
 	for (int i = 0; i < batchSize; i++) {
 		dropped[i] = new bool[size];

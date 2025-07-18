@@ -2,8 +2,8 @@
 
 void Layer2D::initNeurons(int batchSize) {
 	this->batchSize = batchSize;
-	neurons = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size + 1, false);
-	neuronGradient = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
+	neurons = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size + 1);
+	neuronGradient = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
 }
 
 void Layer2D::updateNeuronDimensions() {

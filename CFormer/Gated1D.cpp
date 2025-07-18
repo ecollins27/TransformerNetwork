@@ -53,22 +53,20 @@ void Gated1D::setPrevLayer(Layer* prevLayer) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
 	NormalFill fill = NormalFill(0, stdDeviation);
-	weights1 = Matrix2(fill, size, prevSize);
-	weights1.deallocateHost();
-	weights2 = Matrix2(fill, size, prevSize);
-	weights2.deallocateHost();
+	weights1 = Matrix2(fill, size, prevSize, 0);
+	weights2 = Matrix2(fill, size, prevSize, 0);
 }
 
 void Gated1D::setBatchSize(int batchSize) {
 	Layer1D::setBatchSize(batchSize);
 	optimizer1->setBatchSize(batchSize, NULL);
 	optimizer2->setBatchSize(batchSize, NULL);
-	A1 = Matrix2(batchSize, size, false);
-	A1Grad = Matrix2(batchSize, size, false);
-	A2 = Matrix2(batchSize, size, false);
-	A2Grad = Matrix2(batchSize, size, false);
-	Ao = Matrix2(batchSize, size, false);
-	AoGrad = Matrix2(batchSize, size, false);
+	A1 = Matrix2(batchSize, size, 0);
+	A1Grad = Matrix2(batchSize, size, 0);
+	A2 = Matrix2(batchSize, size, 0);
+	A2Grad = Matrix2(batchSize, size, 0);
+	Ao = Matrix2(batchSize, size, 0);
+	AoGrad = Matrix2(batchSize, size, 0);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
@@ -78,8 +76,6 @@ void Gated1D::save(ofstream& file) {
 	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
-	weights1.allocateHost();
-	weights2.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights1(i, j) << ",";
@@ -92,8 +88,6 @@ void Gated1D::save(ofstream& file) {
 		}
 		file << "\n";
 	}
-	weights1.deallocateHost();
-	weights2.deallocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
@@ -104,8 +98,6 @@ void Gated1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	Gated1D* gatedLayer = { new Gated1D(activation, size) };
 	nn->addLayer(gatedLayer);
-	gatedLayer->weights1.allocateHost();
-	gatedLayer->weights2.allocateHost();
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
@@ -118,8 +110,6 @@ void Gated1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 			gatedLayer->weights2(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
-	gatedLayer->weights1.deallocateHost();
-	gatedLayer->weights2.deallocateHost();
 	*prevSize = size + 1;
 }
 

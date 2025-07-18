@@ -108,8 +108,6 @@ void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** 
 	printf("TrainingNum: %d\n", trainingNum);
 	printf("ValNum: %d\n", valNum);
 	inputLayer->setBatchSize(batchSize);
-	outputLayer->neurons.allocateHost();
-	outputLayer->neuronGradient.allocateHost();
 	float* averages = new float[numMetrics + 1];
 	for (int epoch = 0; epoch < numEpochs; epoch++) {
 		trainingData->shuffle();
@@ -146,8 +144,6 @@ void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** 
 void Model1D::test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics) {
 	int trainingNum = data->numData;
 	inputLayer->setBatchSize(1);
-	outputLayer->neurons.allocateHost();
-	outputLayer->neuronGradient.allocateHost();
 	float* averages = new float[numMetrics + 1];
 	for (int i = 0; i < numMetrics + 1; i++) {
 		averages[i] = 0;

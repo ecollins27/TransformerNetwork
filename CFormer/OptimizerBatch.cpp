@@ -20,8 +20,10 @@ void kernelCondenseGradients(float*** gradients, float** condensed, int batchSiz
 }
 
 void OptimizerBatch::condenseGradients() {
-	MatrixKernel::runElementKernelBatched(weightGradient.batchSize, weightGradient.height, weightGradient.width, 0, kernelCondenseGradients, device, weightGradient.device, batchSize, weightGradient.length);
-	weightGradient.copyToHost();
+	weightGradient.copy(weightGradients[0]);
+	for (int i = 1; i < batchSize; i++) {
+		MatrixBatch::add(weightGradient, weightGradients[i], weightGradient);
+	}
 }
 
 void OptimizerBatch::setBatchSize(int batchSize, MatrixBatch* gradients) {
@@ -29,21 +31,7 @@ void OptimizerBatch::setBatchSize(int batchSize, MatrixBatch* gradients) {
 	if (gradients == NULL) {
 		return;
 	}
-	cudaError_t err = cudaMalloc(&device, batchSize * sizeof(float*));
-	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
-	}
-	err = cudaMallocHost(&hostDevice, batchSize * sizeof(float*));
-	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
-	}
-	for (int i = 0; i < batchSize; i++) {
-		hostDevice[i] = gradients[i].device;
-	}
-	err = cudaMemcpy(device, hostDevice, batchSize * sizeof(float*), cudaMemcpyHostToDevice);
-	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
-	}
+	weightGradients = gradients;
 }
 
 GradientDescentBatch::GradientDescentBatch(float regConstant) {
@@ -68,7 +56,7 @@ void GradientDescentBatch::setDimensions(int height, int width, int depth) {
 	this->height = height;
 	this->width = width;
 	this->depth = depth;
-	weightGradient = MatrixBatch(height, width, depth, false);
+	weightGradient = MatrixBatch(height, width, depth, 0);
 }
 
 MomentumBatch::MomentumBatch(float beta, float regConstant) {
@@ -94,8 +82,8 @@ void MomentumBatch::setDimensions(int height, int width, int depth) {
 	this->height = height;
 	this->width = width;
 	this->depth = depth;
-	M = MatrixBatch(height, width, depth, false);
-	weightGradient = MatrixBatch(height, width, depth, false);
+	M = MatrixBatch(height, width, depth, 0);
+	weightGradient = MatrixBatch(height, width, depth, 0);
 }
 
 AdamBatch::AdamBatch(float beta1, float beta2, float regConstant) {
@@ -123,8 +111,11 @@ void AdamBatch::applyGradient(MatrixBatch& weights, float t, float learningRate)
 	MatrixBatch::linearCombo(beta1, M, 1 - beta1, weightGradient, M);
 	MatrixBatch::elementMultiply(weightGradient, weightGradient, weightGradient);
 	MatrixBatch::linearCombo(beta2, S, 1 - beta2, weightGradient, S);
-	MatrixKernel::runElementKernelBatched(weights.batchSize, weights.height, weights.width, 0, kernelAdam, weights.device, M.device, S.device, learningRate, mScalar, sScalar, weights.length);
-	weights.copyToHost();
+	weights.copyToDevice(0, 0);
+	M.copyToDevice(1, 0);
+	S.copyToDevice(2, 0);
+	MatrixKernel::runElementKernelBatched(weights.batchSize, weights.height, weights.width, 0, kernelAdam, MatrixBatch::DEVICES[0][0], MatrixBatch::DEVICES[0][1], MatrixBatch::DEVICES[0][2], learningRate, mScalar, sScalar, weights.length);
+	weights.copyToHost(0, weights.length, 0);
 	weightGradient.constantFill(0);
 }
 
@@ -136,9 +127,9 @@ void AdamBatch::setDimensions(int height, int width, int depth) {
 	this->height = height;
 	this->width = width;
 	this->depth = depth;
-	M = MatrixBatch(height, width, depth, false);
-	S = MatrixBatch(height, width, depth, false);
-	weightGradient = MatrixBatch(height, width, depth, false);
+	M = MatrixBatch(height, width, depth, 0);
+	S = MatrixBatch(height, width, depth, 0);
+	weightGradient = MatrixBatch(height, width, depth, 0);
 }
 
 AdEMAMixBatch::AdEMAMixBatch(float beta1, float beta2, float beta3, float alpha, float regConstant) {
@@ -169,8 +160,12 @@ void AdEMAMixBatch::applyGradient(MatrixBatch& weights, float t, float learningR
 	MatrixBatch::linearCombo(beta2, S, 1 - beta2, weightGradient, S);
 	float mScalar = 1.0 / (1 - pow(beta1, t));
 	float sScalar = 1.0 / (1 - pow(beta2, t));
-	MatrixKernel::runElementKernelBatched(weights.batchSize, weights.height, weights.width, 0, kernelAdEMAMix, weights.device, M1.device, M2.device, S.device, learningRate, mScalar, sScalar, alpha, weights.length);
-	weights.copyToHost();
+	weights.copyToDevice(0);
+	M1.copyToDevice(1, 0);
+	M2.copyToDevice(2, 0);
+	S.copyToDevice(3, 0);
+	MatrixKernel::runElementKernelBatched(weights.batchSize, weights.height, weights.width, 0, kernelAdEMAMix, MatrixBatch::DEVICES[0][0], MatrixBatch::DEVICES[0][1], MatrixBatch::DEVICES[0][2], MatrixBatch::DEVICES[0][3], learningRate, mScalar, sScalar, alpha, weights.length);
+	weights.copyToHost(0, weights.length, 0);
 	weightGradient.constantFill(0);
 }
 
@@ -182,8 +177,8 @@ void AdEMAMixBatch::setDimensions(int height, int width, int depth) {
 	this->height = height;
 	this->width = width;
 	this->depth = depth;
-	M1 = MatrixBatch(height, width, depth, false);
-	M2 = MatrixBatch(height, width, depth, false);
-	S = MatrixBatch(height, width, depth, false);
-	weightGradient = MatrixBatch(height, width, depth, false);
+	M1 = MatrixBatch(height, width, depth, 0);
+	M2 = MatrixBatch(height, width, depth, 0);
+	S = MatrixBatch(height, width, depth, 0);
+	weightGradient = MatrixBatch(height, width, depth, 0);
 }

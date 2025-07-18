@@ -46,10 +46,11 @@ void kernelColumnMean(float* A, float* B, int height, int width, int batch) {
 }
 
 void SequenceMean::propagateLayer(int num) {
-	MatrixKernel::runColumnKernel(prevLayer->numTokens[num], size, Matrix2::THREADS_PER_BLOCK * sizeof(float), kernelColumnMean, prevLayer->neurons[num].device, neurons.device, prevLayer->numTokens[num], size, num);
+	prevLayer->neurons[num].copyToDevice(0);
+	MatrixKernel::runColumnKernel(prevLayer->numTokens[num], size, Utils::THREADS_PER_BLOCK * sizeof(float), kernelColumnMean, Matrix2::DEVICES[num][0], Matrix2::DEVICES[0][1], prevLayer->numTokens[num], size, num);
 	forwardThreadCount.fetch_add(1);
 	if (forwardThreadCount.load() >= batchSize && num == 0) {
-		neurons.copyToHost();
+		neurons.copyToHost(1, prevLayer->numTokens[num] * size);
 		forwardThreadCount.store(0);
 		activation->operate(means, neurons);
 		gradientCalculated.store(false);
@@ -60,11 +61,11 @@ void SequenceMean::propagateLayer(int num) {
 }
 
 __global__
-void kernelBackPropagate(float c, float* prevNeuronGradient, float* backPropIntermediate, int size, int N, int batchNum) {
+void kernelBackPropagate(float c, float* prevNeuronGradient, float* backPropIntermediate, int height, int N, int batchNum) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < N) {
-		int column = i % size;
-		prevNeuronGradient[i] = c * backPropIntermediate[batchNum * size + column];
+		int column = i / height;
+		prevNeuronGradient[i] = c * backPropIntermediate[batchNum + height * column];
 	}
 }
 
@@ -72,16 +73,12 @@ void SequenceMean::backPropagate(int num) {
 	if (num == 0) {
 		activation->differentiate(means, neurons, backPropIntermediate, neuronGradient);
 		gradientCalculated.store(true);
+		backPropIntermediate.copyToDevice(1, 0);
 	}
 	while (!gradientCalculated.load()){}
 	float c = 1.0 / prevLayer->numTokens[num];
-	MatrixKernel::runElementKernel(prevLayer->numTokens[num], size, 0, kernelBackPropagate, c, prevLayer->neuronGradient[num].device, backPropIntermediate.device, size, prevLayer->numTokens[num] * size, num);
-	prevLayer->neuronGradient[num].copyToHost();
-	//for (int i = 0; i < prevLayer->numTokens[num]; i++) {
-	//	for (int j = 0; j < size; j++) {
-	//		prevLayer->neuronGradient[num].r(i, j) = c * backPropIntermediate(num, j);
-	//	}
-	//}
+	MatrixKernel::runElementKernel(prevLayer->numTokens[num], size, 0, kernelBackPropagate, c, Matrix2::DEVICES[num][0], Matrix2::DEVICES[0][1], prevLayer->numTokens[num], prevLayer->numTokens[num] * size, num);
+	prevLayer->neuronGradient[num].copyToHost(0, prevLayer->neuronGradient[num].length, num);
 	prevLayer->backPropagate(num);
 }
 

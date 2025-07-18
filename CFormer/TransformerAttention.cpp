@@ -66,43 +66,36 @@ void TransformerAttention::setPrevLayer(Layer* prevLayer) {
 	prevSize = prevLayer->size + 1;
 	float std = 1.0 / size;
 	NormalFill normal = NormalFill(0, std);
-	Wq = MatrixBatch(normal, numHeads, keySize, prevSize);
-	Wq.deallocateHost();
-	Wk = MatrixBatch(normal, numHeads, keySize, prevSize);
-	Wk.deallocateHost();
-	Wv = MatrixBatch(normal, numHeads, valueSize, prevSize);
-	Wv.deallocateHost();
-	Wo = Matrix2(normal, numHeads * valueSize, size);
-	Wo.deallocateHost();
+	Wq = MatrixBatch(normal, numHeads, keySize, prevSize, 0);
+	Wk = MatrixBatch(normal, numHeads, keySize, prevSize, 0);
+	Wv = MatrixBatch(normal, numHeads, valueSize, prevSize, 0);
+	Wo = Matrix2(normal, numHeads * valueSize, size, 0);
 }
 
 void TransformerAttention::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	for (int i = 0; i < batchSize; i++) {
-		prevLayer->neurons[i].allocateBatchDevice(batchSize);
-	}
-	WqGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, keySize, false);
-	WkGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, keySize, false);
-	WvGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, valueSize, false);
-	WoGrad = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, size, false);
+	WqGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, keySize);
+	WkGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, keySize);
+	WvGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, prevSize, valueSize);
+	WoGrad = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, size);
 
 	outputOptimizer->setBatchSize(batchSize, WoGrad);
 	queryOptimizers->setBatchSize(batchSize, WqGrad);
 	keyOptimizers->setBatchSize(batchSize, WkGrad);
 	valueOptimizers->setBatchSize(batchSize, WvGrad);
 
-	K = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize, false);
-	KGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize, false);
-	Q = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize, false);
-	QGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize, false);
-	V = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, valueSize, false);
-	VGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, valueSize, false);
-	A = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens, false);
-	AGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens, false);
-	Ao = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens, false);
-	AoGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens, false);
-	Ac = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, maxNumTokens, false);
-	AcGrad = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, maxNumTokens, false);
+	K = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize);
+	KGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize);
+	Q = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize);
+	QGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, keySize);
+	V = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, valueSize);
+	VGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, valueSize);
+	A = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens);
+	AGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens);
+	Ao = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens);
+	AoGrad = MatrixBatch::allocateMatrixBatchArray(batchSize, numHeads, maxNumTokens, maxNumTokens);
+	Ac = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, maxNumTokens);
+	AcGrad = Matrix2::allocateMatrixArray(batchSize, numHeads * valueSize, maxNumTokens);
 	AcSub = new MatrixBatch[batchSize];
 	AcSubGrad = new MatrixBatch[batchSize];
 	for (int i = 0; i < batchSize; i++) {
@@ -117,9 +110,6 @@ void TransformerAttention::setBatchSize(int batchSize) {
 void TransformerAttention::save(ofstream& file) {
 	file << LAYER_NAME << ",";
 	file << numHeads << "," << keySize << "," << valueSize << ",\n";
-	Wq.allocateHost();
-	Wk.allocateHost();
-	Wv.allocateHost();
 	for (int i = 0; i < numHeads; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			for (int k = 0; k < keySize; k++) {
@@ -140,17 +130,12 @@ void TransformerAttention::save(ofstream& file) {
 			file << "\n";
 		}
 	}
-	Wq.deallocateHost();
-	Wk.deallocateHost();
-	Wv.deallocateHost();
-	Wo.allocateHost();
 	for (int i = 0; i < numHeads * valueSize; i++) {
 		for (int j = 0; j < size; j++) {
 			file << Wo(i, j) << ",";
 		}
 		file << "\n";
 	}
-	Wo.deallocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
@@ -162,9 +147,6 @@ void TransformerAttention::load(Model* nn, ifstream& file, string& line, int* co
 	int valueSize = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	TransformerAttention* multiHeadAttentionLayer = { new TransformerAttention(numHeads, keySize, valueSize) };
 	nn->addLayer(multiHeadAttentionLayer);
-	multiHeadAttentionLayer->Wq.allocateHost();
-	multiHeadAttentionLayer->Wk.allocateHost();
-	multiHeadAttentionLayer->Wv.allocateHost();
 	for (int i = 0; i < numHeads; i++) {
 		for (int j = 0; j < *prevSize; j++) {
 			ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
@@ -185,17 +167,12 @@ void TransformerAttention::load(Model* nn, ifstream& file, string& line, int* co
 			}
 		}
 	}
-	multiHeadAttentionLayer->Wq.deallocateHost();
-	multiHeadAttentionLayer->Wk.deallocateHost();
-	multiHeadAttentionLayer->Wv.deallocateHost();
-	multiHeadAttentionLayer->Wo.allocateHost();
 	for (int i = 0; i < numHeads * valueSize; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize - 1; j++) {
 			multiHeadAttentionLayer->Wo(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
-	multiHeadAttentionLayer->Wo.deallocateHost();
 }
 
 void TransformerAttention::setNumTokens(int* numTokens) {

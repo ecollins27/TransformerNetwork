@@ -6,18 +6,6 @@ Optimizer* Optimizer::MOMENTUM = { new Momentum(0.9, 0) };
 Optimizer* Optimizer::ADAM = { new Adam(0.9,0.999, 0) };
 Optimizer* Optimizer::ADEMAMIX = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0) };
 
-__global__
-void kernelCondenseGradients(float** gradients, float* condensed, int batchSize, int N) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < N) {
-		float sum = 0;
-		for (int b = 0; b < batchSize; b++) {
-			sum += gradients[b][i];
-		}
-		condensed[i] = sum;
-	}
-}
-
 void Optimizer::condenseGradients() {
 	weightGradients.condense(weightGradient);
 }
@@ -27,22 +15,19 @@ void Optimizer::setBatchSize(int batchSize, Matrix2* gradients) {
 	if (gradients == NULL) {
 		return;
 	}
-
-	cudaError_t err = cudaMalloc(&weightGradients.device, batchSize * sizeof(float*));
-	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
-	}
-	err = cudaMallocHost(&weightGradients.hostDevice, batchSize * sizeof(float*));
+	cudaError_t err = cudaMallocHost(&weightGradients.host, batchSize * sizeof(float*));
 	if (err != cudaSuccess) {
 		throw runtime_error("CUDA memory allocation failed");
 	}
 	for (int i = 0; i < batchSize; i++) {
-		weightGradients.hostDevice[i] = gradients[i].device;
+		weightGradients.host[i] = gradients[i].host;
 	}
-	err = cudaMemcpy(weightGradients.device, weightGradients.hostDevice, batchSize * sizeof(float*), cudaMemcpyHostToDevice);
-	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
-	}
+	weightGradients.maxLength = gradients[0].maxLength;
+	weightGradients.length = gradients[0].length;
+	weightGradients.batchSize = batchSize;
+	weightGradients.height = gradients[0].height;
+	weightGradients.width = gradients[0].height;
+	weightGradients.threadNum = 0;
 }
 
 GradientDescent::GradientDescent(float regConstant) {
@@ -70,7 +55,7 @@ OptimizerBatch* GradientDescent::cloneBatch() {
 void GradientDescent::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	weightGradient = Matrix2(height, width, false);
+	weightGradient = Matrix2(height, width, 0);
 }
 
 Momentum::Momentum(float beta, float regConstant) {
@@ -99,8 +84,8 @@ OptimizerBatch* Momentum::cloneBatch() {
 void Momentum::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	M = Matrix2(height, width, false);
-	weightGradient = Matrix2(height, width, false);
+	M = Matrix2(height, width, 0);
+	weightGradient = Matrix2(height, width, 0);
 }
 
 Adam::Adam(float beta1, float beta2, float regConstant) {
@@ -127,8 +112,11 @@ void Adam::applyGradient(Matrix2& weights, float t, float learningRate) {
 	Matrix2::linearCombo(beta1, M, 1 - beta1, weightGradient, M);
 	Matrix2::elementMultiply(weightGradient, weightGradient, weightGradient);
 	Matrix2::linearCombo(beta2, S, 1 - beta2, weightGradient, S);
-	MatrixKernel::runElementKernel(weights.height, weights.width, 0, kernelAdam, weights.device, M.device, S.device, learningRate, mScalar, sScalar, weights.length);
-	weights.copyToHost();
+	weights.copyToDevice(0, 0);
+	M.copyToDevice(1, 0);
+	S.copyToDevice(2, 0);
+	MatrixKernel::runElementKernel(weights.height, weights.width, 0, kernelAdam, Matrix2::DEVICES[0][0], Matrix2::DEVICES[0][1], Matrix2::DEVICES[0][2], learningRate, mScalar, sScalar, weights.length);
+	weights.copyToHost(0, weights.length, 0);
 	weightGradient.constantFill(0);
 }
 
@@ -143,9 +131,9 @@ OptimizerBatch* Adam::cloneBatch() {
 void Adam::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	M = Matrix2(height, width, false);
-	S = Matrix2(height, width, false);
-	weightGradient = Matrix2(height, width, false);
+	M = Matrix2(height, width, 0);
+	S = Matrix2(height, width, 0);
+	weightGradient = Matrix2(height, width, 0);
 }
 
 AdEMAMix::AdEMAMix(float beta1, float beta2, float beta3, float alpha, float regConstant) {
@@ -175,8 +163,12 @@ void AdEMAMix::applyGradient(Matrix2& weights, float t, float learningRate) {
 	Matrix2::linearCombo(beta2, S, 1 - beta2, weightGradient, S);
 	float mScalar = 1.0 / (1 - pow(beta1, t));
 	float sScalar = 1.0 / (1 - pow(beta2, t));
-	//MatrixKernel::runElementKernel(weights.height, weights.width, 0, kernelAdEMAMix, weights.device, M1.device, M2.device, S.device, learningRate, mScalar, sScalar, alpha, weights.length);
-	weights.copyToHost();
+	weights.copyToDevice(0, 0);
+	M1.copyToDevice(1, 0);
+	M2.copyToDevice(2, 0);
+	S.copyToDevice(3, 0);
+	MatrixKernel::runElementKernel(weights.height, weights.width, 0, kernelAdEMAMix, Matrix2::DEVICES[0][0], Matrix2::DEVICES[0][1], Matrix2::DEVICES[0][2], Matrix2::DEVICES[0][3], learningRate, mScalar, sScalar, alpha, weights.length);
+	weights.copyToHost(0, weights.length, 0);
 	weightGradient.constantFill(0);
 }
 
@@ -191,8 +183,8 @@ OptimizerBatch* AdEMAMix::cloneBatch() {
 void AdEMAMix::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	M1 =Matrix2(height, width, false);
-	M2 = Matrix2(height, width, false);
-	S = Matrix2(height, width, false);
-	weightGradient = Matrix2(height, width, false);
+	M1 =Matrix2(height, width, 0);
+	M2 = Matrix2(height, width, 0);
+	S = Matrix2(height, width, 0);
+	weightGradient = Matrix2(height, width, 0);
 }

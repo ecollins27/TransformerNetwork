@@ -49,8 +49,7 @@ void Dense1D::setPrevLayer(Layer* prevLayer) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
 	NormalFill fill = NormalFill(0, stdDeviation);
-	weights = Matrix2(fill, size, prevSize);
-	weights.deallocateHost();
+	weights = Matrix2(fill, size, prevSize, 0);
 }
 
 void Dense1D::setBatchSize(int batchSize) {
@@ -58,8 +57,8 @@ void Dense1D::setBatchSize(int batchSize) {
 	if (optimizer != NULL) {
 		optimizer->setBatchSize(batchSize, NULL);
 	}
-	linearCombo = Matrix2(batchSize, size, false);
-	backPropIntermediate = Matrix2(batchSize, size, false);
+	linearCombo = Matrix2(batchSize, size, 0);
+	backPropIntermediate = Matrix2(batchSize, size, 0);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
@@ -69,14 +68,12 @@ void Dense1D::save(ofstream& file) {
 	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
-	weights.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights(i, j) << ",";
 		}
 		file << "\n";
 	}
-	weights.deallocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
@@ -87,14 +84,12 @@ void Dense1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	Dense1D* denseLayer = new Dense1D(activation, size);
 	nn->addLayer(denseLayer);
-	denseLayer->weights.allocateHost();
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
 			denseLayer->weights(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
-	denseLayer->weights.deallocateHost();
 	*prevSize = size + 1;
 }
 

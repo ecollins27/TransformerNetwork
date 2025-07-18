@@ -53,10 +53,6 @@ void Dropout2D::setPrevLayer(Layer* prevLayer) {
 
 void Dropout2D::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	for (int i = 0; i < batchSize; i++) {
-		neurons[i].allocateHost();
-		neuronGradient[i].allocateHost();
-	}
 	dropped = new bool** [batchSize];
 	for (int i = 0; i < batchSize; i++) {
 		dropped[i] = new bool* [maxNumTokens];

@@ -20,18 +20,9 @@ void kernelEncoding(float L, float* A, float* B, int height, int width) {
 }
 
 void PositionalEncoding2D::propagateLayer(int num) {
-	MatrixKernel::runElementKernel(numTokens[num], size, 0, kernelEncoding, L, prevLayer->neurons[num].device, neurons[num].device, numTokens[num], size);
-	neurons[num].copyToHost();
-	//for (int i = 0; i < numTokens[num]; i++) {
-	//	for (int j = 0; j < size; j++) {
-	//		if (j % 2 == 0) {
-	//			neurons[num].r(i, j) = prevLayer->neurons[num](i, j) + sin(i / (pow(L, (float)j / size)));
-	//		}
-	//		else {
-	//			neurons[num].r(i, j) = prevLayer->neurons[num](i, j) + cos(i / (pow(L, (float)(j - 1) / size)));
-	//		}
-	//	}
-	//}
+	prevLayer->neurons[num].copyToDevice(0);
+	MatrixKernel::runElementKernel(numTokens[num], size, 0, kernelEncoding, L, Matrix2::DEVICES[num][0], Matrix2::DEVICES[num][1], numTokens[num], size);
+	neurons[num].copyToHost(1);
 }
 
 void PositionalEncoding2D::backPropagate(int num) {

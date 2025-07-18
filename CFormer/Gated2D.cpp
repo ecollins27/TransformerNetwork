@@ -42,24 +42,24 @@ void Gated2D::setPrevLayer(Layer* prevLayer) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
 	FillFunction fill = NormalFill(0, stdDeviation);
-	weights1 = Matrix2(fill, size, prevSize);
-	weights2 = Matrix2(fill, size, prevSize);
+	weights1 = Matrix2(fill, size, prevSize, 0);
+	weights2 = Matrix2(fill, size, prevSize, 0);
 }
 
 void Gated2D::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	weightGradient1 = Matrix2::allocateMatrixArray(batchSize, size, prevSize, false);
-	weightGradient2 = Matrix2::allocateMatrixArray(batchSize, size, prevSize, false);
+	weightGradient1 = Matrix2::allocateMatrixArray(batchSize, size, prevSize);
+	weightGradient2 = Matrix2::allocateMatrixArray(batchSize, size, prevSize);
 
 	optimizer1->setBatchSize(batchSize, weightGradient1);
 	optimizer2->setBatchSize(batchSize, weightGradient2);
 
-	A1 = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
-	A1Grad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
-	A2 = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
-	A2Grad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
-	Ao = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
-	AoGrad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
+	A1 = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
+	A1Grad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
+	A2 = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
+	A2Grad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
+	Ao = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
+	AoGrad = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
@@ -69,22 +69,18 @@ void Gated2D::save(ofstream& file) {
 	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
-	weights1.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights1(i, j) << ",";
 		}
 		file << "\n";
 	}
-	weights1.deallocateHost();
-	weights2.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights2(i, j) << ",";
 		}
 		file << "\n";
 	}
-	weights2.deallocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
@@ -95,22 +91,18 @@ void Gated2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	Gated2D* gatedLayer = { new Gated2D(activation, size) };
 	nn->addLayer(gatedLayer);
-	gatedLayer->weights1.allocateHost();
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
 			gatedLayer->weights1(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
-	gatedLayer->weights1.deallocateHost();
-	gatedLayer->weights2.allocateHost();
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
 			gatedLayer->weights2(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
-	gatedLayer->weights2.deallocateHost();
 	*prevSize = size + 1;
 }
 

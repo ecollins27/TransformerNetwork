@@ -55,6 +55,7 @@
     <ClCompile Include="SequenceMean.cpp" />
     <ClCompile Include="TrainingParams.cpp" />
     <ClCompile Include="Model2DTo1D.cpp" />
+    <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Activation.h" />
@@ -92,6 +93,7 @@
     <ClInclude Include="SequenceMean.h" />
     <ClInclude Include="TrainingParams.h" />
     <ClInclude Include="Model2DTo1D.h" />
+    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

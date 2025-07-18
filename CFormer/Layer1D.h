@@ -13,9 +13,9 @@ public:
 
 	virtual void setBatchSize(int batchSize) {
 		this->batchSize = batchSize;
-		neurons = Matrix2(batchSize, size + 1, false);
+		neurons = Matrix2(batchSize, size + 1, 0);
 		neurons.constantFill(1);
-		neuronGradient = Matrix2(batchSize, size, false);
+		neuronGradient = Matrix2(batchSize, size, 0);
 	}
 };
 

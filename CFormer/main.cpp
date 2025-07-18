@@ -119,7 +119,25 @@ void getDummyData(int numData, float** X, float** y) {
 }
 
 int main() {
-	cublasCreate(&MatrixBatch::HANDLE);
+	cublasCreate(&Utils::HANDLE);
+	int size = 10;
+	Matrix2 A(FillFunction::UNIT_NORMAL_FILL, size, size, 0);
+	Matrix2 B(FillFunction::UNIT_NORMAL_FILL, size, size, 0);
+	Matrix2 C(size, size, 0);
+	for (int i = 0; i < 2; i++) {
+		Utils::ALLOCATE_DEVICE_MODE = !Utils::ALLOCATE_DEVICE_MODE;
+		Matrix2::multiplyABC(A, B, C, true);
+		C.print();
+		C.scale(10);
+		C.print();
+		if (i == 0) {
+			Matrix2::allocateDevices();
+		}
+	}
+}
+
+int main2() {
+	cublasCreate(&Utils::HANDLE);
 
 	int numData = 60000;
 	float** X = new float* [numData];
@@ -141,7 +159,7 @@ int main() {
 }
 
 int main1() {
-	cublasCreate(&MatrixBatch::HANDLE);
+	cublasCreate(&Utils::HANDLE);
 	int numData = 60000;
 	float** X = new float* [numData];
 	float** y = new float* [numData];

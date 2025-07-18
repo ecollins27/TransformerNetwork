@@ -36,14 +36,14 @@ void Dense2D::setPrevLayer(Layer* prevLayer) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
 	FillFunction fill = NormalFill(0, stdDeviation);
-	weights = Matrix2(fill, size, prevSize);
+	weights = Matrix2(fill, size, prevSize, 0);
 }
 
 void Dense2D::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	weightGradient = Matrix2::allocateMatrixArray(batchSize, size, prevSize, false);
-	linearCombo = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
-	backPropIntermediate = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size, false);
+	weightGradient = Matrix2::allocateMatrixArray(batchSize, size, prevSize);
+	linearCombo = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
+	backPropIntermediate = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
 	optimizer->setBatchSize(batchSize, weightGradient);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
@@ -54,14 +54,12 @@ void Dense2D::save(ofstream& file) {
 	file << LAYER_NAME << ",";
 	activation->save(file);
 	file << size << ",\n";
-	weights.allocateHost();
 	for (int i = 0; i < size; i++) {
 		for (int j = 0; j < prevSize; j++) {
 			file << weights(i, j) << ",";
 		}
 		file << "\n";
 	}
-	weights.deallocateHost();
 	if (nextLayer != NULL) {
 		nextLayer->save(file);
 	}
@@ -72,14 +70,12 @@ void Dense2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int
 	int size = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	Dense2D* denseLayer = new Dense2D(activation, size);
 	nn->addLayer(denseLayer);
-	denseLayer->weights.allocateHost();
 	for (int i = 0; i < size; i++) {
 		ModelParser::getNextLine(file, line, commaIndex, newCommaIndex);
 		for (int j = 0; j < *prevSize; j++) {
 			denseLayer->weights(i, j) = ModelParser::getNextfloat(line, commaIndex, newCommaIndex);
 		}
 	}
-	denseLayer->weights.deallocateHost();
 	*prevSize = size + 1;
 }
 

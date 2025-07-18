@@ -12,9 +12,8 @@ public:
 
 	int height, width, depth, batchSize;
 	MatrixBatch weightGradient;
+	MatrixBatch* weightGradients;
 	float regConstant;
-	float*** device;
-	float*** hostDevice;
 	bool condenseGradient = false;
 
 	virtual void applyGradient(MatrixBatch& weights, float t, float learningRate) = 0;

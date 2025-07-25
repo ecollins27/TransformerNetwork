@@ -9,6 +9,7 @@
 #include "MatrixBatch.h"
 #include <typeinfo>
 #include <thread>
+#include "MatrixOperations.h"
 
 using namespace std::chrono;
 
@@ -118,7 +119,55 @@ void getDummyData(int numData, float** X, float** y) {
 	}
 }
 
+void testSingleThread(int numMatrices, Matrix2* matrices, Matrix2* outputs) {
+	for (int i = 1; i < numMatrices; i++) {
+		Matrix2::multiplyABC(outputs[i - 1], matrices[i], outputs[i], true);
+	}
+}
+
 int main() {
+	int size = 10;
+	int numMatrices = 2;
+	Matrix2* matrices = new Matrix2[numMatrices];
+	Matrix2* outputs1 = new Matrix2[numMatrices];
+	Matrix2* outputs2 = new Matrix2[numMatrices];
+	for (int i = 0; i < numMatrices; i++) {
+		matrices[i] = Matrix2(FillFunction::UNIT_NORMAL_FILL, size, size, 0);
+		if (i < numMatrices - 1) {
+			outputs1[i + 1] = Matrix2(FillFunction::ZERO_FILL, size, size, 0);
+			outputs2[i + 1] = Matrix2(FillFunction::ZERO_FILL, size, size, 0);
+		}
+	}
+	outputs1[0] = matrices[0];
+	outputs2[0] = matrices[0];
+	Utils::ALLOCATE_DEVICE_MODE = true;
+	for (int i = 1; i < numMatrices; i++) {
+		Matrix2::multiplyABC(outputs1[i - 1], matrices[i], outputs1[i], true);
+	}
+	Utils::ALLOCATE_DEVICE_MODE = false;
+	Matrix2::allocateDevices();
+	PropagationQueue queue(5);
+	for (int i = 1; i < numMatrices; i++) {
+		queue.enqueueOperation(new MMMultiplyABC(outputs2[i - 1], matrices[i], outputs2[i], true));
+	}
+	timeFunction("Naive Method", testSingleThread, numMatrices, matrices, outputs2);
+	auto start = high_resolution_clock::now();
+	queue.start();
+	auto stop = high_resolution_clock::now();
+	auto duration = duration_cast<microseconds>(stop - start);
+	printf("Multi-threaded Method: %d microseconds\n", duration.count());
+	for (int i = 0; i < size; i++) {
+		for (int j = 0; j < size; j++) {
+			if ((outputs2[size - 1](i, j) - outputs1[size - 1](i, j)) / outputs2[size - 1](i, j) > 0.01) {
+				printf("Not equal\n");
+				exit(0);
+			}
+		}
+	}
+	printf("Equal");
+}
+
+int main1() {
 	cublasCreate(&Utils::HANDLE);
 	int size = 10;
 	Matrix2 A(FillFunction::UNIT_NORMAL_FILL, size, size, 0);
@@ -158,7 +207,7 @@ int main2() {
 	return 0;
 }
 
-int main1() {
+int main3() {
 	cublasCreate(&Utils::HANDLE);
 	int numData = 60000;
 	float** X = new float* [numData];

@@ -99,8 +99,7 @@
     <ClCompile Include="OptimizerBatch.cpp" />
     <ClCompile Include="Utils.cpp" />
     <ClCompile Include="PropagationQueue.cpp" />
-    <ClCompile Include="MatrixOperations.cpp" />
-    <ClCompile Include="MatrixBatchOperations.cpp" />
+    <ClCompile Include="Operation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Layer.h">
@@ -200,8 +199,7 @@
     <ClInclude Include="OptimizerBatch.h" />
     <ClInclude Include="Utils.h" />
     <ClInclude Include="PropagationQueue.h" />
-    <ClInclude Include="MatrixOperations.h" />
-    <ClInclude Include="MatrixBatchOperations.h" />
+    <ClInclude Include="Operation.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="DNN">
@@ -225,5 +223,8 @@
     <Filter Include="DNN\Models">
       <UniqueIdentifier>{6cd7f2c6-87b3-4b26-abd2-9f50c5faf1ea}</UniqueIdentifier>
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Operation.inl" />
   </ItemGroup>
 </Project>

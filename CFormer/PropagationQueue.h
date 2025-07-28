@@ -2,47 +2,43 @@
 #include "Matrix2.h"
 #include "MatrixBatch.h"
 #include <functional>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include "Operation.h"
 
-class StreamEnvironment;
-class Operation;
 
+class Comparator {
+public:
+	bool operator()(Operation* o1, Operation* o2) {
+		return o1->getPrereqsUnmet() > o2->getPrereqsUnmet();
+	}
+};
 class PropagationQueue {
 
 public:
 
 
-	int numStreams;
-	StreamEnvironment* streams;
+	int numThreads;
+	thread* threads;
+	priority_queue<Operation*, vector<Operation*>, Comparator> operationQueue;
 	vector<Operation*> operations;
+	mutex queueLock;
+	atomic<bool>* deviceLocks;
 
-	PropagationQueue(int numStreams);
-	void start();
-	void enqueueOperation(Operation* operation);
-	long long getDeviceMemory();
-};
-
-class StreamEnvironment {
-public:
 	int numDevices;
 	int* deviceBatchSizes;
 	int* deviceLengths;
-	float*** devices; //numDevices x deviceBatchSizes x deviceLengths
-	float*** hostDevices;
-	cudaStream_t stream;
-	cublasHandle_t handle;
+	float**** devices; // numThreads * numDevices * deviceBatchSizes * deviceLengths
+	float**** hostDevices;
 
-	StreamEnvironment();
+	PropagationQueue(int numStreams);
+	void threadRun(int threadID);
+	void run();
+	void reset();
+	void enqueueOperation(Operation* operation);
+	void finalize();
 	void allocateDeviceMemory();
 	long long getDeviceMemory();
-};
-
-class Operation {
-
-public:
-	void* output;
-	virtual void operate(StreamEnvironment stream) = 0;
-	virtual void applyToStream(StreamEnvironment stream) = 0;
-	virtual void copyToDevice(StreamEnvironment stream, int completedIndex) = 0;
-	virtual void copyToHost(StreamEnvironment stream) = 0;
-	virtual void findPrereqs(vector<Operation*> operations) = 0;
+	int getNextAvailableThread();
 };

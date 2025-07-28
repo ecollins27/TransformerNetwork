@@ -7,9 +7,9 @@
 #include "BytePairTokenizer.h"
 #include "Matrix2.h"
 #include "MatrixBatch.h"
+#include "PropagationQueue.h"
 #include <typeinfo>
 #include <thread>
-#include "MatrixOperations.h"
 
 using namespace std::chrono;
 
@@ -148,11 +148,13 @@ int main() {
 	Matrix2::allocateDevices();
 	PropagationQueue queue(5);
 	for (int i = 1; i < numMatrices; i++) {
-		queue.enqueueOperation(new MMMultiplyABC(outputs2[i - 1], matrices[i], outputs2[i], true));
+		queue.enqueueOperation(new MultiplyABC(outputs2[i - 1], matrices[i], outputs2[i], true));
 	}
+	queue.finalize();
+	queue.reset();
 	timeFunction("Naive Method", testSingleThread, numMatrices, matrices, outputs2);
 	auto start = high_resolution_clock::now();
-	queue.start();
+	queue.run();
 	auto stop = high_resolution_clock::now();
 	auto duration = duration_cast<microseconds>(stop - start);
 	printf("Multi-threaded Method: %d microseconds\n", duration.count());

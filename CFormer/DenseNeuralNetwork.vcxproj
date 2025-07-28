@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -40,11 +40,10 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Matrix2.cpp" />
     <ClCompile Include="MatrixBatch.cpp" />
-    <ClCompile Include="MatrixBatchOperations.cpp" />
     <ClCompile Include="MatrixKernel.cpp" />
-    <ClCompile Include="MatrixOperations.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelParser.cpp" />
+    <ClCompile Include="Operation.cpp" />
     <ClCompile Include="OptimizerBatch.cpp" />
     <ClCompile Include="PropagationQueue.cpp" />
     <ClCompile Include="TransformerAttention.cpp" />
@@ -81,11 +80,10 @@
     <ClInclude Include="Loss1D.h" />
     <ClInclude Include="Matrix2.h" />
     <ClInclude Include="MatrixBatch.h" />
-    <ClInclude Include="MatrixBatchOperations.h" />
     <ClInclude Include="MatrixKernel.h" />
-    <ClInclude Include="MatrixOperations.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelParser.h" />
+    <ClInclude Include="Operation.h" />
     <ClInclude Include="OptimizerBatch.h" />
     <ClInclude Include="PropagationQueue.h" />
     <ClInclude Include="TransformerAttention.h" />
@@ -100,6 +98,9 @@
     <ClInclude Include="TrainingParams.h" />
     <ClInclude Include="Model2DTo1D.h" />
     <ClInclude Include="Utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Operation.inl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -189,6 +190,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.9\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

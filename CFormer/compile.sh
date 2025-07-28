@@ -7,8 +7,7 @@ CU_SOURCES=($(grep -l 'include "MatrixKernel.h"' *.cpp))
 CU_SOURCES+=("Matrix2.cpp")
 CU_SOURCES+=("MatrixBatch.cpp")
 CU_SOURCES+=("PropagationQueue.cpp")
-CU_SOURCES+=("MatrixOperations.cpp")
-CU_SOURCES+=("MatrixBatchOperations.cpp")
+CU_SOURCES+=("Operation.cpp")
 echo "  CU_SOURCES: ${CU_SOURCES[*]}"
 for file in "${CU_SOURCES[@]}";
 do cp "$file" "${file%.cpp}.cu"

@@ -1,10 +1,9 @@
 template<typename Type>
 HostToDeviceCopy<Type>::HostToDeviceCopy(GPUOperation* operation, Type* A, int deviceNum) {
 	this->A = A;
-	this->output = &A + 1;
-	this->deviceNum;
-	this->copyID = &operation->threadID;
-	this->idFound = &operation->idFound;
+	this->output = A + 1;
+	this->deviceNum = deviceNum;
+	this->threadID = &operation->threadID;
 	prereq = NULL;
 }
 
@@ -18,17 +17,21 @@ void HostToDeviceCopy<Type>::findPrereqs(vector<Operation*> operations, int inde
 }
 
 template<typename Type>
-int HostToDeviceCopy<Type>::getPrereqsUnmet() {
-	return (prereq == NULL ? 0 : prereq->completed);
+int HostToDeviceCopy<Type>::getPrereqsUnmet(PropagationQueue* queue) {
+	return (prereq == NULL ? 0 : prereq->completed.load()) + ((this->threadID->load() == -1 && queue->devicesUsed >= queue->numThreads) ? 1 : 0);
+}
+
+template<typename Type>
+bool HostToDeviceCopy<Type>::containsPrereq(Operation* o) {
+	return this->prereq == o;
 }
 
 template<typename Type>
 DeviceToHostCopy<Type>::DeviceToHostCopy(GPUOperation* operation, Type* A, int deviceNum) {
 	this->A = A;
 	this->output = A;
-	this->deviceNum;
-	this->copyID = &operation->threadID;
-	this->idFound = &operation->idFound;
+	this->deviceNum = deviceNum;
+	this->threadID = &operation->threadID;
 	prereq = NULL;
 }
 
@@ -38,8 +41,13 @@ void DeviceToHostCopy<Type>::findPrereqs(vector<Operation*> operations, int inde
 }
 
 template<typename Type>
-int DeviceToHostCopy<Type>::getPrereqsUnmet() {
-	return (prereq == NULL ? 0 : prereq->completed);
+int DeviceToHostCopy<Type>::getPrereqsUnmet(PropagationQueue* queue) {
+	return (prereq == NULL ? 0 : prereq->completed.load());
+}
+
+template<typename Type>
+bool DeviceToHostCopy<Type>::containsPrereq(Operation* o) {
+	return this->prereq == o;
 }
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -63,8 +71,15 @@ void Trinary<TypeA, TypeB, TypeC>::addDeviceCopies(vector<Operation*>& operation
 }
 
 template<typename TypeA, typename TypeB, typename TypeC>
-int Multiply<TypeA, TypeB, TypeC>::getPrereqsUnmet() {
-	return (this->prereqA == NULL ? 0 : this->prereqA->completed) + (this->prereqB == NULL ? 0 : this->prereqB->completed) + (this->prereqC == NULL ? 0 : this->prereqC->completed);
+void Trinary<TypeA, TypeB, TypeC>::addHostCopies(vector<Operation*>& operations) {
+	DeviceToHostCopy<TypeC>* CCopy = new DeviceToHostCopy(this, this->C, 2);
+	CCopy->prereq = this;
+	operations.emplace_back(CCopy);
+}
+
+template<typename TypeA, typename TypeB, typename TypeC>
+int Multiply<TypeA, TypeB, TypeC>::getPrereqsUnmet(PropagationQueue* queue) {
+	return (this->prereqA == NULL ? 0 : this->prereqA->completed.load()) + (this->prereqB == NULL ? 0 : this->prereqB->completed.load()) + (this->prereqC == NULL ? 0 : this->prereqC->completed.load());
 }
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -83,8 +98,6 @@ void Multiply<TypeA, TypeB, TypeC>::addDeviceCopies(vector<Operation*>& operatio
 }
 
 template<typename TypeA, typename TypeB, typename TypeC>
-void Trinary<TypeA, TypeB, TypeC>::addHostCopies(vector<Operation*>& operations) {
-	DeviceToHostCopy<TypeC>* CCopy = new DeviceToHostCopy(this, this->C, 2);
-	operations.emplace_back(CCopy);
-	CCopy->prereq = this;
+bool Multiply<TypeA, TypeB, TypeC>::containsPrereq(Operation* o) {
+	return this->prereqA == o || this->prereqB == o || this->prereqC == o;
 }

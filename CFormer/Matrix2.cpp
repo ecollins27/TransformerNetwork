@@ -482,10 +482,14 @@ void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {
 	int thread = max(A.threadNum, B.threadNum);
 	A.copyToDevice(0, thread);
 	B.copyToDevice(1, thread);
-	C.copyToDevice(2, thread);
-	cublasStatus_t stat = cublasSgemm(Utils::HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, A.height, B.width, A.width, &ALPHA, DEVICES[thread][0], A.height, DEVICES[thread][1], B.height, &(overwrite ? BETA0 : BETA1), DEVICES[thread][2], C.height);
-	if (stat != CUBLAS_STATUS_SUCCESS) {
-		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	if (!overwrite) {
+		C.copyToDevice(2, thread);
+	}
+	if (!Utils::ALLOCATE_DEVICE_MODE) {
+		cublasStatus_t stat = cublasSgemm(Utils::HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, A.height, B.width, A.width, &ALPHA, DEVICES[thread][0], A.height, DEVICES[thread][1], B.height, &(overwrite ? BETA0 : BETA1), DEVICES[thread][2], C.height);
+		if (stat != CUBLAS_STATUS_SUCCESS) {
+			throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+		}
 	}
 	C.copyToHost(2, A.height * B.width, thread);
 }

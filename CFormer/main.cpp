@@ -9,6 +9,7 @@
 #include "MatrixBatch.h"
 #include "PropagationQueue.h"
 #include <typeinfo>
+#include <barrier>
 #include <thread>
 
 using namespace std::chrono;
@@ -125,9 +126,37 @@ void testSingleThread(int numMatrices, Matrix2* matrices, Matrix2* outputs) {
 	}
 }
 
+void threadRun(PropagationQueue* queue, Matrix2* matrices, Matrix2* outputs, Matrix2 reference, int numMatrices, int threadID, barrier<>* sync) {
+	int numTest = 1000000;
+	for (int i = 0; i < numTest; i++) {
+		if (threadID == 0) {
+			printf("\r %d/%d", i, numTest);
+		}
+		sync->arrive_and_wait();
+		queue->threadRun(threadID);
+		sync->arrive_and_wait();
+		if (threadID == 0) {
+			bool equal = true;
+			for (int i = 0; i < reference.height; i++) {
+				for (int j = 0; j < reference.width; j++) {
+					if ((outputs[numMatrices - 1](i, j) - reference(i, j)) / outputs[numMatrices - 1](i, j) > 0.01) {
+						equal = false;
+					}
+				}
+			}
+			if (!equal) {
+				printf("  FAILED\n");
+			}
+		}
+	}
+}
+
 int main() {
-	int size = 10;
-	int numMatrices = 2;
+	cublasCreate(&Utils::HANDLE);
+	cudaFree(0);
+	printf("MAX_THREADS: %d\n", thread::hardware_concurrency());
+	int size = 500;
+	int numMatrices = 500;
 	Matrix2* matrices = new Matrix2[numMatrices];
 	Matrix2* outputs1 = new Matrix2[numMatrices];
 	Matrix2* outputs2 = new Matrix2[numMatrices];
@@ -143,30 +172,29 @@ int main() {
 	Utils::ALLOCATE_DEVICE_MODE = true;
 	for (int i = 1; i < numMatrices; i++) {
 		Matrix2::multiplyABC(outputs1[i - 1], matrices[i], outputs1[i], true);
+		//Matrix2::multiplyABC(matrices[i - 1], matrices[i], outputs1[i], true);
 	}
 	Utils::ALLOCATE_DEVICE_MODE = false;
 	Matrix2::allocateDevices();
-	PropagationQueue queue(5);
+	PropagationQueue queue(3);
 	for (int i = 1; i < numMatrices; i++) {
 		queue.enqueueOperation(new MultiplyABC(outputs2[i - 1], matrices[i], outputs2[i], true));
+		//queue.enqueueOperation(new MultiplyABC(matrices[i - 1], matrices[i], outputs2[i], true));
 	}
 	queue.finalize();
 	queue.reset();
-	timeFunction("Naive Method", testSingleThread, numMatrices, matrices, outputs2);
-	auto start = high_resolution_clock::now();
-	queue.run();
-	auto stop = high_resolution_clock::now();
-	auto duration = duration_cast<microseconds>(stop - start);
-	printf("Multi-threaded Method: %d microseconds\n", duration.count());
-	for (int i = 0; i < size; i++) {
-		for (int j = 0; j < size; j++) {
-			if ((outputs2[size - 1](i, j) - outputs1[size - 1](i, j)) / outputs2[size - 1](i, j) > 0.01) {
-				printf("Not equal\n");
-				exit(0);
-			}
-		}
+	for (int i = 1; i < numMatrices; i++) {
+		Matrix2::multiplyABC(outputs1[i - 1], matrices[i], outputs1[i], true);
+		//Matrix2::multiplyABC(matrices[i - 1], matrices[i], outputs1[i], true);
 	}
-	printf("Equal");
+	thread* threads = new thread[3];
+	barrier<> sync(3);
+	for (int i = 0; i < 3; i++) {
+		threads[i] = thread(threadRun, &queue, matrices, outputs2, outputs1[numMatrices - 1], numMatrices, i, &sync);
+	}
+	for (int i = 0; i < 3; i++) {
+		threads[i].join();
+	}
 }
 
 int main1() {

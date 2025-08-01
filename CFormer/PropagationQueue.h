@@ -7,13 +7,6 @@
 #include <thread>
 #include "Operation.h"
 
-
-class Comparator {
-public:
-	bool operator()(Operation* o1, Operation* o2) {
-		return o1->getPrereqsUnmet() > o2->getPrereqsUnmet();
-	}
-};
 class PropagationQueue {
 
 public:
@@ -21,10 +14,12 @@ public:
 
 	int numThreads;
 	thread* threads;
-	priority_queue<Operation*, vector<Operation*>, Comparator> operationQueue;
+	cudaStream_t* streams;
+	cublasHandle_t* handles;
 	vector<Operation*> operations;
-	mutex queueLock;
 	atomic<bool>* deviceLocks;
+	atomic<int> devicesUsed;
+	mutex lock;
 
 	int numDevices;
 	int* deviceBatchSizes;
@@ -33,6 +28,9 @@ public:
 	float**** hostDevices;
 
 	PropagationQueue(int numStreams);
+	void debugCall() {};
+	int getMinIndex(vector<Operation*> v);
+	bool operationsAllocated(vector<Operation*> v);
 	void threadRun(int threadID);
 	void run();
 	void reset();

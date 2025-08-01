@@ -9,19 +9,20 @@ class Operation {
 
 public:
 	void* output;
-	int completed;
+	atomic<int> completed;
+	atomic<bool> operationAllocated;
 
-	virtual void operate(PropagationQueue* queue, int threadID) = 0;
+	virtual bool operate(PropagationQueue* queue, int threadID) = 0;
 	virtual void applyToStream(PropagationQueue* queue) = 0;
 	virtual void findPrereqs(vector<Operation*> operations, int index) = 0;
-	virtual int getPrereqsUnmet() = 0;
+	virtual int getPrereqsUnmet(PropagationQueue* queue) = 0;
+	virtual bool containsPrereq(Operation* o) = 0;
 };
 
 class GPUOperation : public Operation {
 
 public:
-	int threadID;
-	atomic<bool> idFound;
+	atomic<int> threadID;
 
 	virtual void applyToStream(PropagationQueue* queue);
 	virtual void findPrereqs(vector<Operation*> operations, int index);
@@ -35,15 +36,15 @@ class HostToDeviceCopy : public Operation {
 public:
 	Type* A;
 	int deviceNum;
-	int* copyID;
-	atomic<bool>* idFound;
+	atomic<int>* threadID;
 	Operation* prereq;
 
 	HostToDeviceCopy(GPUOperation* operation, Type* A, int deviceNum);
-	void operate(PropagationQueue* queue, int threadID);
+	bool operate(PropagationQueue* queue, int threadID);
 	void applyToStream(PropagationQueue* queue);
 	void findPrereqs(vector<Operation*> operations, int index);
-	int getPrereqsUnmet();
+	bool containsPrereq(Operation* o);
+	int getPrereqsUnmet(PropagationQueue* queue);
 };
 
 template<typename Type>
@@ -52,15 +53,15 @@ class DeviceToHostCopy : public Operation {
 public:
 	Type* A;
 	int deviceNum;
-	int* copyID;
-	atomic<bool>* idFound;
+	atomic<int>* threadID;
 	Operation* prereq;
 
 	DeviceToHostCopy(GPUOperation* operation, Type* A, int deviceNum);
-	void operate(PropagationQueue* queue, int threadID);
+	bool operate(PropagationQueue* queue, int threadID);
 	void applyToStream(PropagationQueue* queue);
 	void findPrereqs(vector<Operation*> operations, int index);
-	int getPrereqsUnmet();
+	bool containsPrereq(Operation* o);
+	int getPrereqsUnmet(PropagationQueue* queue);
 };
 
 template<typename TypeA>
@@ -71,9 +72,10 @@ public:
 	Operation* prereq;
 
 	Unary(TypeA& A);
-	virtual int getPrereqsUnmet();
+	virtual int getPrereqsUnmet(PropagationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
+	virtual bool containsPrereq(Operation* o);
 };
 
 template<typename TypeA, typename TypeB>
@@ -85,9 +87,10 @@ public:
 	Operation* prereqA;
 
 	Binary(TypeA& A, TypeB& B);
-	virtual int getPrereqsUnmet();
+	virtual int getPrereqsUnmet(PropagationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
+	virtual bool containsPrereq(Operation* o);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -101,9 +104,10 @@ public:
 	Operation* prereqB;
 
 	Trinary(TypeA& A, TypeB& B, TypeC& C);
-	virtual int getPrereqsUnmet();
+	virtual int getPrereqsUnmet(PropagationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
+	virtual bool containsPrereq(Operation* o);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -117,8 +121,9 @@ public:
 	const float BETA1 = 1.0f;
 
 	Multiply(TypeA& A, TypeB& B, TypeC& C, bool overwrite) : Trinary<TypeA, TypeB, TypeC>(A, B, C) { this->overwrite = overwrite; this->prereqC = NULL; };
-	int getPrereqsUnmet();
+	int getPrereqsUnmet(PropagationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
+	virtual bool containsPrereq(Operation* o);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -126,7 +131,7 @@ class MultiplyABC : public Multiply<TypeA, TypeB, TypeC> {
 
 public:
 	MultiplyABC(TypeA& A, TypeB& B, TypeC& C, bool overwrite) : Multiply<TypeA, TypeB, TypeC>(A, B, C, overwrite) { return; };
-	void operate(PropagationQueue* queue, int threadID);
+	bool operate(PropagationQueue* queue, int threadID);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -134,7 +139,7 @@ class MultiplyAtBC : public Multiply<TypeA, TypeB, TypeC> {
 
 public:
 
-	void operate(PropagationQueue* queue, int threadID);
+	bool operate(PropagationQueue* queue, int threadID);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -142,7 +147,7 @@ class MultiplyAtBtC : public Multiply<TypeA, TypeB, TypeC> {
 
 public:
 
-	void operate(PropagationQueue* queue, int threadID);
+	bool operate(PropagationQueue* queue, int threadID);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -150,7 +155,7 @@ class MultiplyABtC : public Multiply<TypeA, TypeB, TypeC> {
 
 public:
 
-	void operate(PropagationQueue* queue, int threadID);
+	bool operate(PropagationQueue* queue, int threadID);
 };
 
 #include "Operation.inl"

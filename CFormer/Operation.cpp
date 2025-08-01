@@ -19,36 +19,69 @@ void extendArray(T*& array, int oldLength, int newLength) {
 }
 
 template<>
-void HostToDeviceCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
-	if (!this->idFound->load()) {
-		this->idFound->store(true);
-		*copyID = queue->getNextAvailableThread();
-		queue->deviceLocks[*copyID].store(false);
+bool HostToDeviceCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	queue->debugCall();
+	if (this->threadID->load() == -1){
+		bool foundThread = false;
+		bool refFalse;
+		bool refTrue;
+		int refNegOne;
+		for (int i = 0; i < queue->numThreads; i++) {
+			refTrue = true;
+			refNegOne = -1;
+			if (queue->deviceLocks[i].compare_exchange_strong(refTrue, false)) {
+				if (!this->threadID->compare_exchange_strong(refNegOne, i)) {
+					queue->deviceLocks[i].compare_exchange_strong(refFalse, true);
+				}
+				else {
+					queue->devicesUsed.fetch_add(1);
+				}
+				foundThread = true;
+				break;
+			}
+		}
+		if (!foundThread) {
+			return false;
+		}
 	}
-	cudaError_t err = cudaMemcpy(queue->hostDevices[*copyID][this->deviceNum][0], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice);
+	cudaError_t err = cudaMemcpyAsync(queue->hostDevices[this->threadID->load()][this->deviceNum][0], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice, queue->streams[this->threadID->load()]);
 	if (err != cudaSuccess) {
 		throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 	}
+	return true;
 }
 
 template<>
-void HostToDeviceCopy<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
-	if (!this->idFound->load()) {
-		this->idFound->store(true);
-		*copyID = queue->getNextAvailableThread();
-		queue->deviceLocks[*copyID].store(false);
+bool HostToDeviceCopy<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	if (this->threadID->load() == -1) {
+		bool foundThread = false;
+		bool refTrue;
+		int refNegOne;
+		for (int i = 0; i < queue->numThreads; i++) {
+			refTrue = true;
+			refNegOne = -1;
+			if (queue->deviceLocks[i].compare_exchange_strong(refTrue, false)) {
+				this->threadID->compare_exchange_strong(refNegOne, i);
+				foundThread = true;
+				break;
+			}
+		}
+		if (!foundThread && this->threadID->load() == -1) {
+			return false;
+		}
 	}
 	cudaError_t err;
 	for (int i = 0; i < A->batchSize; i++) {
-		err = cudaMemcpy(queue->hostDevices[*copyID][this->deviceNum][i], A->host[i], A->length * sizeof(float), cudaMemcpyHostToDevice);
+		err = cudaMemcpy(queue->hostDevices[this->threadID->load()][this->deviceNum][i], A->host[i], A->length * sizeof(float), cudaMemcpyHostToDevice);
 		if (err != cudaSuccess) {
 			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
+	return true;
 }
 
 template<typename Type>
-void HostToDeviceCopy<Type>::operate(PropagationQueue* queue, int threadID) {
+bool HostToDeviceCopy<Type>::operate(PropagationQueue* queue, int threadID) {
 	throw runtime_error("All passed parameters must be instance of Matrix or MatrixBatch");
 }
 
@@ -61,6 +94,7 @@ void HostToDeviceCopy<Matrix2>::applyToStream(PropagationQueue* queue) {
 			queue->deviceBatchSizes[i] = 0;
 			queue->deviceLengths[i] = 0;
 		}
+		queue->numDevices = deviceNum + 1;
 	}
 	queue->deviceBatchSizes[deviceNum] = max(queue->deviceBatchSizes[deviceNum], 1);
 	queue->deviceLengths[deviceNum] = max(queue->deviceLengths[deviceNum], A->maxLength);
@@ -75,6 +109,7 @@ void HostToDeviceCopy<MatrixBatch>::applyToStream(PropagationQueue* queue) {
 			queue->deviceBatchSizes[i] = 0;
 			queue->deviceLengths[i] = 0;
 		}
+		queue->numDevices = deviceNum + 1;
 	}
 	queue->deviceBatchSizes[deviceNum] = max(queue->deviceBatchSizes[deviceNum], A->batchSize);
 	queue->deviceLengths[deviceNum] = max(queue->deviceLengths[deviceNum], A->maxLength);
@@ -86,38 +121,33 @@ void HostToDeviceCopy<Type>::applyToStream(PropagationQueue* queue) {
 }
 
 template<>
-void DeviceToHostCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
-	if (this->idFound->load()) {
-		this->idFound->store(false);
-	}
-	cudaError_t err = cudaMemcpy(A->host, queue->hostDevices[*copyID][this->deviceNum][0], A->length * sizeof(float), cudaMemcpyDeviceToHost);
+bool DeviceToHostCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	cudaError_t err = cudaMemcpyAsync(A->host, queue->hostDevices[this->threadID->load()][this->deviceNum][0], A->length * sizeof(float), cudaMemcpyDeviceToHost, queue->streams[this->threadID->load()]);
 	if (err != cudaSuccess) {
 		throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 	}
-	if (!queue->deviceLocks[*copyID].load()) {
-		queue->deviceLocks[*copyID].store(true);
-	}
+	cudaStreamSynchronize(queue->streams[this->threadID->load()]);
+	queue->deviceLocks[this->threadID->load()].store(true);
+	queue->devicesUsed.fetch_sub(1);
+	return true;
 }
 
 template<>
-void DeviceToHostCopy<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
-	if (this->idFound->load()) {
-		this->idFound->store(false);
-	}
+bool DeviceToHostCopy<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 	cudaError_t err;
 	for (int i = 0; i < A->batchSize; i++) {
-		err = cudaMemcpy(A->host[i], queue->hostDevices[*copyID][this->deviceNum][i], A->length * sizeof(float), cudaMemcpyDeviceToHost);
+		err = cudaMemcpy(A->host[i], queue->hostDevices[this->threadID->load()][this->deviceNum][i], A->length * sizeof(float), cudaMemcpyDeviceToHost);
 		if (err != cudaSuccess) {
 			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
-	if (!queue->deviceLocks[*copyID].load()) {
-		queue->deviceLocks[*copyID].store(true);
-	}
+	queue->deviceLocks[this->threadID->load()].store(true);
+	this->threadID->store(-1);
+	return true;
 }
 
 template<typename Type>
-void DeviceToHostCopy<Type>::operate(PropagationQueue* queue, int threadID) {
+bool DeviceToHostCopy<Type>::operate(PropagationQueue* queue, int threadID) {
 	throw runtime_error("All passed parameters must be instance of Matrix or MatrixBatch");
 }
 
@@ -130,6 +160,7 @@ void DeviceToHostCopy<Matrix2>::applyToStream(PropagationQueue* queue) {
 			queue->deviceBatchSizes[i] = 0;
 			queue->deviceLengths[i] = 0;
 		}
+		queue->numDevices = deviceNum + 1;
 	}
 	queue->deviceBatchSizes[deviceNum] = max(queue->deviceBatchSizes[deviceNum], 1);
 	queue->deviceLengths[deviceNum] = max(queue->deviceLengths[deviceNum], A->maxLength);
@@ -144,6 +175,7 @@ void DeviceToHostCopy<MatrixBatch>::applyToStream(PropagationQueue* queue) {
 			queue->deviceBatchSizes[i] = 0;
 			queue->deviceLengths[i] = 0;
 		}
+		queue->numDevices = deviceNum + 1;
 	}
 	queue->deviceBatchSizes[deviceNum] = max(queue->deviceBatchSizes[deviceNum], A->batchSize);
 	queue->deviceLengths[deviceNum] = max(queue->deviceLengths[deviceNum], A->maxLength);
@@ -171,8 +203,8 @@ Unary<TypeA>::Unary(TypeA& A) {
 }
 
 template<typename TypeA>
-int Unary<TypeA>::getPrereqsUnmet() {
-	return prereq->completed;
+int Unary<TypeA>::getPrereqsUnmet(PropagationQueue* queue) {
+	return prereq->completed.load();
 }
 
 template<typename TypeA>
@@ -189,6 +221,11 @@ void Unary<TypeA>::addHostCopies(vector<Operation*>& operations) {
 	ACopy->prereq = this;
 }
 
+template<typename TypeA>
+bool Unary<TypeA>::containsPrereq(Operation* o) {
+	return this->prereq == o;
+}
+
 template<typename TypeA, typename TypeB>
 Binary<TypeA, TypeB>::Binary(TypeA& A, TypeB& B) {
 	this->A = &A;
@@ -199,8 +236,8 @@ Binary<TypeA, TypeB>::Binary(TypeA& A, TypeB& B) {
 }
 
 template<typename TypeA, typename TypeB>
-int Binary<TypeA, TypeB>::getPrereqsUnmet() {
-	return prereqA->completed;
+int Binary<TypeA, TypeB>::getPrereqsUnmet(PropagationQueue* queue) {
+	return prereqA->completed.load();
 }
 
 template<typename TypeA, typename TypeB>
@@ -217,15 +254,26 @@ void Binary<TypeA, TypeB>::addHostCopies(vector<Operation*>& operations) {
 	BCopy->prereq = this;
 }
 
+template<typename TypeA, typename TypeB>
+bool Binary<TypeA, TypeB>::containsPrereq(Operation* o) {
+	return this->prereqA == o;
+}
+
 template<typename TypeA, typename TypeB, typename TypeC>
-int Trinary<TypeA, TypeB, TypeC>::getPrereqsUnmet() {
-	return (prereqA == NULL? 0 : prereqA->completed) + (prereqB == NULL? 0 : prereqB->completed);
+int Trinary<TypeA, TypeB, TypeC>::getPrereqsUnmet(PropagationQueue* queue) {
+	return (prereqA == NULL? 0 : prereqA->completed.load()) + (prereqB == NULL? 0 : prereqB->completed.load());
+}
+
+template<typename TypeA, typename TypeB, typename TypeC>
+bool Trinary<TypeA, TypeB, TypeC>::containsPrereq(Operation* o) {
+	return this->prereqA == o || this->prereqB == o;
 }
 
 template<>
-void MultiplyABC<Matrix2, Matrix2, Matrix2>::operate(PropagationQueue* queue, int threadID) {
-	cublasStatus_t stat = cublasSgemm(Utils::HANDLE, CUBLAS_OP_N, CUBLAS_OP_N, this->A->height, this->B->width, this->A->width, &ALPHA, queue->hostDevices[this->threadID][0][0], this->A->height, queue->hostDevices[this->threadID][1][0], this->B->height, &(overwrite ? BETA0 : BETA1), queue->hostDevices[this->threadID][2][0], this->C->height);
+bool MultiplyABC<Matrix2, Matrix2, Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	cublasStatus_t stat = cublasSgemm(queue->handles[this->threadID.load()], CUBLAS_OP_N, CUBLAS_OP_N, this->A->height, this->B->width, this->A->width, &ALPHA, queue->hostDevices[this->threadID.load()][0][0], this->A->height, queue->hostDevices[this->threadID.load()][1][0], this->B->height, &(overwrite ? BETA0 : BETA1), queue->hostDevices[this->threadID.load()][2][0], this->C->height);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
 	}
+	return true;
 }

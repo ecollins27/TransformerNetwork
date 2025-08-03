@@ -4,17 +4,17 @@
 
 using namespace std;
 
-class ConstantFill;
-class NormalFill;
-class UniformFill;
+class ConstantFillFunction;
+class NormalFillFunction;
+class UniformFillFunction;
 
 class FillFunction {
 
 public:
 
-	static ConstantFill ZERO_FILL;
-	static NormalFill UNIT_NORMAL_FILL;
-	static UniformFill UNIT_UNIFORM_FILL;
+	static ConstantFillFunction ZERO_FILL;
+	static NormalFillFunction UNIT_NORMAL_FILL;
+	static UniformFillFunction UNIT_UNIFORM_FILL;
 
 	virtual float operator()(int i, int j) {
 		return 0.1;
@@ -22,27 +22,27 @@ public:
 };
 
 
-class ConstantFill : public FillFunction {
+class ConstantFillFunction : public FillFunction {
 public:
 	float value;
-	ConstantFill(float value);
+	ConstantFillFunction(float value);
 	float operator()(int i, int j) override;
 };
 
-class NormalFill : public FillFunction {
+class NormalFillFunction : public FillFunction {
 public:
 	default_random_engine generator;
 	normal_distribution<float>* distribution;
 
-	NormalFill(float mean, float stdDeviation);
+	NormalFillFunction(float mean, float stdDeviation);
 	float operator()(int i, int j) override;
 };
 
-class UniformFill : public FillFunction {
+class UniformFillFunction : public FillFunction {
 public:
 	default_random_engine generator;
 	uniform_real_distribution<float>* distribution;
 
-	UniformFill(float lowerBound, float upperBound);
+	UniformFillFunction(float lowerBound, float upperBound);
 	float operator()(int i, int j) override;
 };

@@ -153,7 +153,7 @@ void BatchNormalization1D::setPrevLayer(Layer* prevLayer) {
 	this->prevLayer = (Layer1D*)prevLayer;
 	size = prevLayer->size;
 	prevSize = size + 1;
-	NormalFill mean1Fill = NormalFill(1, 1);
+	NormalFillFunction mean1Fill = NormalFillFunction(1, 1);
 	parameters = Matrix2(FillFunction::UNIT_NORMAL_FILL, 2, size, 0);
 	for (int i = 0; i < size; i++) {
 		parameters(1, i) = mean1Fill(1, i);

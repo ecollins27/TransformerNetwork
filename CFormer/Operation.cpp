@@ -20,7 +20,6 @@ void extendArray(T*& array, int oldLength, int newLength) {
 
 template<>
 bool HostToDeviceCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
-	queue->debugCall();
 	if (this->threadID->load() == -1){
 		bool foundThread = false;
 		bool refFalse;
@@ -44,9 +43,20 @@ bool HostToDeviceCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 			return false;
 		}
 	}
-	cudaError_t err = cudaMemcpyAsync(queue->hostDevices[this->threadID->load()][this->deviceNum][0], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice, queue->streams[this->threadID->load()]);
-	if (err != cudaSuccess) {
-		throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
+	if (batchSize > 1) {
+		cudaError_t err;
+		for (int i = 0; i < batchSize; i++) {
+			err = cudaMemcpy(queue->hostDevices[this->threadID->load()][this->deviceNum][i], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice);
+			if (err != cudaSuccess) {
+				throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
+			}
+		}
+	}
+	else {
+		cudaError_t err = cudaMemcpyAsync(queue->hostDevices[this->threadID->load()][this->deviceNum][0], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice, queue->streams[this->threadID->load()]);
+		if (err != cudaSuccess) {
+			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
+		}
 	}
 	return true;
 }
@@ -80,11 +90,6 @@ bool HostToDeviceCopy<MatrixBatch>::operate(PropagationQueue* queue, int threadI
 	return true;
 }
 
-template<typename Type>
-bool HostToDeviceCopy<Type>::operate(PropagationQueue* queue, int threadID) {
-	throw runtime_error("All passed parameters must be instance of Matrix or MatrixBatch");
-}
-
 template<>
 void HostToDeviceCopy<Matrix2>::applyToStream(PropagationQueue* queue) {
 	if (queue->numDevices <= deviceNum) {
@@ -115,11 +120,6 @@ void HostToDeviceCopy<MatrixBatch>::applyToStream(PropagationQueue* queue) {
 	queue->deviceLengths[deviceNum] = max(queue->deviceLengths[deviceNum], A->maxLength);
 }
 
-template<typename Type>
-void HostToDeviceCopy<Type>::applyToStream(PropagationQueue* queue) {
-	throw runtime_error("All passed parameters must be instance of Matrix or MatrixBatch");
-}
-
 template<>
 bool DeviceToHostCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 	cudaError_t err = cudaMemcpyAsync(A->host, queue->hostDevices[this->threadID->load()][this->deviceNum][0], A->length * sizeof(float), cudaMemcpyDeviceToHost, queue->streams[this->threadID->load()]);
@@ -144,11 +144,6 @@ bool DeviceToHostCopy<MatrixBatch>::operate(PropagationQueue* queue, int threadI
 	queue->deviceLocks[this->threadID->load()].store(true);
 	this->threadID->store(-1);
 	return true;
-}
-
-template<typename Type>
-bool DeviceToHostCopy<Type>::operate(PropagationQueue* queue, int threadID) {
-	throw runtime_error("All passed parameters must be instance of Matrix or MatrixBatch");
 }
 
 template<>
@@ -181,97 +176,479 @@ void DeviceToHostCopy<MatrixBatch>::applyToStream(PropagationQueue* queue) {
 	queue->deviceLengths[deviceNum] = max(queue->deviceLengths[deviceNum], A->maxLength);
 }
 
-template<typename Type>
-void DeviceToHostCopy<Type>::applyToStream(PropagationQueue* queue) {
-	throw runtime_error("All passed parameters must be instance of Matrix or MatrixBatch");
-}
-
-void GPUOperation::applyToStream(PropagationQueue* queue) {
+void DOperation::applyToStream(PropagationQueue* queue) {
 	return;
 }
 
-void GPUOperation::findPrereqs(vector<Operation*> operations, int index) {
+void DOperation::findPrereqs(vector<Operation*> operations, int index) {
 	return;
 }
 
-template<typename TypeA>
-Unary<TypeA>::Unary(TypeA& A) {
-	this->A = &A;
-	this->output = &A + 1;
-	completed = false;
-	prereq = NULL;
+template<>
+bool Print<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	for (int i = 0; i < this->A->height; i++) {
+		for (int j = 0; j < this->A->width; j++) {
+			printf("%f  ", this->A->host[this->A->e(i, j)]);
+		}
+		printf("\n");
+	}
+	printf("\n");
 }
 
-template<typename TypeA>
-int Unary<TypeA>::getPrereqsUnmet(PropagationQueue* queue) {
-	return prereq->completed.load();
+template<>
+bool Print<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	for (int n = 0; n < this->A->batchSize; n++) {
+		for (int i = 0; i < this->A->height; i++) {
+			for (int j = 0; j < this->A->width; j++) {
+				printf("%f  ", this->A->host[n][this->A->e(i, j)]);
+			}
+			printf("\n");
+		}
+		printf("\n");
+	}
+	printf("\n");
 }
 
-template<typename TypeA>
-void Unary<TypeA>::addDeviceCopies(vector<Operation*>& operations) {
-	Operation* ACopy = new HostToDeviceCopy(this, this->A, 0);
-	operations.emplace_back(ACopy);
-	prereq = ACopy;
+template<>
+bool CopyTo<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	cudaError_t err = cudaMemcpy(this->B->host, this->A->host, (customWidth > -1 ? (this->A->height * customWidth) : this->A->length) * sizeof(float), cudaMemcpyHostToHost);
+	if (err != cudaSuccess) {
+		throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
+	}
 }
 
-template<typename TypeA>
-void Unary<TypeA>::addHostCopies(vector<Operation*>& operations) {
-	DeviceToHostCopy<TypeA>* ACopy = new DeviceToHostCopy(this, this->A, 0);
-	operations.emplace_back(ACopy);
-	ACopy->prereq = this;
+template<>
+bool CopyTo<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	cudaError_t err;
+	int N = (customWidth > -1 ? (customWidth * this->A->length) : this->A->length);
+	for (int i = 0; i < this->A->batchSize; i++) {
+		err = cudaMemcpy(this->B->host[i], this->A->host[i], N * sizeof(float), cudaMemcpyHostToHost);
+		if (err != cudaSuccess) {
+			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
+		}
+	}
 }
 
-template<typename TypeA>
-bool Unary<TypeA>::containsPrereq(Operation* o) {
-	return this->prereq == o;
+__global__
+void kernelConstantFill(int N, float c, float* A) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		A[i] = c;
+	}
 }
 
-template<typename TypeA, typename TypeB>
-Binary<TypeA, TypeB>::Binary(TypeA& A, TypeB& B) {
-	this->A = &A;
-	this->B = &B;
-	this->output = &A + 1;
-	completed = false;
-	prereqA = NULL;
+template<>
+bool ConstantFill<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelConstantFill << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->c, queue->hostDevices[id][0][0]);
 }
 
-template<typename TypeA, typename TypeB>
-int Binary<TypeA, TypeB>::getPrereqsUnmet(PropagationQueue* queue) {
-	return prereqA->completed.load();
+__global__
+void kernelConstantFillBatched(int N, float c, float** A) {
+	int n = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+
+	if (n < N) {
+		A[batch][n] = c;
+	}
 }
 
-template<typename TypeA, typename TypeB>
-void Binary<TypeA, TypeB>::addDeviceCopies(vector<Operation*>& operations) {
-	Operation* ACopy = new HostToDeviceCopy(this, this->A, 0);
-	operations.emplace_back(ACopy);
-	this->prereqA = ACopy;
+template<>
+bool ConstantFill<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelConstantFillBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, c, queue->devices[id][0]);
 }
 
-template<typename TypeA, typename TypeB>
-void Binary<TypeA, TypeB>::addHostCopies(vector<Operation*>& operations) {
-	DeviceToHostCopy<TypeB>* BCopy = new DeviceToHostCopy(this, this->B, 1);
-	operations.emplace_back(BCopy);
-	BCopy->prereq = this;
+__global__
+void kernelScale(int N, float c, float* A) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		A[i] *= c;
+	}
 }
 
-template<typename TypeA, typename TypeB>
-bool Binary<TypeA, TypeB>::containsPrereq(Operation* o) {
-	return this->prereqA == o;
+template<>
+bool Scale<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelScale << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->c, queue->hostDevices[id][0][0]);
 }
 
-template<typename TypeA, typename TypeB, typename TypeC>
-int Trinary<TypeA, TypeB, TypeC>::getPrereqsUnmet(PropagationQueue* queue) {
-	return (prereqA == NULL? 0 : prereqA->completed.load()) + (prereqB == NULL? 0 : prereqB->completed.load());
+__global__
+void kernelScaleBatched(int N, float c, float** A) {
+	int n = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+
+	if (n < N) {
+		A[batch][n] *= c;
+	}
 }
 
-template<typename TypeA, typename TypeB, typename TypeC>
-bool Trinary<TypeA, TypeB, TypeC>::containsPrereq(Operation* o) {
-	return this->prereqA == o || this->prereqB == o;
+template<>
+bool Scale<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelScaleBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, c, queue->devices[id][0]);
+}
+
+__global__
+void kernelSqrt(int N, float* A, float* B) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		B[i] = sqrt(A[i]);
+	}
+}
+
+template<>
+bool Sqrt<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelSqrt <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0]);
+}
+
+__global__
+void kernelSqrtBatched(int N, float** A, float** B) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+	if (i < N) {
+		B[batch][i] = sqrt(A[batch][i]);
+	}
+}
+
+template<>
+bool Sqrt<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelSqrtBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, queue->devices[id][0], queue->devices[id][1]);
+}
+
+__global__
+void kernelTranspose(int N, int height, float* A, float* B) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		int row = i % height;
+		int col = i / height;
+		B[row * height + col] = A[i];
+	}
+}
+
+template<>
+bool Transpose<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelTranspose <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->A->height, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0]);
+}
+
+__global__
+void kernelTranposeBatched(int N, int height, float** A, float** B) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+	if (i < N) {
+		int row = i % height;
+		int col = i / height;
+		B[batch][row * height + col] = A[batch][i];
+	}
+}
+
+template<>
+bool Transpose<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelTranposeBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->A->height, queue->devices[id][0], queue->devices[id][1]);
+}
+
+__global__
+void kernelCondense(int N, int batchSize, float** A, float* B) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		float sum = 0;
+		for (int b = 0; b < batchSize; b++) {
+			sum += A[b][i];
+		}
+		B[i] = sum;
+	}
+}
+
+bool Condense::operate(PropagationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelCondense <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->A->batchSize, queue->devices[id][0], queue->hostDevices[id][1][0]);
+}
+
+__global__
+void kernelAdd(int N, float* A, float* B, float* C) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		C[i] = A[i] + B[i];
+	}
+}
+
+template<>
+bool Add<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int N = customWidth == -1 ? this->A->length : customWidth * this->A->height;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelAdd <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (N, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0]);
+}
+
+__global__
+void kernelAddBatched(float** A, float** B, float** C, int N) {
+	int n = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+
+	if (n < N) {
+		C[batch][n] = A[batch][n] + B[batch][n];
+	}
+}
+
+template<>
+bool Add<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int N = customWidth == -1? this->A->length: customWidth * this->A->height;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelAddBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][2], N);
+}
+
+__global__
+void kernelMultiply(int N, float* A, float* B, float* C) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		C[i] = A[i] * B[i];
+	}
+}
+
+template<>
+bool ElementMultiply<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int N = A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelMultiply <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0]);
+}
+
+__global__
+void kernelMultiplyBatched(float** A, float** B, float** C, int N) {
+	int n = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+
+	if (n < N) {
+		C[batch][n] = A[batch][n] * B[batch][n];
+	}
+}
+
+template<>
+bool ElementMultiply<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int N = A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelMultiplyBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], queue->devices[id][2], N);
+}
+
+__global__
+void kernelLinearCombo(int N, float c1, float* A, float c2, float* B, float* C) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		C[i] = A[i] + B[i];
+	}
+}
+
+template<>
+bool LinearCombo<Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int N = A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelLinearCombo <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, c1, queue->hostDevices[id][0][0], c2, queue->hostDevices[id][1][0], queue->hostDevices[id][2][0]);
+}
+
+__global__
+void kernelLinearComboBatched(float c1, float** A, float c2, float** B, float** C, int N) {
+	int n = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+
+	if (n < N) {
+		C[batch][n] = c1 * A[batch][n] + c2 * B[batch][n];
+	}
+}
+
+template<>
+bool LinearCombo<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int N = A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelLinearComboBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (c1, queue->devices[id][0], c2, queue->devices[id][1], queue->devices[id][2], N);
 }
 
 template<>
 bool MultiplyABC<Matrix2, Matrix2, Matrix2>::operate(PropagationQueue* queue, int threadID) {
-	cublasStatus_t stat = cublasSgemm(queue->handles[this->threadID.load()], CUBLAS_OP_N, CUBLAS_OP_N, this->A->height, this->B->width, this->A->width, &ALPHA, queue->hostDevices[this->threadID.load()][0][0], this->A->height, queue->hostDevices[this->threadID.load()][1][0], this->B->height, &(overwrite ? BETA0 : BETA1), queue->hostDevices[this->threadID.load()][2][0], this->C->height);
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemm(queue->handles[id], CUBLAS_OP_N, CUBLAS_OP_N, this->A->height, this->B->width, this->A->width, &ALPHA, queue->hostDevices[id][0][0], this->A->height, queue->hostDevices[id][1][0], this->B->height, &(overwrite ? BETA0 : BETA1), queue->hostDevices[id][2][0], this->C->height);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyABC<MatrixBatch, Matrix2, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(queue->handles[id], CUBLAS_OP_N, CUBLAS_OP_N, this->A->height, this->B->width, this->A->width, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->A->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyABC<Matrix2, MatrixBatch, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(queue->handles[id], CUBLAS_OP_N, CUBLAS_OP_N, this->A->height, this->B->width, this->A->width, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->B->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyABC<MatrixBatch, MatrixBatch, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(queue->handles[id], CUBLAS_OP_N, CUBLAS_OP_N, this->A->height, this->B->width, this->A->width, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->A->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyAtBC<Matrix2, Matrix2, Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemm(Utils::HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, this->A->width, this->B->width, this->A->height, &ALPHA, queue->hostDevices[id][0][0], this->A->height, queue->hostDevices[id][1][0], this->B->height, &(overwrite ? BETA0 : BETA1), queue->hostDevices[id][2][0], this->C->height);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyAtBC<MatrixBatch, Matrix2, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, this->A->width, this->B->width, this->A->height, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->A->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyAtBC<Matrix2, MatrixBatch, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, this->A->width, this->B->width, this->A->height, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->B->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyAtBC<MatrixBatch, MatrixBatch, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_T, CUBLAS_OP_N, this->A->width, this->B->width, this->A->height, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->A->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyAtBtC<Matrix2, Matrix2, Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemm(Utils::HANDLE, CUBLAS_OP_T, CUBLAS_OP_T, this->A->width, this->B->height, this->A->height, &ALPHA, queue->hostDevices[id][0][0], this->A->height, queue->hostDevices[id][1][0], this->B->height, &(overwrite ? BETA0 : BETA1), queue->hostDevices[id][2][0], this->C->height);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyAtBtC<MatrixBatch, Matrix2, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_T, CUBLAS_OP_T, this->A->width, this->B->height, this->A->height, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->A->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyAtBtC<Matrix2, MatrixBatch, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_T, CUBLAS_OP_T, this->A->width, this->B->height, this->A->height, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->B->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyAtBtC<MatrixBatch, MatrixBatch, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_T, CUBLAS_OP_T, this->A->width, this->B->height, this->A->height, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->A->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyABtC<Matrix2, Matrix2, Matrix2>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemm(Utils::HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, this->A->height, this->B->height, this->A->width, &ALPHA, queue->hostDevices[id][0][0], this->A->height, queue->hostDevices[id][1][0], this->B->height, &(overwrite ? BETA0 : BETA1), queue->hostDevices[id][2][0], this->C->height);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyABtC<MatrixBatch, Matrix2, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, this->A->height, this->B->height, this->A->width, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->A->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyABtC<Matrix2, MatrixBatch, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, this->A->height, this->B->height, this->A->width, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->B->batchSize);
+	if (stat != CUBLAS_STATUS_SUCCESS) {
+		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
+	}
+	return true;
+}
+
+template<>
+bool MultiplyABtC<MatrixBatch, MatrixBatch, MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	cublasStatus_t stat = cublasSgemmBatched(Utils::HANDLE, CUBLAS_OP_N, CUBLAS_OP_T, this->A->height, this->B->height, this->A->width, &ALPHA, queue->devices[id][0], this->A->height, queue->devices[id][1], this->B->height, &(overwrite ? BETA0 : BETA1), queue->devices[id][2], this->C->height, this->A->batchSize);
 	if (stat != CUBLAS_STATUS_SUCCESS) {
 		throw std::runtime_error(string("cuBLAS multiplication failed: ") + cublasGetStatusString(stat));
 	}

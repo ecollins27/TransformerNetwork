@@ -35,7 +35,7 @@ void Dense2D::setPrevLayer(Layer* prevLayer) {
 	else if (instanceOf<Selu>(activation)) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
-	FillFunction fill = NormalFill(0, stdDeviation);
+	NormalFillFunction fill = NormalFillFunction(0, stdDeviation);
 	weights = Matrix2(fill, size, prevSize, 0);
 }
 

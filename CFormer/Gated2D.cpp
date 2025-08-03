@@ -41,7 +41,7 @@ void Gated2D::setPrevLayer(Layer* prevLayer) {
 	else if (instanceOf<Selu>(activation)) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
-	FillFunction fill = NormalFill(0, stdDeviation);
+	NormalFillFunction fill = NormalFillFunction(0, stdDeviation);
 	weights1 = Matrix2(fill, size, prevSize, 0);
 	weights2 = Matrix2(fill, size, prevSize, 0);
 }

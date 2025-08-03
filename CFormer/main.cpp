@@ -104,7 +104,7 @@ long timeFunction(string header, Function function, Params... params) {
 }
 
 void getDummyData(int numData, float** X, float** y) {
-	NormalFill normalFill(0, 1);
+	NormalFillFunction normalFill(0, 1);
 	for (int i = 0; i < numData; i++) {
 		X[i] = new float[784];
 		y[i] = new float[10];
@@ -152,49 +152,24 @@ void threadRun(PropagationQueue* queue, Matrix2* matrices, Matrix2* outputs, Mat
 }
 
 int main() {
-	cublasCreate(&Utils::HANDLE);
-	cudaFree(0);
-	printf("MAX_THREADS: %d\n", thread::hardware_concurrency());
-	int size = 500;
-	int numMatrices = 500;
-	Matrix2* matrices = new Matrix2[numMatrices];
-	Matrix2* outputs1 = new Matrix2[numMatrices];
-	Matrix2* outputs2 = new Matrix2[numMatrices];
-	for (int i = 0; i < numMatrices; i++) {
-		matrices[i] = Matrix2(FillFunction::UNIT_NORMAL_FILL, size, size, 0);
-		if (i < numMatrices - 1) {
-			outputs1[i + 1] = Matrix2(FillFunction::ZERO_FILL, size, size, 0);
-			outputs2[i + 1] = Matrix2(FillFunction::ZERO_FILL, size, size, 0);
-		}
-	}
-	outputs1[0] = matrices[0];
-	outputs2[0] = matrices[0];
-	Utils::ALLOCATE_DEVICE_MODE = true;
-	for (int i = 1; i < numMatrices; i++) {
-		Matrix2::multiplyABC(outputs1[i - 1], matrices[i], outputs1[i], true);
-		//Matrix2::multiplyABC(matrices[i - 1], matrices[i], outputs1[i], true);
-	}
-	Utils::ALLOCATE_DEVICE_MODE = false;
-	Matrix2::allocateDevices();
+	ConstantFillFunction fill(1);
+	Matrix2 A(FillFunction::ZERO_FILL, 10, 10, 0);
+	Matrix2 B(FillFunction::ZERO_FILL, 10, 10, 0);
+	Matrix2 C(FillFunction::ZERO_FILL, 10, 10, 0);
 	PropagationQueue queue(3);
-	for (int i = 1; i < numMatrices; i++) {
-		queue.enqueueOperation(new MultiplyABC(outputs2[i - 1], matrices[i], outputs2[i], true));
-		//queue.enqueueOperation(new MultiplyABC(matrices[i - 1], matrices[i], outputs2[i], true));
-	}
+	queue.enqueueOperation(new ConstantFill(B, 1));
+	queue.enqueueOperation(new Add(A, B, C));
+	queue.enqueueOperation(new Print(C));
+	queue.enqueueOperation(new Scale(C, 0.5));
+	queue.enqueueOperation(new Print(C));
+	queue.enqueueOperation(new CopyTo(C, A));
+	queue.enqueueOperation(new Print(A));
+	queue.enqueueOperation(new Sqrt(A, C));
+	queue.enqueueOperation(new ElementMultiply(C, C, A));
+	queue.enqueueOperation(new Print(A));
 	queue.finalize();
-	queue.reset();
-	for (int i = 1; i < numMatrices; i++) {
-		Matrix2::multiplyABC(outputs1[i - 1], matrices[i], outputs1[i], true);
-		//Matrix2::multiplyABC(matrices[i - 1], matrices[i], outputs1[i], true);
-	}
-	thread* threads = new thread[3];
-	barrier<> sync(3);
-	for (int i = 0; i < 3; i++) {
-		threads[i] = thread(threadRun, &queue, matrices, outputs2, outputs1[numMatrices - 1], numMatrices, i, &sync);
-	}
-	for (int i = 0; i < 3; i++) {
-		threads[i].join();
-	}
+
+	queue.run();
 }
 
 int main1() {

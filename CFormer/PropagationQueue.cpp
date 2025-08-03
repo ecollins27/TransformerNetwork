@@ -91,11 +91,11 @@ void PropagationQueue::reset() {
 }
 
 void PropagationQueue::enqueueOperation(Operation* operation) {
-	if (dynamic_cast<GPUOperation*>(operation) != NULL) {
-		((GPUOperation*) operation)->addDeviceCopies(operations);
+	if (dynamic_cast<DOperation*>(operation) != NULL) {
+		((DOperation*) operation)->addDeviceCopies(operations);
 		operations.emplace_back(operation);
-		((GPUOperation*) operation)->addHostCopies(operations);
-		((GPUOperation*)operation)->threadID.store(-1);
+		((DOperation*) operation)->addHostCopies(operations);
+		((DOperation*)operation)->threadID.store(-1);
 	}
 	else {
 		operations.emplace_back(operation);
@@ -108,14 +108,7 @@ void PropagationQueue::finalize() {
 		operations[i]->applyToStream(this);
 	}
 	allocateDeviceMemory();
-	for (int i = 0; i < operations.size(); i++) {
-		operations[i]->completed.store(1);
-		operations[i]->operationAllocated.store(false);
-	}
-	//topologicalSortOperations();
-	//for (int i = 0; i < operations.size(); i++) {
-	//	operations[i]->completed = 1;
-	//}
+	this->reset();
 }
 
 void PropagationQueue::allocateDeviceMemory() {

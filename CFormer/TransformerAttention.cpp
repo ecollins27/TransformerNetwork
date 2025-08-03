@@ -65,7 +65,7 @@ void TransformerAttention::setPrevLayer(Layer* prevLayer) {
 	size = prevLayer->size;
 	prevSize = prevLayer->size + 1;
 	float std = 1.0 / size;
-	NormalFill normal = NormalFill(0, std);
+	NormalFillFunction normal = NormalFillFunction(0, std);
 	Wq = MatrixBatch(normal, numHeads, keySize, prevSize, 0);
 	Wk = MatrixBatch(normal, numHeads, keySize, prevSize, 0);
 	Wv = MatrixBatch(normal, numHeads, valueSize, prevSize, 0);

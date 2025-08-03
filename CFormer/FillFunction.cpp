@@ -1,29 +1,29 @@
 #include "FillFunction.h"
 
-ConstantFill FillFunction::ZERO_FILL = ConstantFill(0);
-NormalFill FillFunction::UNIT_NORMAL_FILL = NormalFill(0, 1);
-UniformFill FillFunction::UNIT_UNIFORM_FILL = UniformFill(0, 1);
+ConstantFillFunction FillFunction::ZERO_FILL = ConstantFillFunction(0);
+NormalFillFunction FillFunction::UNIT_NORMAL_FILL = NormalFillFunction(0, 1);
+UniformFillFunction FillFunction::UNIT_UNIFORM_FILL = UniformFillFunction(0, 1);
 
-ConstantFill::ConstantFill(float value) {
+ConstantFillFunction::ConstantFillFunction(float value) {
 	this->value = value;
 }
 
-float ConstantFill::operator()(int i, int j) {
+float ConstantFillFunction::operator()(int i, int j) {
 	return value;
 }
 
-NormalFill::NormalFill(float mean, float stdDeviation) {
+NormalFillFunction::NormalFillFunction(float mean, float stdDeviation) {
 	distribution = new normal_distribution<float>(mean, stdDeviation);
 }
 
-float NormalFill::operator()(int i, int j) {
+float NormalFillFunction::operator()(int i, int j) {
 	return (*distribution)(generator);
 }
 
-UniformFill::UniformFill(float lowerBound, float upperBound) {
+UniformFillFunction::UniformFillFunction(float lowerBound, float upperBound) {
 	distribution = new uniform_real_distribution<float>(lowerBound, upperBound);
 }
 
-float UniformFill::operator()(int i, int j) {
+float UniformFillFunction::operator()(int i, int j) {
 	return (*distribution)(generator);
 }

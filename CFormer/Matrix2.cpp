@@ -412,70 +412,51 @@ MatrixBatch Matrix2::subMatrixBatch(int numMatrices, int subWidth) {
 	return matrixBatch;
 }
 
-
-__global__
-void kernelAdd(int N, float* A, float* B, float* C) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < N) {
-		C[i] = A[i] + B[i];
-	}
-}
-
 void Matrix2::add(Matrix2& A, Matrix2& B, Matrix2& C) {
 	int N = A.length;
-	int thread = max(A.threadNum, B.threadNum);
-	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
-	A.copyToDevice(0, thread);
-	B.copyToDevice(1, thread);
-	kernelAdd <<< numBlocks, Utils::THREADS_PER_BLOCK >>> (N, DEVICES[thread][0], DEVICES[thread][1], DEVICES[thread][2]);
-	C.copyToHost(2, N, thread);
+	int N4 = N >> 2 << 2;
+	__m128 a, b;
+	for (int i = 0; i < N4; i += 4) {
+		a = _mm_loadu_ps(&A.host[i]);
+		b = _mm_loadu_ps(&B.host[i]);
+		_mm_store_ps(&C.host[i], _mm_add_ps(a, b));
+	}
+	for (int i = N4; i < N; i++) {
+		C.host[i] = A.host[i] + B.host[i];
+	}
 }
 
 void Matrix2::add(int width, Matrix2& A, Matrix2& B, Matrix2& C) {
 	int N = A.height * width;
-	int thread = max(A.threadNum, B.threadNum);
-	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
-	A.copyToDevice(0, thread);
-	B.copyToDevice(1, thread);
-	kernelAdd <<< numBlocks, Utils::THREADS_PER_BLOCK >> > (N, DEVICES[thread][0], DEVICES[thread][1], DEVICES[thread][2]);
-	C.copyToHost(2, N, thread);
-}
-
-__global__
-void kernelMultiply(int N, float* A, float* B, float* C) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < N) {
-		C[i] = A[i] * B[i];
+	int N4 = N >> 2 << 2;
+	__m128 a, b;
+	for (int i = 0; i < N4; i += 4) {
+		a = _mm_loadu_ps(&A.host[i]);
+		b = _mm_loadu_ps(&B.host[i]);
+		_mm_store_ps(&C.host[i], _mm_add_ps(a, b));
+	}
+	for (int i = N4; i < N; i++) {
+		C.host[i] = A.host[i] + B.host[i];
 	}
 }
 
 void Matrix2::elementMultiply(Matrix2& A, Matrix2& B, Matrix2& C) {
 	int N = A.length;
-	int thread = max(A.threadNum, B.threadNum);
-	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
-	A.copyToDevice(0, thread);
-	B.copyToDevice(1, thread);
-	kernelMultiply <<< numBlocks, Utils::THREADS_PER_BLOCK >>> (N, DEVICES[thread][0], DEVICES[thread][1], DEVICES[thread][2]);
-	C.copyToHost(2, N, thread);
-}
-
-__global__
-void kernelLinearCombo(float c1, float* A, float c2, float* B, float* C, int N) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < N) {
-		C[i] = c1 * A[i] + c2 * B[i];
+	int N4 = N >> 2 << 2;
+	__m128 a, b;
+	for (int i = 0; i < N4; i += 4) {
+		a = _mm_loadu_ps(&A.host[i]);
+		b = _mm_loadu_ps(&B.host[i]);
+		_mm_store_ps(&C.host[i], _mm_mul_ps(a, b));
+	}
+	for (int i = N4; i < N; i++) {
+		C.host[i] = A.host[i] * B.host[i];
 	}
 }
 
 
 void Matrix2::linearCombo(float c1, Matrix2& A, float c2, Matrix2& B, Matrix2& C) {
-	int N = A.length;
-	int thread = max(A.threadNum, B.threadNum);
-	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
-	A.copyToDevice(0, thread);
-	B.copyToDevice(1, thread);
-	kernelLinearCombo << < numBlocks, Utils::THREADS_PER_BLOCK >> > (c1, DEVICES[thread][0], c2, DEVICES[thread][1], DEVICES[thread][2], N);
-	C.copyToHost(2, N, thread);
+	return;
 }
 
 void Matrix2::multiplyABC(Matrix2& A, Matrix2& B, Matrix2& C, bool overwrite) {

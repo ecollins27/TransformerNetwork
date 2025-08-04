@@ -85,6 +85,7 @@ void PropagationQueue::run() {
 
 void PropagationQueue::reset() {
 	for (int i = 0; i < operations.size(); i++) {
+		//printf("%d: %p  %s\n", i, operations[i], typeid(*operations[i]).name());
 		operations[i]->completed.store(1);
 		operations[i]->operationAllocated.store(false);
 	}

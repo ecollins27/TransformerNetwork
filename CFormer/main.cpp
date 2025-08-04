@@ -120,44 +120,14 @@ void getDummyData(int numData, float** X, float** y) {
 	}
 }
 
-void testSingleThread(int numMatrices, Matrix2* matrices, Matrix2* outputs) {
-	for (int i = 1; i < numMatrices; i++) {
-		Matrix2::multiplyABC(outputs[i - 1], matrices[i], outputs[i], true);
-	}
-}
-
-void threadRun(PropagationQueue* queue, Matrix2* matrices, Matrix2* outputs, Matrix2 reference, int numMatrices, int threadID, barrier<>* sync) {
-	int numTest = 1000000;
-	for (int i = 0; i < numTest; i++) {
-		if (threadID == 0) {
-			printf("\r %d/%d", i, numTest);
-		}
-		sync->arrive_and_wait();
-		queue->threadRun(threadID);
-		sync->arrive_and_wait();
-		if (threadID == 0) {
-			bool equal = true;
-			for (int i = 0; i < reference.height; i++) {
-				for (int j = 0; j < reference.width; j++) {
-					if ((outputs[numMatrices - 1](i, j) - reference(i, j)) / outputs[numMatrices - 1](i, j) > 0.01) {
-						equal = false;
-					}
-				}
-			}
-			if (!equal) {
-				printf("  FAILED\n");
-			}
-		}
-	}
-}
-
 int main() {
-	ConstantFillFunction fill(1);
-	Matrix2 A(FillFunction::ZERO_FILL, 10, 10, 0);
-	Matrix2 B(FillFunction::ZERO_FILL, 10, 10, 0);
-	Matrix2 C(FillFunction::ZERO_FILL, 10, 10, 0);
+	ConstantFillFunction fill(0.1);
+	Matrix2 A(fill, 10, 10, 0);
+	Matrix2 B(fill, 10, 10, 0);
+	Matrix2 C(fill, 10, 10, 0);
 	PropagationQueue queue(3);
 	queue.enqueueOperation(new ConstantFill(B, 1));
+	queue.enqueueOperation(new Print(B));
 	queue.enqueueOperation(new Add(A, B, C));
 	queue.enqueueOperation(new Print(C));
 	queue.enqueueOperation(new Scale(C, 0.5));

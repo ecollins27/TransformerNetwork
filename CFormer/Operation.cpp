@@ -58,6 +58,7 @@ bool HostToDeviceCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
+	//printf("Host To Device copy completed.  Operation: %p  Prereq: %p\n", this, prereq);
 	return true;
 }
 
@@ -122,13 +123,15 @@ void HostToDeviceCopy<MatrixBatch>::applyToStream(PropagationQueue* queue) {
 
 template<>
 bool DeviceToHostCopy<Matrix2>::operate(PropagationQueue* queue, int threadID) {
-	cudaError_t err = cudaMemcpyAsync(A->host, queue->hostDevices[this->threadID->load()][this->deviceNum][0], A->length * sizeof(float), cudaMemcpyDeviceToHost, queue->streams[this->threadID->load()]);
+	int id = this->threadID->load();
+	cudaError_t err = cudaMemcpyAsync(A->host, queue->hostDevices[id][this->deviceNum][0], A->length * sizeof(float), cudaMemcpyDeviceToHost, queue->streams[id]);
 	if (err != cudaSuccess) {
 		throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 	}
-	cudaStreamSynchronize(queue->streams[this->threadID->load()]);
-	queue->deviceLocks[this->threadID->load()].store(true);
+	cudaStreamSynchronize(queue->streams[id]);
+	queue->deviceLocks[id].store(true);
 	queue->devicesUsed.fetch_sub(1);
+	//printf("Device to Host copy completed.  Operation: %p  Prereq: %p Completed: %d\n", this, prereq);
 	return true;
 }
 
@@ -193,6 +196,7 @@ bool Print<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 		printf("\n");
 	}
 	printf("\n");
+	return true;
 }
 
 template<>
@@ -207,6 +211,7 @@ bool Print<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 		printf("\n");
 	}
 	printf("\n");
+	return true;
 }
 
 template<>
@@ -215,6 +220,7 @@ bool CopyTo<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 	if (err != cudaSuccess) {
 		throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 	}
+	return true;
 }
 
 template<>
@@ -227,6 +233,7 @@ bool CopyTo<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
+	return true;
 }
 
 __global__
@@ -243,6 +250,7 @@ bool ConstantFill<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelConstantFill << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->c, queue->hostDevices[id][0][0]);
+	return true;
 }
 
 __global__
@@ -262,6 +270,7 @@ bool ConstantFill<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelConstantFillBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, c, queue->devices[id][0]);
+	return true;
 }
 
 __global__
@@ -278,6 +287,7 @@ bool Scale<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelScale << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->c, queue->hostDevices[id][0][0]);
+	return true;
 }
 
 __global__
@@ -297,6 +307,7 @@ bool Scale<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelScaleBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, c, queue->devices[id][0]);
+	return true;
 }
 
 __global__
@@ -313,6 +324,7 @@ bool Sqrt<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelSqrt <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0]);
+	return true;
 }
 
 __global__
@@ -331,6 +343,7 @@ bool Sqrt<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelSqrtBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, queue->devices[id][0], queue->devices[id][1]);
+	return true;
 }
 
 __global__
@@ -349,6 +362,7 @@ bool Transpose<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelTranspose <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->A->height, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0]);
+	return true;
 }
 
 __global__
@@ -369,6 +383,7 @@ bool Transpose<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelTranposeBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->A->height, queue->devices[id][0], queue->devices[id][1]);
+	return true;
 }
 
 __global__
@@ -388,6 +403,7 @@ bool Condense::operate(PropagationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelCondense <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, this->A->batchSize, queue->devices[id][0], queue->hostDevices[id][1][0]);
+	return true;
 }
 
 __global__
@@ -400,10 +416,11 @@ void kernelAdd(int N, float* A, float* B, float* C) {
 
 template<>
 bool Add<Matrix2>::operate(PropagationQueue* queue, int threadID) {
-	int N = customWidth == -1 ? this->A->length : customWidth * this->A->height;
+	int N = customWidth == -1 ? this->A->length : (customWidth * this->A->height);
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelAdd <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (N, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0]);
+	return true;
 }
 
 __global__
@@ -423,6 +440,7 @@ bool Add<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelAddBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -439,6 +457,7 @@ bool ElementMultiply<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelMultiply <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0]);
+	return true;
 }
 
 __global__
@@ -458,6 +477,7 @@ bool ElementMultiply<MatrixBatch>::operate(PropagationQueue* queue, int threadID
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelMultiplyBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -474,6 +494,7 @@ bool LinearCombo<Matrix2>::operate(PropagationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelLinearCombo <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, c1, queue->hostDevices[id][0][0], c2, queue->hostDevices[id][1][0], queue->hostDevices[id][2][0]);
+	return true;
 }
 
 __global__
@@ -493,6 +514,7 @@ bool LinearCombo<MatrixBatch>::operate(PropagationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelLinearComboBatched <<< blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (c1, queue->devices[id][0], c2, queue->devices[id][1], queue->devices[id][2], N);
+	return true;
 }
 
 template<>

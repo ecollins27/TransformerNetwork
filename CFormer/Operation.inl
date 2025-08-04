@@ -16,7 +16,7 @@ void HUnary<Type>::findPrereqs(vector<Operation*> operations, int index) {
 
 template<typename Type>
 int HUnary<Type>::getPrereqsUnmet(PropagationQueue* queue) {
-	return prereq->completed.load();
+	return prereq == NULL ? 0 : prereq->completed.load();
 }
 
 template<typename Type>
@@ -43,7 +43,7 @@ void HBinary<TypeA, TypeB>::findPrereqs(vector<Operation*> operations, int index
 
 template<typename TypeA, typename TypeB>
 int HBinary<TypeA, TypeB>::getPrereqsUnmet(PropagationQueue* queue) {
-	return prereqA->completed.load();
+	return prereqA == NULL ? 0 : prereqA->completed.load();
 }
 
 template<typename TypeA, typename TypeB>
@@ -54,7 +54,7 @@ bool HBinary<TypeA, TypeB>::containsPrereq(Operation* o) {
 template<typename Type>
 HostToDeviceCopy<Type>::HostToDeviceCopy(DOperation* operation, Type* A, int deviceNum, int batchSize) {
 	this->A = A;
-	this->output = A + 1;
+	this->output = NULL;
 	this->deviceNum = deviceNum;
 	this->threadID = &operation->threadID;
 	prereq = NULL;
@@ -107,13 +107,13 @@ bool DeviceToHostCopy<Type>::containsPrereq(Operation* o) {
 template<typename TypeA>
 DUnary<TypeA>::DUnary(TypeA& A) {
 	this->A = &A;
-	this->output = &A + 1;
+	this->output = NULL;
 	prereq = NULL;
 }
 
 template<typename TypeA>
 int DUnary<TypeA>::getPrereqsUnmet(PropagationQueue* queue) {
-	return prereq->completed.load();
+	return prereq == NULL ? 0 : prereq->completed.load();
 }
 
 template<typename TypeA>
@@ -139,13 +139,13 @@ template<typename TypeA, typename TypeB>
 DBinary<TypeA, TypeB>::DBinary(TypeA& A, TypeB& B) {
 	this->A = &A;
 	this->B = &B;
-	this->output = &B + 1;
+	this->output = NULL;
 	prereqA = NULL;
 }
 
 template<typename TypeA, typename TypeB>
 int DBinary<TypeA, TypeB>::getPrereqsUnmet(PropagationQueue* queue) {
-	return prereqA->completed.load();
+	return prereqA == NULL ? 0 : prereqA->completed.load();
 }
 
 template<typename TypeA, typename TypeB>
@@ -172,14 +172,14 @@ DTrinary<TypeA, TypeB, TypeC>::DTrinary(TypeA& A, TypeB& B, TypeC& C) {
 	this->A = &A;
 	this->B = &B;
 	this->C = &C;
-	this->output = &A + 1;
+	this->output = NULL;
 	this->prereqA = NULL;
 	this->prereqB = NULL;
 }
 
 template<typename TypeA, typename TypeB, typename TypeC>
 void DTrinary<TypeA, TypeB, TypeC>::addDeviceCopies(vector<Operation*>& operations) {
-	Operation* ACopy = new HostToDeviceCopy(this, this->A, 0, typeid(TypeC) == typeid(MatrixBatch)? ((MatrixBatch*)this->C)->batchSize : 1);
+	Operation* ACopy = new HostToDeviceCopy(this, this->A, 0, typeid(TypeC) == typeid(MatrixBatch) ? ((MatrixBatch*)this->C)->batchSize : 1);
 	Operation* BCopy = new HostToDeviceCopy(this, this->B, 1, typeid(TypeC) == typeid(MatrixBatch) ? ((MatrixBatch*)this->C)->batchSize : 1);
 	operations.emplace_back(ACopy);
 	operations.emplace_back(BCopy);

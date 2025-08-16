@@ -1,7 +1,9 @@
+// Compile with CUDA
+
 #include "PositionalEncoding2D.h"
 #include "Model.h"
 #include "ModelParser.h"
-#include "MatrixKernel.h"
+
 
 const string PositionalEncoding2D::LAYER_NAME = "PositionalEncoding2D";
 
@@ -9,25 +11,17 @@ PositionalEncoding2D::PositionalEncoding2D(float L) {
 	this->L = L;
 }
 
-__global__
-void kernelEncoding(float L, float* A, float* B, int height, int width) {
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i < width * height) {
-		int row = i % height;
-		int col = i / height;
-		B[i] = A[i] + sin(row / (pow(L, (float)col / width)));
+void PositionalEncoding2D::initPropagationQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new PositionalEncodingOperation(L, prevLayer->neurons[i], neurons[i]));
 	}
 }
 
-void PositionalEncoding2D::propagateLayer(int num) {
-	prevLayer->neurons[num].copyToDevice(0);
-	MatrixKernel::runElementKernel(numTokens[num], size, 0, kernelEncoding, L, Matrix2::DEVICES[num][0], Matrix2::DEVICES[num][1], numTokens[num], size);
-	neurons[num].copyToHost(1);
-}
-
-void PositionalEncoding2D::backPropagate(int num) {
-	prevLayer->neuronGradient[num].copy(neuronGradient[num]);
-	prevLayer->backPropagate(num);
+void PositionalEncoding2D::initBackPropQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new CopyTo(neuronGradient[i], prevLayer->neuronGradient[i]));
+	}
+	prevLayer->initBackPropQueue(queue);
 }
 
 void PositionalEncoding2D::setPrevLayer(Layer* prevLayer) {
@@ -51,4 +45,22 @@ void PositionalEncoding2D::load(Model* nn, ifstream& file, string& line, int* co
 	int L = ModelParser::getNextInt(line, commaIndex, newCommaIndex);
 	PositionalEncoding2D* positionalEncodingLayer = { new PositionalEncoding2D(L) };
 	nn->addLayer(positionalEncodingLayer);
+}
+
+__global__
+void kernelEncoding(float L, float* A, float* B, int height, int width) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < width * height) {
+		int row = i % height;
+		int col = i / height;
+		B[i] = A[i] + sin(row / (pow(L, (float)col / width)));
+	}
+}
+
+bool PositionalEncodingOperation::operate(OperationQueue* queue, int threadID) {
+	int N = this->A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelEncoding << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (this->L, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], this->A->height, this->A->width);
+	return true;
 }

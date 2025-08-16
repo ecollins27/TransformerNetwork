@@ -92,13 +92,11 @@
     <ClCompile Include="Dataset.cpp">
       <Filter>DNN\Util</Filter>
     </ClCompile>
-    <ClCompile Include="Matrix2.cpp" />
+    <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="MatrixBatch.cpp" />
     <ClCompile Include="FillFunction.cpp" />
-    <ClCompile Include="MatrixKernel.cpp" />
-    <ClCompile Include="OptimizerBatch.cpp" />
     <ClCompile Include="Utils.cpp" />
-    <ClCompile Include="PropagationQueue.cpp" />
+    <ClCompile Include="OperationQueue.cpp" />
     <ClCompile Include="Operation.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -174,9 +172,6 @@
     <ClInclude Include="Model1D.h">
       <Filter>DNN\Models</Filter>
     </ClInclude>
-    <ClInclude Include="Model2DTo1D.h">
-      <Filter>DNN\Models</Filter>
-    </ClInclude>
     <ClInclude Include="Loss1D.h">
       <Filter>DNN\Util</Filter>
     </ClInclude>
@@ -192,14 +187,15 @@
     <ClInclude Include="Dataset.h">
       <Filter>DNN\Util</Filter>
     </ClInclude>
-    <ClInclude Include="Matrix2.h" />
+    <ClInclude Include="Matrix.h" />
     <ClInclude Include="MatrixBatch.h" />
     <ClInclude Include="FillFunction.h" />
-    <ClInclude Include="MatrixKernel.h" />
-    <ClInclude Include="OptimizerBatch.h" />
     <ClInclude Include="Utils.h" />
-    <ClInclude Include="PropagationQueue.h" />
+    <ClInclude Include="OperationQueue.h" />
     <ClInclude Include="Operation.h" />
+    <ClInclude Include="Model2DTo1D.h">
+      <Filter>DNN\Models</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="DNN">
@@ -226,5 +222,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Operation.inl" />
+    <None Include="Activation.inl">
+      <Filter>DNN</Filter>
+    </None>
   </ItemGroup>
 </Project>

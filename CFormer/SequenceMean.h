@@ -15,17 +15,31 @@ public:
 
 	Activation* activation;
 
-	Matrix2 means;
-	Matrix2 backPropIntermediate;
+	Matrix means;
+	Matrix backPropIntermediate;
 
 	SequenceMean(Activation* activation);
 	~SequenceMean();
 
-	void propagateLayer(int num);
-	void backPropagate(int num);
+	void initPropagationQueue(OperationQueue& queue);
+	void initBackPropQueue(OperationQueue& queue);
 	void setPrevLayer(Layer* prevLayer);
 	void setBatchSize(int batchSize);
 	void save(ofstream& file);
 	static void load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize);
+};
+
+class MeanCondenseOperation : public Dnary<Matrix, Matrix> {
+
+public:
+	MeanCondenseOperation(int batchSize, Matrix*& A, Matrix& B) : Dnary<Matrix, Matrix>(batchSize, 1) { return; };
+	bool operate(OperationQueue* queue, int threadID);
+};
+
+class MeanCondenseBackPropOperation : public Dnary<Matrix, Matrix> {
+
+public:
+	MeanCondenseBackPropOperation(int batchSize, Matrix& A, Matrix*& B) : Dnary<Matrix, Matrix>(1, batchSize) { return; };
+	bool operate(OperationQueue* queue, int threadID);
 };
 

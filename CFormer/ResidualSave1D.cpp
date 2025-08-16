@@ -8,11 +8,11 @@ ResidualSave1D::~ResidualSave1D() {
 	Layer1D::~Layer1D();
 }
 
-void ResidualSave1D::propagateLayer(int num) {
-	neurons.copy(prevLayer->neurons);
+void ResidualSave1D::initPropagationQueue(OperationQueue& queue) {
+	queue.enqueue(new CopyTo(prevLayer->neurons, neurons));
 }
 
-void ResidualSave1D::backPropagate(int num) {
+void ResidualSave1D::initBackPropQueue(OperationQueue& queue) {
 	return;
 }
 
@@ -45,11 +45,7 @@ void ResidualSave1D::load(Model* nn, ifstream& file, string& line, int* commaInd
 	nn->addLayer(residualSave);
 }
 
-void ResidualSave1D::backPropagateWithResidual(int num) {
-	if (num != 0) {
-		prevLayer->backPropagate(num);
-		return;
-	}
-	prevLayer->neuronGradient.copy(neuronGradient);
-	prevLayer->backPropagate(num);
+void ResidualSave1D::initBackPropQueueWithResidual(OperationQueue& queue) {
+	queue.enqueue(new CopyTo(neuronGradient, prevLayer->neuronGradient));
+	prevLayer->initBackPropQueue(queue);
 }

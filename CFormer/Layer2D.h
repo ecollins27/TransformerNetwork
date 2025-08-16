@@ -1,6 +1,6 @@
 #pragma once
 #include "Layer.h"
-#include "Matrix2.h"
+#include "Matrix.h"
 
 class Layer2D : public Layer {
 
@@ -8,8 +8,8 @@ public:
 	int maxNumTokens;
 	int* numTokens;
 
-	Matrix2* neurons;
-	Matrix2* neuronGradient;
+	Matrix* neurons;
+	Matrix* neuronGradient;
 
 	virtual void setNumTokens(int* numTokens) {
 		this->numTokens = numTokens;

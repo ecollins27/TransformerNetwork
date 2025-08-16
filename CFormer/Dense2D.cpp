@@ -5,20 +5,25 @@
 const string Dense2D::LAYER_NAME = "Dense2D";
 
 Dense2D::Dense2D(Activation* activation, int size) {
-	this->activation = activation->clone();
+	this->activation = activation;
 	this->size = size;
 }
 
-void Dense2D::propagateLayer(int num) {
-	Matrix2::multiplyABtC(prevLayer->neurons[num], weights, linearCombo[num], true);
-	activation->operate(linearCombo[num], neurons[num]);
+void Dense2D::initPropagationQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new MultiplyABtC(prevLayer->neurons[i], weights, linearCombo[i], true));
+		queue.enqueue(activation->getOperation(linearCombo[i], neurons[i]));
+	}
 }
 
-void Dense2D::backPropagate(int num) {
-	activation->differentiate(linearCombo[num], neurons[num], backPropIntermediate[num], neuronGradient[num]);
-	Matrix2::multiplyABC(backPropIntermediate[num], weights, prevLayer->neuronGradient[num], true);
-	Matrix2::multiplyAtBC(backPropIntermediate[num], prevLayer->neurons[num], weightGradient[num], true);
-	prevLayer->backPropagate(num);
+void Dense2D::initBackPropQueue(OperationQueue& queue) {
+	queue.enqueue(new ConstantFill(weightGradient, 0));
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(activation->getDifOperation(linearCombo[i], neurons[i], backPropIntermediate[i], neuronGradient[i]));
+		queue.enqueue(new MultiplyABC(backPropIntermediate[i], weights, prevLayer->neuronGradient[i], true));
+		queue.enqueue(new MultiplyAtBC(backPropIntermediate[i], prevLayer->neurons[i], weightGradient, false));
+	}
+	prevLayer->initBackPropQueue(queue);
 }
 
 void Dense2D::setPrevLayer(Layer* prevLayer) {
@@ -29,22 +34,20 @@ void Dense2D::setPrevLayer(Layer* prevLayer) {
 	this->prevLayer = (Layer2D*)prevLayer;
 	prevSize = prevLayer->size + 1;
 	float stdDeviation = sqrt(2.0 / (prevSize + size));
-	if (instanceOf<Relu>(activation) || instanceOf<Elu>(activation) || instanceOf<Swish>(activation)) {
+	if (activation->activationType == ActivationType::RELU || activation->activationType == ActivationType::ELU || activation->activationType == ActivationType::SWISH) {
 		stdDeviation = sqrt(2.0 / prevSize);
 	}
-	else if (instanceOf<Selu>(activation)) {
+	else if (activation->activationType == ActivationType::SELU) {
 		stdDeviation = sqrt(1.0 / prevSize);
 	}
 	NormalFillFunction fill = NormalFillFunction(0, stdDeviation);
-	weights = Matrix2(fill, size, prevSize, 0);
+	weights = Matrix(fill, size, prevSize);
 }
 
 void Dense2D::setBatchSize(int batchSize) {
 	Layer2D::initNeurons(batchSize);
-	weightGradient = Matrix2::allocateMatrixArray(batchSize, size, prevSize);
-	linearCombo = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
-	backPropIntermediate = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
-	optimizer->setBatchSize(batchSize, weightGradient);
+	linearCombo = Matrix::allocateMatrixArray(batchSize, maxNumTokens, size);
+	backPropIntermediate = Matrix::allocateMatrixArray(batchSize, maxNumTokens, size);
 	if (nextLayer != NULL) {
 		nextLayer->setBatchSize(batchSize);
 	}
@@ -91,17 +94,17 @@ void Dense2D::setNumTokens(int* numTokens) {
 	}
 }
 
-void Dense2D::applyGradients(float learningRate, int t) {
-	optimizer->condenseGradients();
-	optimizer->applyGradient(weights, t, learningRate);
+void Dense2D::initApplicationQueue(OperationQueue& queue, float learningRate, int& t) {
+	optimizer->initApplicationQueue(queue, weights, learningRate, batchSize, t);
 	if (nextLayer != NULL) {
-		nextLayer->applyGradients(learningRate, t);
+		nextLayer->initApplicationQueue(queue, learningRate, t);
 	}
 }
 
-void Dense2D::setOptimizer(Optimizer* optimizer) {
-	this->optimizer = optimizer->clone();
-	this->optimizer->setDimensions(size, prevSize);
+void Dense2D::setOptimizer(Optimizer<>* optimizer) {
+	this->optimizer = optimizer->clone<Matrix>();
+	this->optimizer->setDimensions(1, size, prevSize);
+	weightGradient = this->optimizer->weightGradient;
 	if (nextLayer != NULL) {
 		nextLayer->setOptimizer(optimizer);
 	}

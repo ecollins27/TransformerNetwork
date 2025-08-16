@@ -2,14 +2,16 @@
 
 void Layer2D::initNeurons(int batchSize) {
 	this->batchSize = batchSize;
-	neurons = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size + 1);
-	neuronGradient = Matrix2::allocateMatrixArray(batchSize, maxNumTokens, size);
+	neurons = Matrix::allocateMatrixArray(batchSize, maxNumTokens, size + 1);
+	for (int i = 0; i < batchSize; i++) {
+		neurons[i].setLayerOutput(true);
+	}
+	neuronGradient = Matrix::allocateMatrixArray(batchSize, maxNumTokens, size + 1);
 }
 
 void Layer2D::updateNeuronDimensions() {
 	for (int i = 0; i < batchSize; i++) {
 		neurons[i].setHeight(numTokens[i]);
-		neurons[i].constantFill(1);
 		neuronGradient[i].setHeight(numTokens[i]);
 	}
 }

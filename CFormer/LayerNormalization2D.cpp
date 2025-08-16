@@ -1,12 +1,81 @@
+// Compile with CUDA
+
 #include "LayerNormalization2D.h"
 #include "Model.h"
 #include "ModelParser.h"
-#include "MatrixKernel.h"
+
 
 const string LayerNormalization2D::LAYER_NAME = "LayerNormalization2D";
 
+void LayerNormalization2D::initPropagationQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new LayerNormalizationOperation(prevLayer->neurons[i], means[i], variances[i], stds[i], neurons[i]));
+	}
+}
+
 __global__
-void kernelMean(float* A, float* B, int height, int width) {
+void kernelBackPropagate(float c, float* prevNeurons, float* neuronGradient, float* mean, float* variance, float* std, float* prevNeuronGradient, int height, int width, int batchSize, int batchNum) {
+	int i = blockIdx.x;
+	int tid = threadIdx.x;
+	int stride = blockDim.x;
+
+	float sum;
+	int id, bid;
+	for (int j = tid; j < width; j += stride) {
+		id = i + height * j;
+		bid = j * batchSize + batchNum;
+		if (std[bid] != 0) {
+			sum = 0;
+			for (int k = 0; k < height; k++) {
+				float grad = std[bid] * ((k == i ? 1 : 0) - c) - (c / std[bid]) * (prevNeurons[id] - mean[bid]) * (prevNeurons[k + height * j] - mean[bid]);
+				sum += neuronGradient[k + height * j] * grad / variance[bid];
+			}
+			prevNeuronGradient[id] = sum;
+		}
+	}
+}
+
+void LayerNormalization2D::initBackPropQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new LayerNormalizationBackPropOperation(prevLayer->neurons[i], neuronGradient[i], means[i], variances[i], stds[i], prevLayer->neuronGradient[i]));
+	}
+	prevLayer->initBackPropQueue(queue);
+}
+
+void LayerNormalization2D::setPrevLayer(Layer* prevLayer) {
+	if (!instanceOf<Layer2D>(prevLayer)) {
+		throw invalid_argument("Previous layer must be instance Layer2D");
+	}
+	index = prevLayer->index + 1;
+	this->prevLayer = (Layer2D*)prevLayer;
+	size = prevLayer->size;
+	prevSize = size + 1;
+}
+
+void LayerNormalization2D::save(ofstream& file) {
+	file << LAYER_NAME << ",\n";
+	if (nextLayer != NULL) {
+		nextLayer->save(file);
+	}
+}
+
+void LayerNormalization2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
+	LayerNormalization2D* layerNormalization = { new LayerNormalization2D() };
+	nn->addLayer(layerNormalization);
+}
+
+void LayerNormalization2D::setBatchSize(int batchSize) {
+	Layer2D::initNeurons(batchSize);
+	means = Matrix::allocateMatrixArray(batchSize, 1, size + 1);
+	variances = Matrix::allocateMatrixArray(batchSize, 1, size + 1);
+	stds = Matrix::allocateMatrixArray(batchSize, 1, size + 1);
+	if (nextLayer != NULL) {
+		nextLayer->setBatchSize(batchSize);
+	}
+}
+
+__global__
+void kernelLayerMean(float* A, float* B, int height, int width) {
 	extern __shared__ float shared[];
 
 	int column = blockIdx.x;
@@ -34,7 +103,7 @@ void kernelMean(float* A, float* B, int height, int width) {
 }
 
 __global__
-void kernelVariance(float* matrix, float* mean, float* output, int height, int width) {
+void kernelLayerVariance(float* matrix, float* mean, float* output, float* outputSqrt, int height, int width) {
 	extern __shared__ float shared[];
 
 	int column = blockIdx.x;
@@ -58,100 +127,63 @@ void kernelVariance(float* matrix, float* mean, float* output, int height, int w
 
 	if (tid == 0) {
 		output[column] = shared[0] / height;
+		outputSqrt[column] = sqrt(output[column]);
 	}
 }
 
 __global__
-void kernelNormalize(float* A, float* B, float* mean, float* std, int height, int N, int batchSize, int batchNum) {
+void kernelLayerNormalize(float* A, float* mean, float* std, float* B, int height, int N) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < N) {
 		int column = i / height;
-		int bd = column * batchSize + batchNum;
-		if (std[bd] == 0) {
+		if (std[column] == 0) {
 			B[i] = 0;
 		}
 		else {
-			B[i] = (A[i] - mean[bd]) / std[bd];
+			B[i] = (A[i] - mean[column]) / std[column];
 		}
 	}
 }
 
-void LayerNormalization2D::propagateLayer(int num) {
-	prevLayer->neurons[num].copyToDevice(0);
-	MatrixKernel::runColumnKernel(numTokens[num], size, Utils::THREADS_PER_BLOCK * sizeof(float), kernelMean, Matrix2::DEVICES[num][0], Matrix2::DEVICES[0][1], numTokens[num], size);
-	mean.copyToHost(1);
-	MatrixKernel::runColumnKernel(numTokens[num], size, Utils::THREADS_PER_BLOCK * sizeof(float), kernelVariance, Matrix2::DEVICES[num][0], Matrix2::DEVICES[0][1], Matrix2::DEVICES[0][2], numTokens[num], size);
-	variance.copyToHost(2);
-	variance.sqrt(std);
-	prevLayer->neurons[num].copyToDevice(0);
-	mean.copyToDevice(2);
-	std.copyToDevice(3);
-	MatrixKernel::runElementKernel(numTokens[num], size, 0, kernelNormalize, Matrix2::DEVICES[num][0], Matrix2::DEVICES[num][1], Matrix2::DEVICES[0][2], Matrix2::DEVICES[0][3], numTokens[num], numTokens[num] * size, batchSize, num);
-	neurons[num].copyToHost(1, numTokens[num] * size);
+// Matrix& input, Matrix& mean, Matrix& variance, Matrix& std, Matrix& output
+bool LayerNormalizationOperation::operate(OperationQueue* queue, int threadID) {
+	int height = this->in[0]->height;
+	int width = this->in[0]->width;
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelLayerMean << < numBlocks, Utils::THREADS_PER_BLOCK, Utils::THREADS_PER_BLOCK * sizeof(float), queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], height, width);
+	kernelLayerVariance << < numBlocks, Utils::THREADS_PER_BLOCK, Utils::THREADS_PER_BLOCK * sizeof(float), queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0], queue->hostDevices[id][3][0], height, width);
+	kernelLayerNormalize << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0], queue->hostDevices[id][4][0], height, width);
+	return true;
 }
 
 __global__
-void kernelBackPropagate(float c, float* prevNeurons, float* prevNeuronGradient, float* neuronGradient, float* mean, float* variance, float* std, int height, int width, int batchSize, int batchNum) {
-	int i = blockIdx.x;
-	int tid = threadIdx.x;
-	int stride = blockDim.x;
-
-	float sum;
-	int id, bid;
-	for (int j = tid; j < width; j += stride) {
-		id = i + height * j;
-		bid = j * batchSize + batchNum;
-		if (std[bid] != 0) {
+void kernelLayerBackPropagate(float c, float* prevNeurons, float* neuronGradient, float* mean, float* variance, float* std, float* prevNeuronGradient, int height, int width) {
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	if (id < height * width) {
+		float c = 1.0 / height;
+		int j = id / height;
+		float sum, grad;
+		if (std[j] != 0) {
 			sum = 0;
 			for (int k = 0; k < height; k++) {
-				float grad = std[bid] * ((k == i ? 1 : 0) - c) - (c / std[bid]) * (prevNeurons[id] - mean[bid]) * (prevNeurons[k + height * j] - mean[bid]);
-				sum += neuronGradient[k + height * j] * grad / variance[bid];
+				grad = std[j] * ((k == blockIdx.x ? 1 : 0) - c) - (c / std[j]) * (prevNeurons[id] - mean[j]) * (prevNeurons[k + height * j] - mean[j]);
+				sum += neuronGradient[k + height * j] * grad / variance[j];
 			}
 			prevNeuronGradient[id] = sum;
+		}
+		else {
+			prevNeuronGradient[id] = 0;
 		}
 	}
 }
 
-void LayerNormalization2D::backPropagate(int num) {
-	float c = 1.0 / numTokens[num];
-	prevLayer->neurons[num].copyToDevice(0);
-	neuronGradient[num].copyToDevice(2);
-	mean.copyToDevice(3);
-	variance.copyToDevice(4);
-	std.copyToDevice(5);
-	MatrixKernel::runRowKernel(numTokens[num], size, 0, kernelBackPropagate, c, Matrix2::DEVICES[0][0], Matrix2::DEVICES[0][1], Matrix2::DEVICES[0][2], Matrix2::DEVICES[0][3], Matrix2::DEVICES[0][4], Matrix2::DEVICES[0][5], numTokens[num], size, batchSize, num);
-	prevLayer->neuronGradient[num].copyToHost(1);
-	prevLayer->backPropagate(num);
-}
-
-void LayerNormalization2D::setPrevLayer(Layer* prevLayer) {
-	if (!instanceOf<Layer2D>(prevLayer)) {
-		throw invalid_argument("Previous layer must be instance Layer2D");
-	}
-	index = prevLayer->index + 1;
-	this->prevLayer = (Layer2D*)prevLayer;
-	size = prevLayer->size;
-	prevSize = size + 1;
-}
-
-void LayerNormalization2D::save(ofstream& file) {
-	file << LAYER_NAME << ",\n";
-	if (nextLayer != NULL) {
-		nextLayer->save(file);
-	}
-}
-
-void LayerNormalization2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
-	LayerNormalization2D* layerNormalization = { new LayerNormalization2D() };
-	nn->addLayer(layerNormalization);
-}
-
-void LayerNormalization2D::setBatchSize(int batchSize) {
-	Layer2D::initNeurons(batchSize);
-	mean = Matrix2(batchSize, size, 0);
-	variance = Matrix2(batchSize, size, 0);
-	std = Matrix2(batchSize, size, 0);
-	if (nextLayer != NULL) {
-		nextLayer->setBatchSize(batchSize);
-	}
+// Matrix& input, Matrix& outputGrad, Matrix& mean, Matrix& variance, Matrix& std, Matrix& inputGrad
+bool LayerNormalizationBackPropOperation::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length - this->in[0]->height;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelLayerBackPropagate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (1.0 / this->in[0]->height, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0], queue->hostDevices[id][3][0], queue->hostDevices[id][4][0], queue->hostDevices[id][5][0], this->in[0]->height, this->in[0]->width - 1);
+	return true;
 }

@@ -13,13 +13,13 @@ public:
 	MatrixBatch* prevNeuronGradient;
 
 	MatrixBatch Wq;
-	MatrixBatch* WqGrad;
+	MatrixBatch WqGrad;
 	MatrixBatch Wk;
-	MatrixBatch* WkGrad;
+	MatrixBatch WkGrad;
 	MatrixBatch Wv;
-	MatrixBatch* WvGrad;
-	Matrix2 Wo;
-	Matrix2* WoGrad;
+	MatrixBatch WvGrad;
+	Matrix Wo;
+	Matrix WoGrad;
 
 	MatrixBatch* Q;
 	MatrixBatch* QGrad;
@@ -33,30 +33,30 @@ public:
 	MatrixBatch* Ao;
 	MatrixBatch* AoGrad;
 
-	Matrix2* Ac;
+	Matrix* Ac;
 	MatrixBatch* AcSub;
-	Matrix2* AcGrad;
+	Matrix* AcGrad;
 	MatrixBatch* AcSubGrad;
 
 	Activation* softmax;
 
-	Optimizer* outputOptimizer;
-	OptimizerBatch* keyOptimizers;
-	OptimizerBatch* queryOptimizers;
-	OptimizerBatch* valueOptimizers;
+	Optimizer<Matrix>* outputOptimizer;
+	Optimizer<MatrixBatch>* keyOptimizers;
+	Optimizer<MatrixBatch>* queryOptimizers;
+	Optimizer<MatrixBatch>* valueOptimizers;
 
 	TransformerAttention(int numHeads, int keySize, int valueSize);
 
-	void propagateLayer(int num);
-	void backPropagate(int num);
+	void initPropagationQueue(OperationQueue& queue);
+	void initBackPropQueue(OperationQueue& queue);
+	void initApplicationQueue(OperationQueue& queue, float learningRate, int& t);
 	void setPrevLayer(Layer* prevLayer);
 	void setBatchSize(int batchSize);
 	void save(ofstream& file);
 	static void load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize);
 
 	void setNumTokens(int* numTokens);
-	void applyGradients(float learningRate, int t);
-	void setOptimizer(Optimizer* optimizer);
+	void setOptimizer(Optimizer<>* optimizer);
 	int getNumParameters();
 };
 

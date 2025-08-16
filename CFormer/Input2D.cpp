@@ -5,23 +5,31 @@ Input2D::Input2D(int size) {
 	this->size = size;
 }
 
-void Input2D::setInput(int num, float** input) {
-	neurons[num].copy(numTokens[num], size, input);
-}
-
-void Input2D::setSparseInput(int num, int* input) {
-	neurons[num].constantFill(0);
-	for (int i = 0; i < numTokens[num]; i++) {
-		neurons[num](i, input[i]) = 1;
-		neurons[num](i, size) = 1;
+void Input2D::setInput(float*** input) {
+	for (int n = 0; n < batchSize; n++) {
+		for (int i = 0; i < numTokens[n]; i++) {
+			for (int j = 0; j < size; j++) {
+				neurons[n](i, j) = input[n][i][j];
+			}
+		}
 	}
 }
 
-void Input2D::propagateLayer(int num) {
+void Input2D::setSparseInput(int** input) {
+	for (int n = 0; n < batchSize; n++) {
+		neurons[n].fill(FillFunction::ZERO_FILL);
+		for (int i = 0; i < numTokens[n]; i++) {
+			neurons[n](i, input[n][i]) = 1;
+			neurons[n](i, size) = 1;
+		}
+	}
+}
+
+void Input2D::initPropagationQueue(OperationQueue& queue) {
 	return;
 }
 
-void Input2D::backPropagate(int num) {
+void Input2D::initBackPropQueue(OperationQueue& queue) {
 	return;
 }
 

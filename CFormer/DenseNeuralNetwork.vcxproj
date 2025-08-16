@@ -38,14 +38,12 @@
     <ClCompile Include="LayerNormalization2D.cpp" />
     <ClCompile Include="Loss1D.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Matrix2.cpp" />
+    <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="MatrixBatch.cpp" />
-    <ClCompile Include="MatrixKernel.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="ModelParser.cpp" />
     <ClCompile Include="Operation.cpp" />
-    <ClCompile Include="OptimizerBatch.cpp" />
-    <ClCompile Include="PropagationQueue.cpp" />
+    <ClCompile Include="OperationQueue.cpp" />
     <ClCompile Include="TransformerAttention.cpp" />
     <ClCompile Include="Model1D.cpp" />
     <ClCompile Include="Optimizer.cpp" />
@@ -78,14 +76,12 @@
     <ClInclude Include="Layer2D.h" />
     <ClInclude Include="LayerNormalization2D.h" />
     <ClInclude Include="Loss1D.h" />
-    <ClInclude Include="Matrix2.h" />
+    <ClInclude Include="Matrix.h" />
     <ClInclude Include="MatrixBatch.h" />
-    <ClInclude Include="MatrixKernel.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="ModelParser.h" />
     <ClInclude Include="Operation.h" />
-    <ClInclude Include="OptimizerBatch.h" />
-    <ClInclude Include="PropagationQueue.h" />
+    <ClInclude Include="OperationQueue.h" />
     <ClInclude Include="TransformerAttention.h" />
     <ClInclude Include="Model1D.h" />
     <ClInclude Include="Optimizer.h" />
@@ -100,6 +96,7 @@
     <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Activation.inl" />
     <None Include="Operation.inl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

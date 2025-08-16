@@ -2,12 +2,14 @@
 #include <iostream>
 #include <stdarg.h>
 #include "Dataset.h"
+#include "Matrix.h"
 #include <tuple>
 
 using namespace std;
 
 class Loss1D;
 
+template<typename Type = Matrix>
 class Optimizer;
 
 class TrainingParams {
@@ -17,10 +19,10 @@ public:
 	static TrainingParams* DEFAULT;
 	const static int LEARNING_RATE = 0, BATCH_SIZE = 1, NUM_EPOCHS = 2, VAL_SPLIT = 3, OPTIMIZER = 4, VAL_DATA = 5;;
 
-	tuple<float, int, int, float, Optimizer*, Dataset*> data;
+	tuple<float, int, int, float, Optimizer<>*, Dataset*> data;
 
-	TrainingParams(float learningRate, int batchSize, int numEpochs, float valSplit, Optimizer* optimizer, Dataset* valData);
-	TrainingParams(tuple<float, int, int, float, Optimizer*, Dataset*> data);
+	TrainingParams(float learningRate, int batchSize, int numEpochs, float valSplit, Optimizer<>* optimizer, Dataset* valData);
+	TrainingParams(tuple<float, int, int, float, Optimizer<>*, Dataset*> data);
 
 	template<int I = 0, typename T>
 	TrainingParams* with(T value) {

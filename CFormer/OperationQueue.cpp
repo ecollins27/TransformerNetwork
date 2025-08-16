@@ -1,6 +1,6 @@
-#include "PropagationQueue.h"
+#include "OperationQueue.h"
 
-PropagationQueue::PropagationQueue(int numStreams) {
+OperationQueue::OperationQueue(int numStreams) {
 	this->numThreads = numStreams;
 	this->numDevices = 0;
 	this->deviceBatchSizes = NULL;
@@ -20,7 +20,7 @@ PropagationQueue::PropagationQueue(int numStreams) {
 	}
 }
 
-int PropagationQueue::getMinIndex(vector<Operation*> v) {
+int OperationQueue::getMinIndex(vector<Operation*> v) {
 	if (v.size() == 0) {
 		return -1;
 	}
@@ -41,7 +41,7 @@ int PropagationQueue::getMinIndex(vector<Operation*> v) {
 	return allAllocated? -2:-1;
 }
 
-bool PropagationQueue::operationsAllocated(vector<Operation*> operations) {
+bool OperationQueue::operationsAllocated(vector<Operation*> operations) {
 	for (int i = 0; i < operations.size(); i++) {
 		if (operations[i]->completed.load() > 0 || !operations[i]->operationAllocated.load()) {
 			return false;
@@ -50,7 +50,7 @@ bool PropagationQueue::operationsAllocated(vector<Operation*> operations) {
 	return true;
 }
 
-void PropagationQueue::threadRun(int threadID) {
+void OperationQueue::threadRun(int threadID) {
 	Operation* operation = NULL;
 	int index = -1;
 	int size = operations.size();
@@ -74,16 +74,16 @@ void PropagationQueue::threadRun(int threadID) {
 	}
 }
 
-void PropagationQueue::run() {
+void OperationQueue::run() {
 	for (int i = 0; i < numThreads; i++) {
-		threads[i] = thread(&PropagationQueue::threadRun, this, i);
+		threads[i] = thread(&OperationQueue::threadRun, this, i);
 	}
 	for (int i = 0; i < numThreads; i++) {
 		threads[i].join();
 	}
 }
 
-void PropagationQueue::reset() {
+void OperationQueue::reset() {
 	for (int i = 0; i < operations.size(); i++) {
 		//printf("%d: %p  %s\n", i, operations[i], typeid(*operations[i]).name());
 		operations[i]->completed.store(1);
@@ -91,7 +91,7 @@ void PropagationQueue::reset() {
 	}
 }
 
-void PropagationQueue::enqueueOperation(Operation* operation) {
+void OperationQueue::enqueue(Operation* operation) {
 	if (dynamic_cast<DOperation*>(operation) != NULL) {
 		((DOperation*) operation)->addDeviceCopies(operations);
 		operations.emplace_back(operation);
@@ -103,7 +103,7 @@ void PropagationQueue::enqueueOperation(Operation* operation) {
 	}
 }
 
-void PropagationQueue::finalize() {
+void OperationQueue::finalize() {
 	for (int i = 0; i < operations.size(); i++) {
 		operations[i]->findPrereqs(operations, i);
 		operations[i]->applyToStream(this);
@@ -112,7 +112,7 @@ void PropagationQueue::finalize() {
 	this->reset();
 }
 
-void PropagationQueue::allocateDeviceMemory() {
+void OperationQueue::allocateDeviceMemory() {
 	cudaError_t err = cudaMallocHost(&devices, numThreads * sizeof(float***));
 	if (err != cudaSuccess) {
 		throw runtime_error(string("CUDA memory allocation failed: ") + cudaGetErrorString(err));
@@ -153,7 +153,7 @@ void PropagationQueue::allocateDeviceMemory() {
 	}
 }
 
-long long PropagationQueue::getDeviceMemory() {
+long long OperationQueue::getDeviceMemory() {
 	long long sum = 0;
 	for (int i = 0; i < numDevices; i++) {
 		sum += deviceBatchSizes[i] * (deviceLengths[i] + 1);
@@ -161,7 +161,7 @@ long long PropagationQueue::getDeviceMemory() {
 	return sum * numThreads;
 }
 
-int PropagationQueue::getNextAvailableThread() {
+int OperationQueue::getNextAvailableThread() {
 	for (int i = 0; i < numThreads; i++) {
 		if (deviceLocks[i].load()) {
 			return i;

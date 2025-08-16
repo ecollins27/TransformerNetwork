@@ -2,6 +2,7 @@
 #include "TrainingParams.h"
 #include "Optimizer.h"
 #include "Activation.h"
+#include "OperationQueue.h"
 #include <fstream>
 
 class InputLayer;
@@ -27,34 +28,35 @@ public:
 		return dynamic_cast<T*>(l) != NULL;
 	}
 
-	virtual void propagateLayer(int num) = 0;
-	virtual void backPropagate(int num) = 0;
+	virtual void initPropagationQueue(OperationQueue& queue) = 0;
+	virtual void initBackPropQueue(OperationQueue& queue) = 0;
 	virtual void setPrevLayer(Layer* prevLayer) = 0;
 	virtual void setBatchSize(int batchSize) = 0;
 	virtual void save(ofstream& file) = 0;
 
-	virtual void predict(int num) {
-		propagateLayer(num);
+	virtual void initApplicationQueue(OperationQueue& queue, float learningRate, int& t) {
 		if (nextLayer != NULL) {
-			nextLayer->predict(num);
+			nextLayer->initApplicationQueue(queue, learningRate, t);
 		}
 	}
-	virtual void forwardPropagate(int num) {
-		propagateLayer(num);
+	virtual void initForwardPropQueue(OperationQueue& queue) {
+		initPropagationQueue(queue);
 		if (nextLayer != NULL) {
-			nextLayer->forwardPropagate(num);
+			nextLayer->initForwardPropQueue(queue);
+		}
+	}
+
+	virtual void initPredictQueue(OperationQueue& queue) {
+		initPropagationQueue(queue);
+		if (nextLayer != NULL) {
+			nextLayer->initPredictQueue(queue);
 		}
 	}
 
 	virtual void setNextLayer(Layer* nextLayer) {
 		this->nextLayer = nextLayer;
 	}
-	virtual void applyGradients(float learningRate, int t) {
-		if (nextLayer != NULL) {
-			nextLayer->applyGradients(learningRate, t);
-		}
-	}
-	virtual void setOptimizer(Optimizer* optimizer) {
+	virtual void setOptimizer(Optimizer<>* optimizer) {
 		if (nextLayer != NULL) {
 			nextLayer->setOptimizer(optimizer);
 		}

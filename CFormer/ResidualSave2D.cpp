@@ -3,12 +3,21 @@
 
 const string ResidualSave2D::LAYER_NAME = "ResidualSave2D";
 
-void ResidualSave2D::propagateLayer(int num) {
-	neurons[num].copy(prevLayer->neurons[num]);
+void ResidualSave2D::initPropagationQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new CopyTo(prevLayer->neurons[i], neurons[i]));
+	}
 }
 
-void ResidualSave2D::backPropagate(int num) {
+void ResidualSave2D::initBackPropQueue(OperationQueue& queue) {
 	return;
+}
+
+void ResidualSave2D::initBackPropQueueWithResidual(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new CopyTo(neuronGradient[i], prevLayer->neuronGradient[i]));
+	}
+	prevLayer->initBackPropQueue(queue);
 }
 
 void ResidualSave2D::setPrevLayer(Layer* prevLayer) {
@@ -31,9 +40,4 @@ void ResidualSave2D::save(ofstream& file) {
 void ResidualSave2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	ResidualSave2D* residualSave = { new ResidualSave2D() };
 	nn->addLayer(residualSave);
-}
-
-void ResidualSave2D::backPropagateWithResidual(int num) {
-	prevLayer->neuronGradient[num].copy(neuronGradient[num]);
-	prevLayer->backPropagate(num);
 }

@@ -9,8 +9,8 @@ public:
 
 	void setInput(float** input);
 	void setSparseInput(int* input);
-	void propagateLayer(int num);
-	void backPropagate(int num);
+	void initPropagationQueue(OperationQueue& queue);
+	void initBackPropQueue(OperationQueue& queue);
 	void setPrevLayer(Layer* prevLayer);
 	void setBatchSize(int batchSize);
 	void save(ofstream& file);

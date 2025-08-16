@@ -9,35 +9,25 @@ Dropout2D::Dropout2D(float dropoutRate) {
 	this->distribution = uniform_real_distribution<float>(0, 1);
 }
 
-void Dropout2D::propagateLayer(int num) {
-	for (int i = 0; i < numTokens[num]; i++) {
-		for (int j = 0; j < size; j++) {
-			float randValue = distribution(generator);
-			if (randValue < dropoutRate) {
-				neurons[num](i, j) = 0;
-				dropped[num][i][j] = true;
-			}
-			else {
-				neurons[num](i, j) = prevLayer->neurons[num](i, j) / dropoutRate;
-				dropped[num][i][j] = false;
-			}
-		}
+void Dropout2D::initPropagationQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new DropoutForwardPropOperation(dropoutRate, prevLayer->neurons[i], neurons[i], dropped[i]));
 	}
 }
 
-void Dropout2D::backPropagate(int num) {
-	for (int i = 0; i < numTokens[num]; i++) {
-		for (int j = 0; j < size; j++) {
-			if (!dropped[num][i][j]) {
-				prevLayer->neuronGradient[num](i, j) = neuronGradient[num](i, j) / dropoutRate;
-			}
-			else {
-				prevLayer->neuronGradient[num](i, j) = 0;
-			}
-		}
+void Dropout2D::initBackPropQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new DropoutBackPropOperation(dropoutRate, neuronGradient[i], prevLayer->neuronGradient[i], dropped[i]));
 	}
-	if (prevLayer != NULL) {
-		prevLayer->backPropagate(num);
+	prevLayer->initBackPropQueue(queue);
+}
+
+void Dropout2D::initPredictQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new CopyTo(prevLayer->neurons[i], neurons[i]));
+	}
+	if (nextLayer != NULL) {
+		nextLayer->initPredictQueue(queue);
 	}
 }
 
@@ -75,11 +65,4 @@ void Dropout2D::save(ofstream& file) {
 void Dropout2D::load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize) {
 	Dropout2D* dropout = { new Dropout2D(ModelParser::getNextfloat(line, commaIndex, newCommaIndex)) };
 	nn->addLayer(dropout);
-}
-
-void Dropout2D::predict(int num) {
-	neurons[num].copy(prevLayer->neurons[num]);
-	if (nextLayer != NULL) {
-		nextLayer->predict(num);
-	}
 }

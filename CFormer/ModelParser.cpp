@@ -28,34 +28,9 @@ void ModelParser::getNextLine(ifstream& file, string& line, int* commaIndex, int
 }
 
 Activation* ModelParser::readActivation(string& line, int* commaIndex, int* newCommaIndex) {
-	string activationName = getNextString(line, commaIndex, newCommaIndex);
-	if (activationName.compare("Sigmoid") == 0) {
-		return { new Sigmoid() };
-	}
-	else if (activationName.compare("Relu") == 0) {
-		return { new Relu() };
-	}
-	else if (activationName.compare("Elu") == 0) {
-		return { new Elu(getNextfloat(line,commaIndex, newCommaIndex)) };
-	}
-	else if (activationName.compare("Selu") == 0) {
-		return { new Selu() };
-	}
-	else if (activationName.compare("Loglu") == 0) {
-		return { new Loglu(getNextfloat(line, commaIndex, newCommaIndex)) };
-	}
-	else if (activationName.compare("Tanh") == 0) {
-		return { new Tanh() };
-	}
-	else if (activationName.compare("Swish") == 0) {
-		return { new Swish(getNextfloat(line, commaIndex, newCommaIndex)) };
-	}
-	else if (activationName.compare("Softmax") == 0) {
-		return { new Softmax() };
-	}
-	else {
-		return { new None() };
-	}
+	int activationType = getNextInt(line, commaIndex, newCommaIndex);
+	float alpha = getNextfloat(line, commaIndex, newCommaIndex);
+	return new Activation(activationType, alpha);
 }
 
 void ModelParser::addLayer(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize, bool* layer1D) {

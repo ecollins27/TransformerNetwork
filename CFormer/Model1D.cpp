@@ -1,4 +1,5 @@
 #include "Model1D.h"
+#include <format>
 
 const string Model1D::MODEL_NAME = "Model1D";
 
@@ -25,76 +26,45 @@ Layer* Model1D::getLayer(int index) {
 	return layer;
 }
 
-void Model1D::applyGradients(float learningRate) {
-	t++;
-	inputLayer->applyGradients(learningRate, t);
-}
-
-int Model1D::getNumParameters() {
-	return inputLayer->getNumParameters();
-}
-
-void Model1D::predict(void* input, bool sparse) {
-	if (sparse) {
-		inputLayer->setSparseInput((int*)input);
-	}
-	else {
-		inputLayer->setInput((float**)input);
-	}
-	inputLayer->predict(0);
-}
-
-void Model1D::forwardPropagate(void* input, bool sparse) {
-	if (sparse) {
-		inputLayer->setSparseInput((int*)input);
-	}
-	else {
-		inputLayer->setInput((float**)input);
-	}
-	inputLayer->forwardPropagate(0);
-}
-
-void Model1D::updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics) {
+void Model1D::updateAverages(Loss1D* lossFunction, float** y, atomic<float>* averages, int numMetrics, Loss1D** metrics) {
 	for (int i = 0; i < numMetrics; i++) {
-		averages[i] += metrics[i]->loss(outputLayer, y);
+		averages[i].fetch_add(metrics[i]->loss(outputLayer, y));
 	}
-	averages[numMetrics] += lossFunction->loss(outputLayer, y);
+	averages[numMetrics].fetch_add(lossFunction->loss(outputLayer, y));
 }
 
-void Model1D::evaluateValidation(Loss1D* lossFunction, Dataset* valData, int batchSize, int numMetrics, Loss1D** metrics) {
-	int valSize = valData->numData;
-	float* averages = new float[numMetrics + 1];
-	for (int i = 0; i < numMetrics + 1; i++) {
-		averages[i] = 0;
+void Model1D::evaluateValidation(OperationQueue* predict, Loss1D* lossFunction, int valNum, Dataset* valData, int batchSize, int numMetrics, Loss1D** metrics, atomic<float>* averages, int threadID, barrier<>* sync) {
+	if (threadID == 0) {
+		for (int i = 0; i < numMetrics + 1; i++) {
+			averages[i].store(0);
+		}
 	}
-	for (int i = 0; i < valSize; i += batchSize) {
-		predict(&valData->X[i], valData->sparseX);
-		updateAverages(lossFunction, (float**)(&valData->y[i]), averages, numMetrics, metrics);
+	for (int i = 0; i < valNum; i += batchSize) {
+		if (threadID == 1) {
+			if (valData->sparseX) {
+				inputLayer->setSparseInput((int*)&valData->X[i]);
+			}
+			else {
+				inputLayer->setInput((float**)&valData->X[i]);
+			}
+		}
+		sync->arrive_and_wait();
+		predict->threadRun(threadID);
+		sync->arrive_and_wait();
+		if (threadID == 0) {
+			updateAverages(lossFunction, (float**)&valData->y[i], averages, numMetrics, metrics);
+		}
 	}
-	printf("  ValLoss:%f  ", averages[numMetrics] / valSize);
-	for (int j = 0; j < numMetrics; j++) {
-		printf("Val%s:%f  ", metrics[j]->toString().c_str(), averages[j] / valSize);
+	sync->arrive_and_wait();
+	if (threadID == 0) {
+		printf("ValData  Loss:%f  ", averages[numMetrics].load() / valNum);
+		for (int j = 0; j < numMetrics; j++) {
+			printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j].load() / valNum);
+		}
 	}
 }
 
-void Model1D::backPropagate(Loss1D* lossFunction, float** yTrue) {
-	lossFunction->differentiate(outputLayer, yTrue);
-	outputLayer->backPropagate(0);
-}
-
-void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params) {
-	Dataset* trainingData = data;
-	Dataset* valData;
-
-	float valSplit = params->get<TrainingParams::VAL_SPLIT, float>();
-	int batchSize = params->get<TrainingParams::BATCH_SIZE, int>();
-	int numEpochs = params->get<TrainingParams::NUM_EPOCHS, int>();
-	float learningRate = params->get<TrainingParams::LEARNING_RATE, float>();
-	valData = params->get<TrainingParams::VAL_DATA, Dataset*>();
-	inputLayer->setOptimizer(params->get<TrainingParams::OPTIMIZER, Optimizer*>());
-
-	int trainingNum, valNum;
-	bool useSplitVal = valData == NULL;
+void Model1D::formatData(Dataset*& trainingData, Dataset*& valData, int& trainingNum, int& valNum, float valSplit, bool useSplitVal, int batchSize) {
 	if (useSplitVal) {
 		trainingNum = (int)(trainingData->numData * (1 - valSplit));
 		valNum = trainingData->numData - trainingNum;
@@ -107,8 +77,79 @@ void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** 
 	valNum -= valNum % batchSize;
 	printf("TrainingNum: %d\n", trainingNum);
 	printf("ValNum: %d\n", valNum);
+}
+
+void Model1D::threadFit(int trainingNum, Dataset* trainingData, int valNum, Dataset* valData, Loss1D* lossFunction, OperationQueue* forwardProp, OperationQueue* backProp, OperationQueue* applyGradients, OperationQueue* predict, int numMetrics, Loss1D** metrics, string header, atomic<float>* averages, float learningRate, int batchSize, int threadID, barrier<>* sync) {
+	if (threadID == 1) {
+		for (int i = 0; i < numMetrics + 1; i++) {
+			averages[i].store(0);
+		}
+	}
+	for (int i = 0; i < trainingNum; i += batchSize) {
+		if (threadID == 0) {
+			t++;
+			if (trainingData->sparseX) {
+				inputLayer->setSparseInput((int*)&trainingData->X[i]);
+			}
+			else {
+				inputLayer->setInput((float**)&trainingData->X[i]);
+			}
+		}
+		else if (threadID == 1) {
+			printf("\r%s  %d/%d  Loss:%f  ", header.c_str(), i, trainingData, averages[numMetrics].load() / i);
+			for (int j = 0; j < numMetrics; j++) {
+				printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j].load() / i);
+			}
+		}
+		sync->arrive_and_wait();
+		forwardProp->threadRun(threadID);
+		sync->arrive_and_wait();
+		if (threadID == 0) {
+			lossFunction->differentiate(outputLayer, (float**)&trainingData->y[i]);
+		}
+		else if (threadID == 1) {
+			updateAverages(lossFunction, (float**)&trainingData->y[i], averages, numMetrics, metrics);
+		}
+		sync->arrive_and_wait();
+		backProp->threadRun(threadID);
+		sync->arrive_and_wait();
+		applyGradients->threadRun(threadID);
+	}
+	sync->arrive_and_wait();
+	evaluateValidation(predict, lossFunction, valNum, valData, batchSize, numMetrics, metrics, averages, threadID, sync);
+}
+
+void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics, TrainingParams* params) {
+	Dataset* trainingData = data;
+	Dataset* valData;
+
+	float valSplit = params->get<TrainingParams::VAL_SPLIT, float>();
+	int batchSize = params->get<TrainingParams::BATCH_SIZE, int>();
+	int numEpochs = params->get<TrainingParams::NUM_EPOCHS, int>();
+	float learningRate = params->get<TrainingParams::LEARNING_RATE, float>();
+	valData = params->get<TrainingParams::VAL_DATA, Dataset*>();
+	inputLayer->setOptimizer(params->get<TrainingParams::OPTIMIZER, Optimizer<>*>());
+	bool useSplitVal = valData == NULL;
+	int trainingNum, valNum;
+	formatData(trainingData, valData, trainingNum, valNum, valSplit, useSplitVal, batchSize);
 	inputLayer->setBatchSize(batchSize);
-	float* averages = new float[numMetrics + 1];
+	atomic<float>* averages = new atomic<float>[numMetrics + 1];
+
+	int numThreads = 3;
+	barrier<> sync(numThreads);
+	thread* threads = new thread[numThreads];
+	OperationQueue forwardProp(numThreads);
+	OperationQueue predict(numThreads);
+	OperationQueue backProp(numThreads);
+	OperationQueue applyGradients(numThreads);
+	inputLayer->initForwardPropQueue(forwardProp);
+	inputLayer->initPredictQueue(predict);
+	inputLayer->initBackPropQueue(backProp);
+	inputLayer->initApplicationQueue(applyGradients, learningRate, t);
+	forwardProp.finalize();
+	predict.finalize();
+	backProp.finalize();
+	applyGradients.finalize();
 	for (int epoch = 0; epoch < numEpochs; epoch++) {
 		trainingData->shuffle();
 		if (useSplitVal) {
@@ -117,50 +158,24 @@ void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** 
 		else {
 			valData->shuffle();
 		}
-		for (int i = 0; i < numMetrics + 1; i++) {
-			averages[i] = 0;
+		forwardProp.reset();
+		predict.reset();
+		backProp.reset();
+		applyGradients.reset();
+		 //int trainingNum, Dataset* trainingData, int valNum, Dataset* valData, Loss1D* lossFunction, OperationQueue* forwardProp, OperationQueue* backProp, OperationQueue* applyGradients,
+		 // OperationQueue* predict, int numMetrics, Loss1D** metrics, string header, atomic<float>* averages, float learningRate, int batchSize, int& t, int threadID, barrier<>* sync
+		for (int i = 0; i < numThreads; i++) {
+			threads[i] = thread(&Model1D::threadFit, this, trainingNum, trainingData, valNum, valData, lossFunction, &forwardProp, &backProp, &applyGradients, &predict, numMetrics, metrics, 
+				format("Epoch {}/{}", epoch, numEpochs), averages, learningRate, batchSize, i, &sync);
 		}
-		for (int i = 0; i < trainingNum; i += batchSize) {
-			printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, numEpochs, i, trainingNum, averages[numMetrics] / i);
-			for (int j = 0; j < numMetrics; j++) {
-				printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / i);
-			}
-			forwardPropagate((float**) &trainingData->X[i], trainingData->sparseX);
-			backPropagate(lossFunction, (float**) &trainingData->y[i]);
-			updateAverages(lossFunction, (float**) &trainingData->y[i], averages, numMetrics, metrics);
-			applyGradients(learningRate);
-		}
-		printf("\rEpoch %d/%d  %d/%d  Loss:%f  ", epoch + 1, numEpochs, trainingNum, trainingNum, averages[numMetrics] / trainingNum);
-		for (int j = 0; j < numMetrics; j++) {
-			printf("%s:%f  ", metrics[j]->toString().c_str(), averages[j] / trainingNum);
-		}
-		if (valNum > 0) {
-			evaluateValidation(lossFunction, valData, batchSize, numMetrics, metrics);
+		for (int i = 0; i < numThreads; i++) {
+			threads[i].join();
 		}
 		printf("\n");
 	}
 }
 
 void Model1D::test(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** metrics) {
-	int trainingNum = data->numData;
-	inputLayer->setBatchSize(1);
-	float* averages = new float[numMetrics + 1];
-	for (int i = 0; i < numMetrics + 1; i++) {
-		averages[i] = 0;
-	}
-	for (int i = 0; i < trainingNum; i ++) {
-		printf("\r%d/%d  TestLoss:%f  ", i, trainingNum, averages[numMetrics] / i);
-		for (int j = 0; j < numMetrics; j++) {
-			printf("Test%s:%f  ", metrics[j]->toString().c_str(), averages[j] / i);
-		}
-		predict((float**)&data->X[i], data->sparseX);
-		updateAverages(lossFunction, (float**)&data->y[i], averages, numMetrics, metrics);
-	}
-	printf("\r%d/%d  TestLoss:%f  ", trainingNum, trainingNum, averages[numMetrics] / trainingNum);
-	for (int j = 0; j < numMetrics; j++) {
-		printf("Test%s:%f  ", metrics[j]->toString().c_str(), averages[j] / trainingNum);
-	}
-	printf("\n");
 }
 
 void Model1D::save(string filename) {
@@ -176,4 +191,8 @@ void Model1D::printLayers() {
 		printf("%s\n", typeid(*layer).name());
 		layer = layer->nextLayer;
 	}
+}
+
+int Model1D::getNumParameters() {
+	return inputLayer->getNumParameters();
 }

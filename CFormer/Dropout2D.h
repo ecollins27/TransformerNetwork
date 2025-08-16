@@ -16,13 +16,13 @@ public:
 
 	Dropout2D(float dropoutRate);
 
-	void propagateLayer(int num);
-	void backPropagate(int num);
+	void initPropagationQueue(OperationQueue& queue);
+	void initBackPropQueue(OperationQueue& queue);
 	void setPrevLayer(Layer* prevLayer);
 	void setBatchSize(int batchSize);
 	void save(ofstream& file);
 	static void load(Model* nn, ifstream& file, string& line, int* commaIndex, int* newCommaIndex, int* prevSize);
 
-	void predict(int num);
+	void initPredictQueue(OperationQueue& queue);
 };
 

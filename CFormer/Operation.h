@@ -1,30 +1,31 @@
 #pragma once
-#include "Matrix2.h"
+#include "Matrix.h"
 #include "MatrixBatch.h"
 #include <atomic>
 
-class PropagationQueue;
+class OperationQueue;
 
 class Operation {
 
 public:
-	void* output;
+	int numOutputs;
+	void** outputs;
 	atomic<int> completed;
 	atomic<bool> operationAllocated;
 
-	virtual bool operate(PropagationQueue* queue, int threadID) = 0;
-	virtual void applyToStream(PropagationQueue* queue) = 0;
+	virtual bool operate(OperationQueue* queue, int threadID) = 0;
+	virtual void applyToStream(OperationQueue* queue) = 0;
 	virtual void findPrereqs(vector<Operation*> operations, int index) = 0;
-	virtual int getPrereqsUnmet(PropagationQueue* queue) = 0;
-	virtual bool containsPrereq(Operation* o) = 0;
+	virtual int getPrereqsUnmet(OperationQueue* queue) = 0;
 };
 
 class DOperation : public Operation {
 
 public:
 	atomic<int> threadID;
+	atomic<int> outputsCopied;
 
-	virtual void applyToStream(PropagationQueue* queue);
+	virtual void applyToStream(OperationQueue* queue);
 	virtual void findPrereqs(vector<Operation*> operations, int index);
 	virtual void addDeviceCopies(vector<Operation*>& operations) = 0;
 	virtual void addHostCopies(vector<Operation*>& operations) = 0;
@@ -33,7 +34,7 @@ public:
 class HOperation : public Operation {
 
 public:
-	virtual void applyToStream(PropagationQueue* queue) { return; };
+	virtual void applyToStream(OperationQueue* queue) { return; };
 };
 
 template<typename Type>
@@ -45,8 +46,7 @@ public:
 
 	HUnary(Type& A);
 	virtual void findPrereqs(vector<Operation*> operations, int index);
-	virtual int getPrereqsUnmet(PropagationQueue* queue);
-	virtual bool containsPrereq(Operation* o);
+	virtual int getPrereqsUnmet(OperationQueue* queue);
 };
 
 template<typename TypeA, typename TypeB>
@@ -59,8 +59,7 @@ public:
 
 	HBinary(TypeA& A, TypeB& B);
 	virtual void findPrereqs(vector<Operation*> operations, int index);
-	virtual int getPrereqsUnmet(PropagationQueue* queue);
-	virtual bool containsPrereq(Operation* o);
+	virtual int getPrereqsUnmet(OperationQueue* queue);
 };
 
 template<typename Type>
@@ -74,11 +73,10 @@ public:
 	int batchSize;
 
 	HostToDeviceCopy(DOperation* operation, Type* A, int deviceNum, int batchSize);
-	bool operate(PropagationQueue* queue, int threadID);
-	void applyToStream(PropagationQueue* queue);
+	bool operate(OperationQueue* queue, int threadID);
+	void applyToStream(OperationQueue* queue);
 	void findPrereqs(vector<Operation*> operations, int index);
-	bool containsPrereq(Operation* o);
-	int getPrereqsUnmet(PropagationQueue* queue);
+	int getPrereqsUnmet(OperationQueue* queue);
 };
 
 template<typename Type>
@@ -88,14 +86,16 @@ public:
 	Type* A;
 	int deviceNum;
 	atomic<int>* threadID;
+	atomic<int>* outputsCopied;
+	int numOutputs;
 	Operation* prereq;
+	int refZERO = 0;
 
 	DeviceToHostCopy(DOperation* operation, Type* A, int deviceNum);
-	bool operate(PropagationQueue* queue, int threadID);
-	void applyToStream(PropagationQueue* queue);
+	bool operate(OperationQueue* queue, int threadID);
+	void applyToStream(OperationQueue* queue);
 	void findPrereqs(vector<Operation*> operations, int index);
-	bool containsPrereq(Operation* o);
-	int getPrereqsUnmet(PropagationQueue* queue);
+	int getPrereqsUnmet(OperationQueue* queue);
 };
 
 template<typename TypeA>
@@ -106,10 +106,9 @@ public:
 	Operation* prereq;
 
 	DUnary(TypeA& A);
-	virtual int getPrereqsUnmet(PropagationQueue* queue);
+	virtual int getPrereqsUnmet(OperationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
-	virtual bool containsPrereq(Operation* o);
 };
 
 template<typename TypeA, typename TypeB>
@@ -121,10 +120,9 @@ public:
 	Operation* prereqA;
 
 	DBinary(TypeA& A, TypeB& B);
-	virtual int getPrereqsUnmet(PropagationQueue* queue);
+	virtual int getPrereqsUnmet(OperationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
-	virtual bool containsPrereq(Operation* o);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -138,10 +136,24 @@ public:
 	Operation* prereqB;
 
 	DTrinary(TypeA& A, TypeB& B, TypeC& C);
-	virtual int getPrereqsUnmet(PropagationQueue* queue);
+	virtual int getPrereqsUnmet(OperationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
-	virtual bool containsPrereq(Operation* o);
+};
+
+template<typename TypeIn, typename TypeOut>
+class Dnary : public DOperation {
+
+public:
+	int N_IN, N_OUT;
+	TypeIn** in;
+	TypeOut** out;
+	Operation** prereqs;
+
+	Dnary(int N_IN, int N_OUT);
+	virtual int getPrereqsUnmet(OperationQueue* queue);
+	virtual void addDeviceCopies(vector<Operation*>& operations);
+	virtual void addHostCopies(vector<Operation*>& operations);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -155,9 +167,8 @@ public:
 	const float BETA1 = 1.0f;
 
 	Multiply(TypeA& A, TypeB& B, TypeC& C, bool overwrite) : DTrinary<TypeA, TypeB, TypeC>(A, B, C) { this->overwrite = overwrite; this->prereqC = NULL; };
-	int getPrereqsUnmet(PropagationQueue* queue);
+	int getPrereqsUnmet(OperationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
-	virtual bool containsPrereq(Operation* o);
 };
 
 template<typename Type>
@@ -165,7 +176,7 @@ class Print : public HUnary<Type> {
 
 public:
 	Print(Type& A) : HUnary<Type>(A) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename Type>
@@ -175,7 +186,7 @@ public:
 	int customWidth;
 	CopyTo(Type& A, Type& B) : HBinary<Type, Type>(A, B) { this->customWidth = -1; };
 	CopyTo(int width, Type& A, Type& B) : HBinary<Type, Type>(A, B) { this->customWidth = width; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename Type>
@@ -184,7 +195,7 @@ class ConstantFill : public DUnary<Type> {
 public:
 	float c;
 	ConstantFill(Type& A, float c) : DUnary<Type>(A) { this->c = c; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename Type>
@@ -193,7 +204,7 @@ class Scale : public DUnary<Type> {
 public:
 	float c;
 	Scale(Type& A, float c) : DUnary<Type>(A) { this->c = c; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename Type>
@@ -201,7 +212,7 @@ class Sqrt : public DBinary<Type, Type> {
 
 public:
 	Sqrt(Type& A, Type& B) : DBinary<Type, Type>(A, B) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename Type>
@@ -209,14 +220,14 @@ class Transpose : public DBinary<Type, Type> {
 
 public:
 	Transpose(Type& A, Type& B) : DBinary<Type, Type>(A, B) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
-class Condense : public DBinary<MatrixBatch, Matrix2> {
+class Condense : public DBinary<MatrixBatch, Matrix> {
 
 public:
-	Condense(MatrixBatch& A, Matrix2& B) : DBinary<MatrixBatch, Matrix2>(A, B) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	Condense(MatrixBatch& A, Matrix& B) : DBinary<MatrixBatch, Matrix>(A, B) { return; };
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename Type>
@@ -226,7 +237,7 @@ public:
 	int customWidth;
 	Add(Type& A, Type& B, Type& C) : DTrinary<Type, Type, Type>(A, B, C) { this->customWidth = -1; };
 	Add(int width, Type& A, Type& B, Type& C) : DTrinary<Type, Type, Type>(A, B, C) { this->customWidth = width; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename Type>
@@ -234,7 +245,7 @@ class ElementMultiply : public DTrinary<Type, Type, Type> {
 
 public:
 	ElementMultiply(Type& A, Type& B, Type& C) : DTrinary<Type, Type, Type>(A, B, C) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename Type>
@@ -243,7 +254,7 @@ class LinearCombo : public DTrinary<Type, Type, Type> {
 public:
 	float c1, c2;
 	LinearCombo(float c1, Type& A, float c2, Type& B, Type& C) : DTrinary<Type, Type, Type>(A, B, C) { this->c1 = c1; this->c2 = c2; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -251,7 +262,7 @@ class MultiplyABC : public Multiply<TypeA, TypeB, TypeC> {
 
 public:
 	MultiplyABC(TypeA& A, TypeB& B, TypeC& C, bool overwrite) : Multiply<TypeA, TypeB, TypeC>(A, B, C, overwrite) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -259,7 +270,7 @@ class MultiplyAtBC : public Multiply<TypeA, TypeB, TypeC> {
 
 public:
 	MultiplyAtBC(TypeA& A, TypeB& B, TypeC& C, bool overwrite) : Multiply<TypeA, TypeB, TypeC>(A, B, C, overwrite) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -267,7 +278,7 @@ class MultiplyAtBtC : public Multiply<TypeA, TypeB, TypeC> {
 
 public:
 	MultiplyAtBtC(TypeA& A, TypeB& B, TypeC& C, bool overwrite) : Multiply<TypeA, TypeB, TypeC>(A, B, C, overwrite) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -275,7 +286,7 @@ class MultiplyABtC : public Multiply<TypeA, TypeB, TypeC> {
 
 public:
 	MultiplyABtC(TypeA& A, TypeB& B, TypeC& C, bool overwrite) : Multiply<TypeA, TypeB, TypeC>(A, B, C, overwrite) { return; };
-	bool operate(PropagationQueue* queue, int threadID);
+	bool operate(OperationQueue* queue, int threadID);
 };
 
 #include "Operation.inl"

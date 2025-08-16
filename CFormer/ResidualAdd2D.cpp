@@ -8,15 +8,21 @@ ResidualAdd2D::ResidualAdd2D(ResidualSave2D* residualLayer) {
 	this->residual = residualLayer;
 }
 
-void ResidualAdd2D::propagateLayer(int num) {
-	Matrix2::add(size, prevLayer->neurons[num], residual->neurons[num], neurons[num]);
+void ResidualAdd2D::initPropagationQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new Add(prevLayer->neurons[i], residual->neurons[i], neurons[i]));
+	}
 }
 
-void ResidualAdd2D::backPropagate(int num) {
-	prevLayer->neuronGradient[num].copy(neuronGradient[num]);
-	prevLayer->backPropagate(num);
-	Matrix2::add(residual->neuronGradient[num], neuronGradient[num], residual->neuronGradient[num]);
-	residual->backPropagateWithResidual(num);
+void ResidualAdd2D::initBackPropQueue(OperationQueue& queue) {
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new CopyTo(neuronGradient[i], prevLayer->neuronGradient[i]));
+	}
+	prevLayer->initBackPropQueue(queue);
+	for (int i = 0; i < batchSize; i++) {
+		queue.enqueue(new Add(residual->neuronGradient[i], neuronGradient[i], residual->neuronGradient[i]));
+	}
+	residual->initBackPropQueueWithResidual(queue);
 }
 
 void ResidualAdd2D::setPrevLayer(Layer* prevLayer) {

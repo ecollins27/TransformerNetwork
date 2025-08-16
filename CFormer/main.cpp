@@ -5,9 +5,9 @@
 
 #include "ModelParser.h"
 #include "BytePairTokenizer.h"
-#include "Matrix2.h"
+#include "Matrix.h"
 #include "MatrixBatch.h"
-#include "PropagationQueue.h"
+#include "OperationQueue.h"
 #include <typeinfo>
 #include <barrier>
 #include <thread>
@@ -121,43 +121,25 @@ void getDummyData(int numData, float** X, float** y) {
 }
 
 int main() {
-	ConstantFillFunction fill(0.1);
-	Matrix2 A(fill, 10, 10, 0);
-	Matrix2 B(fill, 10, 10, 0);
-	Matrix2 C(fill, 10, 10, 0);
-	PropagationQueue queue(3);
-	queue.enqueueOperation(new ConstantFill(B, 1));
-	queue.enqueueOperation(new Print(B));
-	queue.enqueueOperation(new Add(A, B, C));
-	queue.enqueueOperation(new Print(C));
-	queue.enqueueOperation(new Scale(C, 0.5));
-	queue.enqueueOperation(new Print(C));
-	queue.enqueueOperation(new CopyTo(C, A));
-	queue.enqueueOperation(new Print(A));
-	queue.enqueueOperation(new Sqrt(A, C));
-	queue.enqueueOperation(new ElementMultiply(C, C, A));
-	queue.enqueueOperation(new Print(A));
+	FillFunction fill = ConstantFillFunction(0.1);
+	Matrix A(fill, 10, 10);
+	Matrix B(fill, 10, 10);
+	Matrix C(fill, 10, 10);
+	OperationQueue queue(3);
+	queue.enqueue(new ConstantFill(B, 1));
+	queue.enqueue(new Print(B));
+	queue.enqueue(new Add(A, B, C));
+	queue.enqueue(new Print(C));
+	queue.enqueue(new Scale(C, 0.5));
+	queue.enqueue(new Print(C));
+	queue.enqueue(new CopyTo(C, A));
+	queue.enqueue(new Print(A));
+	queue.enqueue(new Sqrt(A, C));
+	queue.enqueue(new ElementMultiply(C, C, A));
+	queue.enqueue(new Print(A));
 	queue.finalize();
 
 	queue.run();
-}
-
-int main1() {
-	cublasCreate(&Utils::HANDLE);
-	int size = 10;
-	Matrix2 A(FillFunction::UNIT_NORMAL_FILL, size, size, 0);
-	Matrix2 B(FillFunction::UNIT_NORMAL_FILL, size, size, 0);
-	Matrix2 C(size, size, 0);
-	for (int i = 0; i < 2; i++) {
-		Utils::ALLOCATE_DEVICE_MODE = !Utils::ALLOCATE_DEVICE_MODE;
-		Matrix2::multiplyABC(A, B, C, true);
-		C.print();
-		C.scale(10);
-		C.print();
-		if (i == 0) {
-			Matrix2::allocateDevices();
-		}
-	}
 }
 
 int main2() {
@@ -176,7 +158,7 @@ int main2() {
 	model->addLayer(new Dense1D(Activation::SWISH, 30));
 	model->addLayer(new Dense1D(Activation::SOFTMAX, 10));
 
-	TrainingParams* params = TrainingParams::DEFAULT->with<TrainingParams::NUM_EPOCHS>(10)->with<TrainingParams::OPTIMIZER>(Optimizer::ADEMAMIX)->with<TrainingParams::LEARNING_RATE>(0.001);
+	TrainingParams* params = TrainingParams::DEFAULT->with<TrainingParams::NUM_EPOCHS>(10)->with<TrainingParams::OPTIMIZER>(Optimizer<>::ADEMAMIX)->with<TrainingParams::LEARNING_RATE>(0.0001);
 	model->fit(new CategoricalCrossEntropy1D(), new Dataset(numData, X, y, false), 1, new Loss1D*[1]{new Accuracy1D()}, params);
 	model->save("mnist.model");
 	return 0;
@@ -199,6 +181,7 @@ int main3() {
 
 
 // TODO:
+// Implement MatrixGroupBatch
 // Finish deconstructors for Layer2D, activations, optimizers, and models
 // Implement Performer and Reformer?
 // Use SIMD on Normalization and SequenceMean backprop

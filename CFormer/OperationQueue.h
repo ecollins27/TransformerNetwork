@@ -1,5 +1,5 @@
 #pragma once
-#include "Matrix2.h"
+#include "Matrix.h"
 #include "MatrixBatch.h"
 #include <functional>
 #include <mutex>
@@ -7,7 +7,7 @@
 #include <thread>
 #include "Operation.h"
 
-class PropagationQueue {
+class OperationQueue {
 
 public:
 
@@ -27,14 +27,14 @@ public:
 	float**** devices; // numThreads * numDevices * deviceBatchSizes * deviceLengths
 	float**** hostDevices;
 
-	PropagationQueue(int numStreams);
+	OperationQueue(int numStreams);
 	void debugCall() {};
 	int getMinIndex(vector<Operation*> v);
 	bool operationsAllocated(vector<Operation*> v);
 	void threadRun(int threadID);
 	void run();
 	void reset();
-	void enqueueOperation(Operation* operation);
+	void enqueue(Operation* operation);
 	void finalize();
 	void allocateDeviceMemory();
 	long long getDeviceMemory();

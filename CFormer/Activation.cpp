@@ -1,34 +1,26 @@
+// Compile with CUDA
+
 #include "Activation.h"
-#include "MatrixKernel.h"
 
-Activation* Activation::NONE = new None();
-Activation* Activation::SIGMOID = new Sigmoid();
-Activation* Activation::RELU = new Relu();
-Activation* Activation::ELU = new Elu(1);
-Activation* Activation::SELU = new Selu();
-Activation* Activation::LOGLU = new Loglu(1);
-Activation* Activation::TANH = new Tanh();
-Activation* Activation::SWISH = new Swish(10);
-Activation* Activation::SOFTMAX = new Softmax();
 
-void None::operate(Matrix2& input, Matrix2& output) {
-	input.copyTo(output);
+string* ActivationType::NAMES = new string[9]{ "None", "Sigmoid", "Relu", "Elu", "Selu", "Loglu", "Tanh", "Swish", "Softmax" };
+Activation* Activation::NONE = new Activation(ActivationType::NONE);
+Activation* Activation::SIGMOID = new Activation(ActivationType::SIGMOID);
+Activation* Activation::RELU = new Activation(ActivationType::RELU);
+Activation* Activation::ELU = new Activation(ActivationType::ELU);
+Activation* Activation::SELU = new Activation(ActivationType::SELU);
+Activation* Activation::LOGLU = new Activation(ActivationType::LOGLU);
+Activation* Activation::TANH = new Activation(ActivationType::TANH);
+Activation* Activation::SWISH = new Activation(ActivationType::SWISH);
+Activation* Activation::SOFTMAX = new Activation(ActivationType::SOFTMAX);
+
+Activation::Activation(int activationType, float alpha) {
+	this->activationType = activationType;
+	this->alpha = alpha;
 }
 
-void None::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyTo(output);
-}
-
-void None::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	inputGrad.copy(outputGrad);
-}
-
-void None::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	inputGrad.copy(outputGrad);
-}
-
-Activation* None::clone() {
-	return new None();
+void Activation::save(ofstream& file) {
+	file << ActivationType::NAMES[activationType] << "," << alpha;
 }
 
 __global__
@@ -39,10 +31,12 @@ void kernelSigmoid(float* input, float* output, int N) {
 	}
 }
 
-void Sigmoid::operate(Matrix2& input, Matrix2& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSigmoid, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool SigmoidOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelSigmoid <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
 }
 
 __global__
@@ -54,10 +48,13 @@ void kernelSigmoidBatched(float** input, float** output, int N) {
 	}
 }
 
-void Sigmoid::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSigmoidBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool SigmoidOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelSigmoidBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], N);
 }
 
 __global__
@@ -68,12 +65,12 @@ void kernelSigmoidDifferentiate(float* input, float* output, float* inputGrad, f
 	}
 }
 
-void Sigmoid::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSigmoidDifferentiate, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], Matrix2::DEVICES[input.threadNum][2], Matrix2::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
+template<>
+bool SigmoidDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelSigmoidDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
 }
 
 __global__
@@ -85,16 +82,13 @@ void kernelSigmoidDifferentiateBatched(float** input, float** output, float** in
 	}
 }
 
-void Sigmoid::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSigmoidDifferentiateBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], MatrixBatch::DEVICES[input.threadNum][2], MatrixBatch::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
-}
-
-Activation* Sigmoid::clone() {
-	return new Sigmoid();
+template<>
+bool SigmoidDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	kernelSigmoidDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
 }
 
 __global__
@@ -105,10 +99,12 @@ void kernelRelu(float* input, float* output, int N) {
 	}
 }
 
-void Relu::operate(Matrix2& input, Matrix2& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelRelu, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool ReluOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelRelu << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
 }
 
 __global__
@@ -120,10 +116,13 @@ void kernelReluBatched(float** input, float** output, int N) {
 	}
 }
 
-void Relu::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelReluBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool ReluOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelReluBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], N);
 }
 
 __global__
@@ -134,12 +133,12 @@ void kernelReluDifferentiate(float* input, float* output, float* inputGrad, floa
 	}
 }
 
-void Relu::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelReluDifferentiate, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], Matrix2::DEVICES[input.threadNum][2], Matrix2::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
+template<>
+bool ReluDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelReluDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
 }
 
 __global__
@@ -151,20 +150,13 @@ void kernelReluDifferentiateBatched(float** input, float** output, float** input
 	}
 }
 
-void Relu::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelReluDifferentiateBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], MatrixBatch::DEVICES[input.threadNum][2], MatrixBatch::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
-}
-
-Activation* Relu::clone() {
-	return new Relu();
-}
-
-Elu::Elu(float alpha) {
-	this->alpha = alpha;
+template<>
+bool ReluDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	kernelReluDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
 }
 
 __global__
@@ -176,10 +168,12 @@ void kernelElu(float alpha, float* input, float* output, int N) {
 	}
 }
 
-void Elu::operate(Matrix2& input, Matrix2& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelElu, alpha, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool EluOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelElu << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
 }
 
 __global__
@@ -192,10 +186,13 @@ void kernelEluBatched(float alpha, float** input, float** output, int N) {
 	}
 }
 
-void Elu::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelEluBatched, alpha, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool EluOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelEluBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->devices[id][0], queue->devices[id][1], N);
 }
 
 __global__
@@ -203,16 +200,16 @@ void kernelEluDifferentiate(float alpha, float* input, float* output, float* inp
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < N) {
 		float value = output[i];
-		inputGrad[i] = value < 0 ? (outputGrad[i] * (value + alpha)) : outputGrad[i];
+		inputGrad[i] = value < 0 ? (outputGrad[i] * (value + alpha)) : (outputGrad[i]);
 	}
 }
 
-void Elu::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelEluDifferentiate, alpha, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], Matrix2::DEVICES[input.threadNum][2], Matrix2::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
+template<>
+bool EluDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelEluDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
 }
 
 __global__
@@ -221,24 +218,17 @@ void kernelEluDifferentiateBatched(float alpha, float** input, float** output, f
 	int batch = blockIdx.y;
 	if (i < N) {
 		float value = output[batch][i];
-		inputGrad[batch][i] = value < 0 ? (outputGrad[batch][i] * (value + alpha)) : outputGrad[batch][i];
+		inputGrad[batch][i] = value < 0 ? (outputGrad[batch][i] * (value + 1.6733 * 1.0507)) : (outputGrad[batch][i] * 1.0507);
 	}
 }
 
-void Elu::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelEluDifferentiateBatched, alpha, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], MatrixBatch::DEVICES[input.threadNum][2], MatrixBatch::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
-}
-
-Activation* Elu::clone() {
-	return new Elu(alpha);
-}
-
-void Elu::save(ofstream& file) {
-	file << "Elu" << "," << alpha << ",";
+template<>
+bool EluDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	kernelEluDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
 }
 
 __global__
@@ -250,10 +240,12 @@ void kernelSelu(float* input, float* output, int N) {
 	}
 }
 
-void Selu::operate(Matrix2& input, Matrix2& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSelu, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool SeluOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelSelu << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
 }
 
 __global__
@@ -266,10 +258,13 @@ void kernelSeluBatched(float** input, float** output, int N) {
 	}
 }
 
-void Selu::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSeluBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool SeluOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelSeluBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], N);
 }
 
 __global__
@@ -281,12 +276,12 @@ void kernelSeluDifferentiate(float* input, float* output, float* inputGrad, floa
 	}
 }
 
-void Selu::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSeluDifferentiate, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], Matrix2::DEVICES[input.threadNum][2], Matrix2::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
+template<>
+bool SeluDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelSeluDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
 }
 
 __global__
@@ -299,20 +294,13 @@ void kernelSeluDifferentiateBatched(float** input, float** output, float** input
 	}
 }
 
-void Selu::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSeluDifferentiateBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], MatrixBatch::DEVICES[input.threadNum][2], MatrixBatch::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
-}
-
-Activation* Selu::clone() {
-	return new Selu();
-}
-
-Loglu::Loglu(float alpha) {
-	this->alpha = alpha;
+template<>
+bool SeluDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	kernelSeluDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
 }
 
 __global__
@@ -324,10 +312,12 @@ void kernelLoglu(float alpha, float* input, float* output, int N) {
 	}
 }
 
-void Loglu::operate(Matrix2& input, Matrix2& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelLoglu, alpha, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool LogluOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelLoglu << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
 }
 
 __global__
@@ -340,10 +330,13 @@ void kernelLogluBatched(float alpha, float** input, float** output, int N) {
 	}
 }
 
-void Loglu::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelLogluBatched, alpha, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool LogluOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelLogluBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->devices[id][0], queue->devices[id][1], N);
 }
 
 __global__
@@ -355,12 +348,12 @@ void kernelLogluDifferentiate(float alpha, float* input, float* output, float* i
 	}
 }
 
-void Loglu::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelLogluDifferentiate, alpha, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], Matrix2::DEVICES[input.threadNum][2], Matrix2::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
+template<>
+bool LogluDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelLogluDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
 }
 
 __global__
@@ -373,20 +366,13 @@ void kernelLogluDifferentiateBatched(float alpha, float** input, float** output,
 	}
 }
 
-void Loglu::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelLogluDifferentiateBatched, alpha, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], MatrixBatch::DEVICES[input.threadNum][2], MatrixBatch::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
-}
-
-Activation* Loglu::clone() {
-	return new Loglu(alpha);
-}
-
-void Loglu::save(ofstream& file) {
-	file << "Loglu" << "," << alpha << ",";
+template<>
+bool LogluDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	kernelLogluDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (alpha, queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
 }
 
 __global__
@@ -400,10 +386,12 @@ void kernelTanh(float* input, float* output, int N) {
 	}
 }
 
-void Tanh::operate(Matrix2& input, Matrix2& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelTanh, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool TanhOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelTanh << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
 }
 
 __global__
@@ -418,10 +406,13 @@ void kernelTanhBatched(float** input, float** output, int N) {
 	}
 }
 
-void Tanh::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelTanhBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool TanhOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelTanhBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], N);
 }
 
 __global__
@@ -433,12 +424,12 @@ void kernelTanhDifferentiate(float* input, float* output, float* inputGrad, floa
 	}
 }
 
-void Tanh::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelTanhDifferentiate, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], Matrix2::DEVICES[input.threadNum][2], Matrix2::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
+template<>
+bool TanhDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelTanhDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
 }
 
 __global__
@@ -451,20 +442,13 @@ void kernelTanhDifferentiateBatched(float** input, float** output, float** input
 	}
 }
 
-void Tanh::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelTanhDifferentiateBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], MatrixBatch::DEVICES[input.threadNum][2], MatrixBatch::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
-}
-
-Activation* Tanh::clone() {
-	return new Tanh();
-}
-
-Swish::Swish(float alpha) {
-	this->alpha = alpha;
+template<>
+bool TanhDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	kernelSigmoidDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
 }
 
 __global__
@@ -476,10 +460,12 @@ void kernelSwish(float alpha, float* input, float* output, int N){
 	}
 }
 
-void Swish::operate(Matrix2& input, Matrix2& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSwish, alpha, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool SwishOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelSwish << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
 }
 
 __global__
@@ -492,10 +478,13 @@ void kernelSwishBatched(float alpha, float** input, float** output, int N) {
 	}
 }
 
-void Swish::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSwishBatched, alpha, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], input.length);
-	output.copyToHost(1);
+template<>
+bool SwishOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->A->batchSize);
+	kernelSwishBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->devices[id][0], queue->devices[id][1], N);
 }
 
 __global__
@@ -508,12 +497,12 @@ void kernelSwishDifferentiate(float alpha, float* input, float* output, float* i
 	}
 }
 
-void Swish::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSwishDifferentiate, alpha, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], Matrix2::DEVICES[input.threadNum][2], Matrix2::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
+template<>
+bool SwishDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelSwishDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
 }
 
 __global__
@@ -527,20 +516,13 @@ void kernelSwishDifferentiateBatched(float alpha, float** input, float** output,
 	}
 }
 
-void Swish::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSwishDifferentiateBatched, alpha, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], MatrixBatch::DEVICES[input.threadNum][2], MatrixBatch::DEVICES[input.threadNum][3], input.length);
-	inputGrad.copyToHost(2);
-}
-
-Activation* Swish::clone() {
-	return new Swish(alpha);
-}
-
-void Swish::save(ofstream& file) {
-	file << "Swish" << "," << alpha << ",";
+template<>
+bool SwishDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	kernelSwishDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (this->alpha, queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
 }
 
 __global__
@@ -589,10 +571,11 @@ void kernelSoftmax(float* input, float* output, int height, int width) {
 	}
 }
 
-void Softmax::operate(Matrix2& input, Matrix2& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runRowKernel(input.height, input.width, Utils::THREADS_PER_BLOCK * sizeof(float), kernelSoftmax, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], input.height, input.width);
-	output.copyToHost(1);
+template<>
+bool SoftmaxOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	kernelSoftmax << < this->A->height, Utils::THREADS_PER_BLOCK, Utils::THREADS_PER_BLOCK * sizeof(float), queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], this->A->height, this->A->width);
 }
 
 __global__
@@ -642,10 +625,12 @@ void kernelSoftmaxBatched(float** input, float** output, int height, int width) 
 	}
 }
 
-void Softmax::operate(MatrixBatch& input, MatrixBatch& output) {
-	input.copyToDevice(0);
-	MatrixKernel::runRowKernelBatched(input.batchSize, input.height, input.width, Utils::THREADS_PER_BLOCK * sizeof(float), kernelSoftmaxBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], input.height, input.width);
-	output.copyToHost(1);
+template<>
+bool SoftmaxOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int id = this->threadID.load();
+	int N = this->A->length;
+	dim3 blocks(this->A->height, this->A->batchSize);
+	kernelSoftmaxBatched <<< blocks, Utils::THREADS_PER_BLOCK, Utils::THREADS_PER_BLOCK * sizeof(float), queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], this->A->height, this->A->width);
 }
 
 __global__
@@ -662,12 +647,12 @@ void kernelSoftmaxDifferentiate(float* input, float* output, float* inputGradien
 	}
 }
 
-void Softmax::differentiate(Matrix2& input, Matrix2& output, Matrix2& inputGrad, Matrix2& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernel(input.height, input.width, 0, kernelSoftmaxDifferentiate, Matrix2::DEVICES[input.threadNum][0], Matrix2::DEVICES[input.threadNum][1], Matrix2::DEVICES[input.threadNum][2], Matrix2::DEVICES[input.threadNum][3], input.height, input.width);
-	inputGrad.copyToHost(2);
+template<>
+bool SoftmaxDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelSoftmaxDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], this->in[0]->height, this->in[0]->width);
 }
 
 __global__
@@ -685,18 +670,11 @@ void kernelSoftmaxDifferentiateBatched(float** input, float** output, float** in
 	}
 }
 
-void Softmax::differentiate(MatrixBatch& input, MatrixBatch& output, MatrixBatch& inputGrad, MatrixBatch& outputGrad) {
-	input.copyToDevice(0);
-	output.copyToDevice(1);
-	outputGrad.copyToDevice(3);
-	MatrixKernel::runElementKernelBatched(input.batchSize, input.height, input.width, 0, kernelSoftmaxDifferentiateBatched, MatrixBatch::DEVICES[input.threadNum][0], MatrixBatch::DEVICES[input.threadNum][1], MatrixBatch::DEVICES[input.threadNum][2], MatrixBatch::DEVICES[input.threadNum][3], input.height, input.width);
-	inputGrad.copyToHost(2);
-}
-
-Activation* Softmax::clone() {
-	return new Softmax();
-}
-
-bool Softmax::isDiagonal() {
-	return false;
+template<>
+bool SoftmaxDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	kernelSoftmaxDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], this->in[0]->height, this->in[0]->width);
 }

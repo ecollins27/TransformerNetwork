@@ -1,60 +1,57 @@
 template<typename Type>
 HUnary<Type>::HUnary(Type& A) {
 	this->A = &A;
-	this->output = &A;
+	this->numOutputs = 1;
+	this->outputs = new void* [1] {&A};
 	prereq = NULL;
 }
 
 template<typename Type>
 void HUnary<Type>::findPrereqs(vector<Operation*> operations, int index) {
 	for (int i = 0; i < index; i++) {
-		if (operations[i]->output == A) {
-			prereq = operations[i];
+		for (int j = 0; j < operations[i]->numOutputs; j++) {
+			if (operations[i]->outputs[j] == A) {
+				prereq = operations[i];
+			}
 		}
 	}
 }
 
 template<typename Type>
-int HUnary<Type>::getPrereqsUnmet(PropagationQueue* queue) {
+int HUnary<Type>::getPrereqsUnmet(OperationQueue* queue) {
 	return prereq == NULL ? 0 : prereq->completed.load();
-}
-
-template<typename Type>
-bool HUnary<Type>::containsPrereq(Operation* o) {
-	return this->prereq == o;
 }
 
 template<typename TypeA, typename TypeB>
 HBinary<TypeA, TypeB>::HBinary(TypeA& A, TypeB& B) {
 	this->A = &A;
 	this->B = &B;
-	this->output = &B;
+	this->numOutputs = 1;
+	this->outputs = new void* [1] {&B};
 	prereqA = NULL;
 }
 
 template<typename TypeA, typename TypeB>
 void HBinary<TypeA, TypeB>::findPrereqs(vector<Operation*> operations, int index) {
 	for (int i = 0; i < index; i++) {
-		if (operations[i]->output == A) {
-			prereqA = operations[i];
+		for (int j = 0; j < operations[i]->numOutputs; j++) {
+			if (operations[i]->outputs[j] == A) {
+				prereqA = operations[i];
+			}
 		}
 	}
 }
 
 template<typename TypeA, typename TypeB>
-int HBinary<TypeA, TypeB>::getPrereqsUnmet(PropagationQueue* queue) {
+int HBinary<TypeA, TypeB>::getPrereqsUnmet(OperationQueue* queue) {
 	return prereqA == NULL ? 0 : prereqA->completed.load();
-}
-
-template<typename TypeA, typename TypeB>
-bool HBinary<TypeA, TypeB>::containsPrereq(Operation* o) {
-	return this->prereqA == o;
 }
 
 template<typename Type>
 HostToDeviceCopy<Type>::HostToDeviceCopy(DOperation* operation, Type* A, int deviceNum, int batchSize) {
 	this->A = A;
-	this->output = NULL;
+	this->numOutputs = 1;
+	this->outputs = new void* [1] {NULL};
 	this->deviceNum = deviceNum;
 	this->threadID = &operation->threadID;
 	prereq = NULL;
@@ -64,28 +61,28 @@ HostToDeviceCopy<Type>::HostToDeviceCopy(DOperation* operation, Type* A, int dev
 template<typename Type>
 void HostToDeviceCopy<Type>::findPrereqs(vector<Operation*> operations, int index) {
 	for (int i = 0; i < index; i++) {
-		if (operations[i]->output == A) {
-			prereq = operations[i];
+		for (int j = 0; j < operations[i]->numOutputs; j++) {
+			if (operations[i]->outputs[j] == A) {
+				prereq = operations[i];
+			}
 		}
 	}
 }
 
 template<typename Type>
-int HostToDeviceCopy<Type>::getPrereqsUnmet(PropagationQueue* queue) {
+int HostToDeviceCopy<Type>::getPrereqsUnmet(OperationQueue* queue) {
 	return (prereq == NULL ? 0 : prereq->completed.load()) + ((this->threadID->load() == -1 && queue->devicesUsed >= queue->numThreads) ? 1 : 0);
-}
-
-template<typename Type>
-bool HostToDeviceCopy<Type>::containsPrereq(Operation* o) {
-	return this->prereq == o;
 }
 
 template<typename Type>
 DeviceToHostCopy<Type>::DeviceToHostCopy(DOperation* operation, Type* A, int deviceNum) {
 	this->A = A;
-	this->output = A;
+	this->numOutputs = 1;
+	this->outputs = new void* [1] {A};
 	this->deviceNum = deviceNum;
 	this->threadID = &operation->threadID;
+	this->numOutputs = operation->numOutputs;
+	this->outputsCopied = &operation->outputsCopied;
 	prereq = NULL;
 }
 
@@ -95,24 +92,21 @@ void DeviceToHostCopy<Type>::findPrereqs(vector<Operation*> operations, int inde
 }
 
 template<typename Type>
-int DeviceToHostCopy<Type>::getPrereqsUnmet(PropagationQueue* queue) {
+int DeviceToHostCopy<Type>::getPrereqsUnmet(OperationQueue* queue) {
 	return (prereq == NULL ? 0 : prereq->completed.load());
-}
-
-template<typename Type>
-bool DeviceToHostCopy<Type>::containsPrereq(Operation* o) {
-	return this->prereq == o;
 }
 
 template<typename TypeA>
 DUnary<TypeA>::DUnary(TypeA& A) {
 	this->A = &A;
-	this->output = NULL;
+	this->numOutputs = 1;
+	this->outputs = new void* [1] {NULL};
 	prereq = NULL;
+	this->outputsCopied.store(1);
 }
 
 template<typename TypeA>
-int DUnary<TypeA>::getPrereqsUnmet(PropagationQueue* queue) {
+int DUnary<TypeA>::getPrereqsUnmet(OperationQueue* queue) {
 	return prereq == NULL ? 0 : prereq->completed.load();
 }
 
@@ -130,21 +124,18 @@ void DUnary<TypeA>::addHostCopies(vector<Operation*>& operations) {
 	ACopy->prereq = this;
 }
 
-template<typename TypeA>
-bool DUnary<TypeA>::containsPrereq(Operation* o) {
-	return this->prereq == o;
-}
-
 template<typename TypeA, typename TypeB>
 DBinary<TypeA, TypeB>::DBinary(TypeA& A, TypeB& B) {
 	this->A = &A;
 	this->B = &B;
-	this->output = NULL;
+	this->numOutputs = 1;
+	this->outputs = new void* [1] {NULL};
 	prereqA = NULL;
+	this->outputsCopied.store(1);
 }
 
 template<typename TypeA, typename TypeB>
-int DBinary<TypeA, TypeB>::getPrereqsUnmet(PropagationQueue* queue) {
+int DBinary<TypeA, TypeB>::getPrereqsUnmet(OperationQueue* queue) {
 	return prereqA == NULL ? 0 : prereqA->completed.load();
 }
 
@@ -162,19 +153,16 @@ void DBinary<TypeA, TypeB>::addHostCopies(vector<Operation*>& operations) {
 	BCopy->prereq = this;
 }
 
-template<typename TypeA, typename TypeB>
-bool DBinary<TypeA, TypeB>::containsPrereq(Operation* o) {
-	return this->prereqA == o;
-}
-
 template<typename TypeA, typename TypeB, typename TypeC>
 DTrinary<TypeA, TypeB, TypeC>::DTrinary(TypeA& A, TypeB& B, TypeC& C) {
 	this->A = &A;
 	this->B = &B;
 	this->C = &C;
-	this->output = NULL;
+	this->numOutputs = 1;
+	this->outputs = new void* [1] {&C};
 	this->prereqA = NULL;
 	this->prereqB = NULL;
+	this->outputsCopied.store(1);
 }
 
 template<typename TypeA, typename TypeB, typename TypeC>
@@ -195,17 +183,54 @@ void DTrinary<TypeA, TypeB, TypeC>::addHostCopies(vector<Operation*>& operations
 }
 
 template<typename TypeA, typename TypeB, typename TypeC>
-int DTrinary<TypeA, TypeB, TypeC>::getPrereqsUnmet(PropagationQueue* queue) {
+int DTrinary<TypeA, TypeB, TypeC>::getPrereqsUnmet(OperationQueue* queue) {
 	return (prereqA == NULL ? 0 : prereqA->completed.load()) + (prereqB == NULL ? 0 : prereqB->completed.load());
 }
 
-template<typename TypeA, typename TypeB, typename TypeC>
-bool DTrinary<TypeA, TypeB, TypeC>::containsPrereq(Operation* o) {
-	return this->prereqA == o || this->prereqB == o;
+template<typename TypeIn, typename TypeOut>
+Dnary<TypeIn, TypeOut>::Dnary(int N_IN, int N_OUT) {
+	this->N_IN = N_IN;
+	this->N_OUT = N_OUT;
+	this->in = new TypeIn * [N_IN];
+	this->out = new TypeOut * [N_OUT];
+	this->prereqs = new Operation * [N_IN];
+	for (int i = 0; i < N_IN; i++) {
+		this->prereqs[i] = NULL;
+	}
+	this->numOutputs = N_OUT;
+	this->outputsCopied.store(N_OUT);
+	this->outputs = (void**)this->out;
+}
+
+template<typename TypeIn, typename TypeOut>
+int Dnary<TypeIn, TypeOut>::getPrereqsUnmet(OperationQueue* queue) {
+	int sum = 0;
+	for (int i = 0; i < N_IN; i++) {
+		sum += prereqs[i] == NULL ? 0 : prereqs[i]->completed.load();
+	}
+	return sum;
+}
+
+template<typename TypeIn, typename TypeOut>
+void Dnary<TypeIn, TypeOut>::addDeviceCopies(vector<Operation*>& operations) {
+	for (int i = 0; i < N_IN; i++) {
+		Operation* copy = new HostToDeviceCopy(this, this->in[i], i, 1);
+		operations.emplace_back(copy);
+		this->prereqs[i] = copy;
+	}
+}
+
+template<typename TypeIn, typename TypeOut>
+void Dnary<TypeIn, TypeOut>::addHostCopies(vector<Operation*>& operations) {
+	for (int i = 0; i < N_OUT; i++) {
+		DeviceToHostCopy<TypeOut>* copy = new DeviceToHostCopy(this, this->out[i], N_IN + i);
+		copy->prereq = this;
+		operations.emplace_back(copy);
+	}
 }
 
 template<typename TypeA, typename TypeB, typename TypeC>
-int Multiply<TypeA, TypeB, TypeC>::getPrereqsUnmet(PropagationQueue* queue) {
+int Multiply<TypeA, TypeB, TypeC>::getPrereqsUnmet(OperationQueue* queue) {
 	return (this->prereqA == NULL ? 0 : this->prereqA->completed.load()) + (this->prereqB == NULL ? 0 : this->prereqB->completed.load()) + (this->prereqC == NULL ? 0 : this->prereqC->completed.load());
 }
 
@@ -222,9 +247,4 @@ void Multiply<TypeA, TypeB, TypeC>::addDeviceCopies(vector<Operation*>& operatio
 	}
 	this->prereqA = ACopy;
 	this->prereqB = BCopy;
-}
-
-template<typename TypeA, typename TypeB, typename TypeC>
-bool Multiply<TypeA, TypeB, TypeC>::containsPrereq(Operation* o) {
-	return this->prereqA == o || this->prereqB == o || this->prereqC == o;
 }

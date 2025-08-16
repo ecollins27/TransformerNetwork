@@ -14,8 +14,8 @@ public:
 	ResidualAdd1D(ResidualSave1D* residualLayer);
 	~ResidualAdd1D();
 
-	void propagateLayer(int num);
-	void backPropagate(int num);
+	void initPropagationQueue(OperationQueue& queue);
+	void initBackPropQueue(OperationQueue& queue);
 	void setPrevLayer(Layer* prevLayer);
 	void setBatchSize(int batchSize);
 	void save(ofstream& file);

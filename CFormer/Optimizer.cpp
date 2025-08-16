@@ -1,97 +1,204 @@
+// Compile with CUDA
+
 #include "Optimizer.h"
-#include "MatrixKernel.h"
 
-Optimizer* Optimizer::GRADIENT_DESCENT = { new GradientDescent(0) };
-Optimizer* Optimizer::MOMENTUM = { new Momentum(0.9, 0) };
-Optimizer* Optimizer::ADAM = { new Adam(0.9,0.999, 0) };
-Optimizer* Optimizer::ADEMAMIX = { new AdEMAMix(0.9, 0.9999, 0.999, 5, 0) };
+template<>
+Optimizer<>* Optimizer<>::GRADIENT_DESCENT = new GradientDescent<>(0);
+template<>
+Optimizer<>* Optimizer<>::MOMENTUM = new Momentum<>(0.9, 0);
+template<>
+Optimizer<>* Optimizer<>::ADAM = new Adam<>(0.9,0.999, 0);
+template<>
+Optimizer<>* Optimizer<>::ADEMAMIX = new AdEMAMix<>(0.9, 0.9999, 0.999, 5, 0);
 
-void Optimizer::condenseGradients() {
-	weightGradients.condense(weightGradient);
+template<typename Type>
+GradientDescent<Type>::GradientDescent(float regConstant) {
+	this->regConstant = this->regConstant;
 }
 
-void Optimizer::setBatchSize(int batchSize, Matrix2* gradients) {
+template<typename Type>
+void GradientDescent<Type>::initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t) {
+	queue.enqueue(new Scale(this->weightGradient, 1.0 / batchSize));
+	if (this->regConstant != 0) {
+		queue.enqueue(new LinearCombo(1, this->weightGradient, 2 * this->regConstant, weights, this->weightGradient));
+	}
+	queue.enqueue(new LinearCombo(1, weights, -learningRate, this->weightGradient, weights));
+	queue.enqueue(new ConstantFill(this->weightGradient, 0));
+}
+
+template<>
+void GradientDescent<Matrix>::setDimensions(int batchSize, int height, int width) {
 	this->batchSize = batchSize;
-	if (gradients == NULL) {
-		return;
-	}
-	cudaError_t err = cudaMallocHost(&weightGradients.host, batchSize * sizeof(float*));
-	if (err != cudaSuccess) {
-		throw runtime_error("CUDA memory allocation failed");
-	}
-	for (int i = 0; i < batchSize; i++) {
-		weightGradients.host[i] = gradients[i].host;
-	}
-	weightGradients.maxLength = gradients[0].maxLength;
-	weightGradients.length = gradients[0].length;
-	weightGradients.batchSize = batchSize;
-	weightGradients.height = gradients[0].height;
-	weightGradients.width = gradients[0].height;
-	weightGradients.threadNum = 0;
-}
-
-GradientDescent::GradientDescent(float regConstant) {
-	this->regConstant = regConstant;
-}
-
-
-void GradientDescent::applyGradient(Matrix2& weights, float t, float learningRate) {
-	weightGradient.scale(1.0 / batchSize);
-	Matrix2::linearCombo(1, weights, -learningRate, weightGradient, weights);
-	if (regConstant != 0) {
-		Matrix2::linearCombo(1, weights, -2 * regConstant * learningRate, weights, weights);
-	}
-	weightGradient.constantFill(0);
-}
-
-Optimizer* GradientDescent::clone() {
-	return new GradientDescent(regConstant);
-}
-
-OptimizerBatch* GradientDescent::cloneBatch() {
-	return new GradientDescentBatch(regConstant);
-}
-
-void GradientDescent::setDimensions(int height, int width) {
 	this->height = height;
 	this->width = width;
-	weightGradient = Matrix2(height, width, 0);
+	this->weightGradient = Matrix(height, width);
 }
 
-Momentum::Momentum(float beta, float regConstant) {
+template<>
+void GradientDescent<MatrixBatch>::setDimensions(int batchSize, int height, int width) {
+	this->batchSize = batchSize;
+	this->height = height;
+	this->width = width;
+	this->weightGradient = MatrixBatch(batchSize, height, width);
+}
+
+template<typename Type>
+Momentum<Type>::Momentum(float beta, float regConstant) {
 	this->beta = beta;
 	this->regConstant = regConstant;
 }
 
-void Momentum::applyGradient(Matrix2& weights, float t, float learningRate) {
-	weightGradient.scale(1.0 / batchSize);
-	if (regConstant != 0) {
-		Matrix2::linearCombo(1, weightGradient, 2 * regConstant, weights, weightGradient);
+template<typename Type>
+void Momentum<Type>::initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t) {
+	queue.enqueue(new Scale(this->weightGradient, 1.0 / batchSize));
+	if (this->regConstant != 0) {
+		queue.enqueue(new LinearCombo(1, this->weightGradient, 2 * this->regConstant, weights, this->weightGradient));
 	}
-	Matrix2::linearCombo(beta, M, -learningRate, weightGradient, M);
-	Matrix2::add(weights, M, weights);
-	weightGradient.constantFill(0);
+	queue.enqueue(new LinearCombo(beta, M, -learningRate, this->weightGradient, M));
+	queue.enqueue(new Add(weights, M, weights));
+	queue.enqueue(new ConstantFill(this->weightGradient, 0));
 }
 
-Optimizer* Momentum::clone() {
-	return new Momentum(beta, regConstant);
-}
-
-OptimizerBatch* Momentum::cloneBatch() {
-	return new MomentumBatch(beta, regConstant);
-}
-
-void Momentum::setDimensions(int height, int width) {
+template<>
+void Momentum<Matrix>::setDimensions(int batchSize, int height, int width) {
+	this->batchSize = batchSize;
 	this->height = height;
 	this->width = width;
-	M = Matrix2(height, width, 0);
-	weightGradient = Matrix2(height, width, 0);
+	M = Matrix(height, width);
+	this->weightGradient = Matrix(height, width);
 }
 
-Adam::Adam(float beta1, float beta2, float regConstant) {
+template<>
+void Momentum<MatrixBatch>::setDimensions(int batchSize, int height, int width) {
+	this->batchSize = batchSize;
+	this->height = height;
+	this->width = width;
+	M = MatrixBatch(batchSize, height, width);
+	this->weightGradient = MatrixBatch(batchSize, height, width);
+}
+
+template<typename Type>
+Adam<Type>::Adam(float beta1, float beta2, float regConstant) {
 	this->beta1 = beta1;
 	this->beta2 = beta2;
 	this->regConstant = regConstant;
+}
+
+template<typename Type>
+void Adam<Type>::initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t) {
+	float mScalar = 1.0 / (1 - pow(beta1, t));
+	float sScalar = 1.0 / (1 - pow(beta2, t));
+	queue.enqueue(new Scale(this->weightGradient, 1.0 / batchSize));
+	if (this->regConstant != 0) {
+		queue.enqueue(new LinearCombo(1, this->weightGradient, 2 * this->regConstant, weights, this->weightGradient));
+	}
+	queue.enqueue(new LinearCombo(beta1, M, 1 - beta1, this->weightGradient, M));
+	queue.enqueue(new LinearCombo2(beta2, S, 1 - beta2, this->weightGradient, S));
+	queue.enqueue(new AdamOperation(weights, M, S, beta1, beta2, learningRate, t));
+	queue.enqueue(new ConstantFill(this->weightGradient, 0));
+}
+
+template<>
+void Adam<Matrix>::setDimensions(int batchSize, int height, int width) {
+	this->batchSize = batchSize;
+	this->height = height;
+	this->width = width;
+	M = Matrix(height, width);
+	S = Matrix(height, width);
+	this->weightGradient = Matrix(height, width);
+}
+
+template<>
+void Adam<MatrixBatch>::setDimensions(int batchSize, int height, int width) {
+	this->batchSize = batchSize;
+	this->height = height;
+	this->width = width;
+	M = MatrixBatch(batchSize, height, width);
+	S = MatrixBatch(batchSize, height, width);
+	this->weightGradient = MatrixBatch(batchSize, height, width);
+}
+
+template<typename Type>
+AdEMAMix<Type>::AdEMAMix(float beta1, float beta2, float beta3, float alpha, float regConstant) {
+	this->beta1 = beta1;
+	this->beta2 = beta2;
+	this->beta3 = beta3;
+	this->alpha = alpha;
+	this->regConstant = regConstant;
+}
+
+template<typename Type>
+void AdEMAMix<Type>::initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t) {
+	float mScalar = 1.0 / (1 - pow(beta1, t));
+	float sScalar = 1.0 / (1 - pow(beta2, t));
+	queue.enqueue(new Scale(this->weightGradient, 1.0 / batchSize));
+	if (this->regConstant != 0) {
+		queue.enqueue(new LinearCombo(1, this->weightGradient, 2 * this->regConstant, weights, this->weightGradient));
+	}
+	queue.enqueue(new LinearCombo(beta1, M1, 1 - beta1, this->weightGradient, M1));
+	queue.enqueue(new LinearCombo(beta3, M2, 1 - beta3, this->weightGradient, M2));
+	queue.enqueue(new LinearCombo2(beta2, S, 1 - beta2, this->weightGradient, S));
+	queue.enqueue(new AdEMAMixOperation(weights, M1, M2, S, beta1, beta2, beta3, learningRate, alpha, t));
+	queue.enqueue(new ConstantFill(this->weightGradient, 0));
+}
+
+template<>
+void AdEMAMix<Matrix>::setDimensions(int batchSize, int height, int width) {
+	this->batchSize = batchSize;
+	this->height = height;
+	this->width = width;
+	M1 =Matrix(height, width);
+	M2 = Matrix(height, width);
+	S = Matrix(height, width);
+	this->weightGradient = Matrix(height, width);
+}
+
+template<>
+void AdEMAMix<MatrixBatch>::setDimensions(int batchSize, int height, int width) {
+	this->batchSize = batchSize;
+	this->height = height;
+	this->width = width;
+	M1 = MatrixBatch(batchSize, height, width);
+	M2 = MatrixBatch(batchSize, height, width);
+	S = MatrixBatch(batchSize, height, width);
+	this->weightGradient = MatrixBatch(batchSize, height, width);
+}
+
+__global__
+void kernelLinearCombo2(int N, float c1, float* A, float c2, float* B, float* C) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i < N) {
+		C[i] = c1 * A[i] + c2 * B[i] * B[i];
+	}
+}
+
+template<>
+bool LinearCombo2<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	kernelLinearCombo2 << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (N, c1, queue->hostDevices[id][0][0], c2, queue->hostDevices[id][1][0], queue->hostDevices[id][2][0]);
+	return true;
+}
+
+__global__
+void kernelLinearCombo2Batched(float c1, float** A, float c2, float** B, float** C, int N) {
+	int n = blockIdx.x * blockDim.x + threadIdx.x;
+	int batch = blockIdx.y;
+
+	if (n < N) {
+		C[batch][n] = c1 * A[batch][n] + c2 * B[batch][n] * B[batch][n];
+	}
+}
+
+template<>
+bool LinearCombo2<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = A->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, A->batchSize);
+	kernelLinearCombo2Batched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (c1, queue->devices[id][0], c2, queue->devices[id][1], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -102,46 +209,36 @@ void kernelAdam(float* weights, float* M, float* S, float learningRate, float mS
 	}
 }
 
-void Adam::applyGradient(Matrix2& weights, float t, float learningRate) {
-	float mScalar = 1.0 / (1 - pow(beta1, t));
-	float sScalar = 1.0 / (1 - pow(beta2, t));
-	weightGradient.scale(1.0 / batchSize);
-	if (regConstant != 0) {
-		Matrix2::linearCombo(1, weightGradient, 2 * regConstant, weights, weightGradient);
+template<>
+bool AdamOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	float mScalar = 1.0 / (1 - pow(this->beta1, *t));
+	float sScalar = 1.0 / (1 - pow(this->beta2, *t));
+	kernelAdam <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0], this->learningRate, mScalar, sScalar, N);
+	return true;
+}
+
+__global__
+void kernelAdamBatched(float** weights, float** M, float** S, float learningRate, float mScalar, float sScalar, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j = blockIdx.y;
+	if (i < N) {
+		weights[j][i] -= learningRate * (M[j][i] * mScalar) / sqrt((S[j][i] * sScalar) + 0.0000001);
 	}
-	Matrix2::linearCombo(beta1, M, 1 - beta1, weightGradient, M);
-	Matrix2::elementMultiply(weightGradient, weightGradient, weightGradient);
-	Matrix2::linearCombo(beta2, S, 1 - beta2, weightGradient, S);
-	weights.copyToDevice(0, 0);
-	M.copyToDevice(1, 0);
-	S.copyToDevice(2, 0);
-	MatrixKernel::runElementKernel(weights.height, weights.width, 0, kernelAdam, Matrix2::DEVICES[0][0], Matrix2::DEVICES[0][1], Matrix2::DEVICES[0][2], learningRate, mScalar, sScalar, weights.length);
-	weights.copyToHost(0, weights.length, 0);
-	weightGradient.constantFill(0);
 }
 
-Optimizer* Adam::clone() {
-	return new Adam(beta1, beta2, regConstant);
-}
-
-OptimizerBatch* Adam::cloneBatch() {
-	return new AdamBatch(beta1, beta2, regConstant);
-}
-
-void Adam::setDimensions(int height, int width) {
-	this->height = height;
-	this->width = width;
-	M = Matrix2(height, width, 0);
-	S = Matrix2(height, width, 0);
-	weightGradient = Matrix2(height, width, 0);
-}
-
-AdEMAMix::AdEMAMix(float beta1, float beta2, float beta3, float alpha, float regConstant) {
-	this->beta1 = beta1;
-	this->beta2 = beta2;
-	this->beta3 = beta3;
-	this->alpha = alpha;
-	this->regConstant = regConstant;
+template<>
+bool AdamOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	float mScalar = 1.0 / (1 - pow(this->beta1, *t));
+	float sScalar = 1.0 / (1 - pow(this->beta2, *t));
+	kernelAdamBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], queue->devices[id][2], this->learningRate, mScalar, sScalar, N);
+	return true;
 }
 
 __global__
@@ -152,39 +249,34 @@ void kernelAdEMAMix(float* weights, float* M1, float* M2, float* S, float learni
 	}
 }
 
-void AdEMAMix::applyGradient(Matrix2& weights, float t, float learningRate) {
-	weightGradient.scale(1.0 / batchSize);
-	if (regConstant != 0) {
-		Matrix2::linearCombo(1, weightGradient, 2 * regConstant, weights, weightGradient);
+template<>
+bool AdEMAMixOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	float mScalar = 1.0 / (1 - pow(this->beta1, *t));
+	float sScalar = 1.0 / (1 - pow(this->beta2, *t));
+	kernelAdEMAMix << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][2][0], queue->hostDevices[id][3][0], this->learningRate, mScalar, sScalar, this->alpha, N);
+	return true;
+}
+
+__global__
+void kernelAdEMAMixBatched(float** weights, float** M1, float** M2, float** S, float learningRate, float mScalar, float sScalar, float alpha, int N) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j = blockIdx.y;
+	if (i < N) {
+		weights[j][i] -= learningRate * (mScalar * M1[j][i] + alpha * M2[j][i]) / sqrt(sScalar * S[j][i] + 0.0000001);
 	}
-	Matrix2::linearCombo(beta1, M1, 1 - beta1, weightGradient, M1);
-	Matrix2::linearCombo(beta3, M2, 1 - beta3, weightGradient, M2);
-	Matrix2::elementMultiply(weightGradient, weightGradient, weightGradient);
-	Matrix2::linearCombo(beta2, S, 1 - beta2, weightGradient, S);
-	float mScalar = 1.0 / (1 - pow(beta1, t));
-	float sScalar = 1.0 / (1 - pow(beta2, t));
-	weights.copyToDevice(0, 0);
-	M1.copyToDevice(1, 0);
-	M2.copyToDevice(2, 0);
-	S.copyToDevice(3, 0);
-	MatrixKernel::runElementKernel(weights.height, weights.width, 0, kernelAdEMAMix, Matrix2::DEVICES[0][0], Matrix2::DEVICES[0][1], Matrix2::DEVICES[0][2], Matrix2::DEVICES[0][3], learningRate, mScalar, sScalar, alpha, weights.length);
-	weights.copyToHost(0, weights.length, 0);
-	weightGradient.constantFill(0);
 }
 
-Optimizer* AdEMAMix::clone(){
-	return new AdEMAMix(beta1, beta2, beta3, alpha, regConstant);
-}
-
-OptimizerBatch* AdEMAMix::cloneBatch() {
-	return new AdEMAMixBatch(beta1, beta2, beta3, alpha, regConstant);
-}
-
-void AdEMAMix::setDimensions(int height, int width) {
-	this->height = height;
-	this->width = width;
-	M1 =Matrix2(height, width, 0);
-	M2 = Matrix2(height, width, 0);
-	S = Matrix2(height, width, 0);
-	weightGradient = Matrix2(height, width, 0);
+template<>
+bool AdEMAMixOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	int N = this->in[0]->length;
+	int id = this->threadID.load();
+	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
+	dim3 blocks(numBlocks, this->in[0]->batchSize);
+	float mScalar = 1.0 / (1 - pow(this->beta1, *t));
+	float sScalar = 1.0 / (1 - pow(this->beta2, *t));
+	kernelAdEMAMixBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], queue->devices[id][2], queue->devices[id][3], this->learningRate, mScalar, sScalar, this->alpha, N);
+	return true;
 }

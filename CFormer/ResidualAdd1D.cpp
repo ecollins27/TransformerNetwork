@@ -12,20 +12,15 @@ ResidualAdd1D::~ResidualAdd1D() {
 	Layer1D::~Layer1D();
 }
 
-void ResidualAdd1D::propagateLayer(int num) {
-	Matrix2::add(prevLayer->neurons, residual->neurons, neurons);
-	Matrix2::add(prevLayer->neurons, residual->neurons, neurons);
+void ResidualAdd1D::initPropagationQueue(OperationQueue& queue) {
+	queue.enqueue(new Add(prevLayer->neurons, residual->neurons, neurons));
 }
 
-void ResidualAdd1D::backPropagate(int num) {
-	if (num != 0) {
-		residual->backPropagateWithResidual(num);
-		return;
-	}
-	prevLayer->neuronGradient.copy(neuronGradient);
-	prevLayer->backPropagate(num);
-	Matrix2::add(neuronGradient, residual->neuronGradient, residual->neuronGradient);
-	residual->backPropagateWithResidual(num);
+void ResidualAdd1D::initBackPropQueue(OperationQueue& queue) {
+	queue.enqueue(new CopyTo(neuronGradient, prevLayer->neuronGradient));
+	prevLayer->initBackPropQueue(queue);
+	queue.enqueue(new Add(neuronGradient, residual->neuronGradient, residual->neuronGradient));
+	residual->initBackPropQueueWithResidual(queue);
 }
 
 void ResidualAdd1D::setPrevLayer(Layer* prevLayer) {

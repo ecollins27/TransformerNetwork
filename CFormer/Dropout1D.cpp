@@ -6,7 +6,6 @@ const string Dropout1D::LAYER_NAME = "Dropout1D";
 
 Dropout1D::Dropout1D(float dropoutRate) {
 	this->dropoutRate = dropoutRate;
-	this->distribution = uniform_real_distribution<float>(0, 1);
 }
 
 Dropout1D::~Dropout1D() {
@@ -17,39 +16,19 @@ Dropout1D::~Dropout1D() {
 	Layer1D::~Layer1D();
 }
 
-void Dropout1D::propagateLayer(int num) {
-	for (int i = 0; i < batchSize; i++) {
-		for (int j = 0; j < size; j++) {
-			float randValue = distribution(generator);
-			if (randValue < dropoutRate) {
-				neurons(i, j) = 0;
-				dropped[i][j] = true;
-			}
-			else {
-				neurons(i, j) = prevLayer->neurons(i, j) / dropoutRate;
-				dropped[i][j] = false;
-			}
-		}
-	}
+void Dropout1D::initPropagationQueue(OperationQueue& queue) {
+	queue.enqueue(new DropoutForwardPropOperation(dropoutRate, prevLayer->neurons, neurons, dropped));
 }
 
-void Dropout1D::backPropagate(int num) {
-	if (num != 0) {
-		prevLayer->backPropagate(num);
-		return;
-	}
-	for (int i = 0; i < batchSize; i++) {
-		for (int j = 0; j < size; j++) {
-			if (!dropped[i][j]) {
-				prevLayer->neuronGradient(i, j) = neuronGradient(i, j) / dropoutRate;
-			}
-			else {
-				prevLayer->neuronGradient(i, j) = 0;
-			}
-		}
-	}
-	if (prevLayer != NULL) {
-		prevLayer->backPropagate(num);
+void Dropout1D::initBackPropQueue(OperationQueue& queue) {
+	queue.enqueue(new DropoutBackPropOperation(dropoutRate, neuronGradient, prevLayer->neuronGradient, dropped));
+	prevLayer->initBackPropQueue(queue);
+}
+
+void Dropout1D::initPredictQueue(OperationQueue& queue) {
+	queue.enqueue(new CopyTo(prevLayer->neurons, neurons));
+	if (nextLayer != NULL) {
+		nextLayer->initPredictQueue(queue);
 	}
 }
 
@@ -89,9 +68,76 @@ void Dropout1D::load(Model* nn, ifstream& file, string& line, int* commaIndex, i
 	nn->addLayer(dropout);
 }
 
-void Dropout1D::predict(int num) {
-	neurons.copy(prevLayer->neurons);
-	if (nextLayer != NULL) {
-		nextLayer->predict(num);
+template<>
+bool DropoutForwardPropOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	for (int i = 0; i < this->A->height; i++) {
+		for (int j = 0; j < this->A->width; j++) {
+			float randValue = distribution(generator);
+			if (randValue < dropoutRate) {
+				this->B->operator()(i, j) = 0;
+				dropped[i][j] = true;
+			}
+			else {
+				this->B->operator()(i, j) = this->A->operator()(i, j) / dropoutRate;
+				dropped[i][j] = false;
+			}
+		}
+		if (this->B->isLayerOutput) {
+			this->B->operator()(i, this->A->width - 1) = 1;
+		}
 	}
+	return true;
+}
+
+template<>
+bool DropoutForwardPropOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	for (int i = 0; i < this->A->batchSize; i++) {
+		for (int j = 0; j < this->A->length; j++) {
+			if (this->B->isLayerOutput && j / this->A->height == this->A->width - 1) {
+				this->B->host[i][j] = 1;
+			}
+			else {
+				float randValue = distribution(generator);
+				if (randValue < dropoutRate) {
+					this->B->host[i][j] = 0;
+					dropped[i][j] = true;
+				}
+				else {
+					this->B->host[i][j] = this->A->host[i][j] / dropoutRate;
+					dropped[i][j] = false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
+template<>
+bool DropoutBackPropOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
+	for (int i = 0; i < this->A->height; i++) {
+		for (int j = 0; j < this->A->width; j++) {
+			if (!dropped[i][j]) {
+				this->B->operator()(i, j) = this->A->operator()(i, j) / dropoutRate;
+			}
+			else {
+				this->B->operator()(i, j) = 0;
+			}
+		}
+	}
+	return true;
+}
+
+template<>
+bool DropoutBackPropOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
+	for (int i = 0; i < this->A->batchSize; i++) {
+		for (int j = 0; j < this->A->length; j++) {
+			if (!dropped[i][j]) {
+				this->B->host[i][j] = this->A->host[i][j] / dropoutRate;
+			}
+			else {
+				this->B->host[i][j] = 0;
+			}
+		}
+	}
+	return true;
 }

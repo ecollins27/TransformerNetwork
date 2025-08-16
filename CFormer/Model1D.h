@@ -2,6 +2,7 @@
 #include "Input1D.h"
 #include "Loss1D.h"
 #include "Model.h"
+#include <barrier>
 
 class Model1D : public Model {
 
@@ -26,11 +27,9 @@ public:
 	void printLayers();
 
 private:
-	void updateAverages(Loss1D* lossFunction, float** y, float* averages, int numMetrics, Loss1D** metrics);
-	void evaluateValidation(Loss1D* lossFunction, Dataset* valData, int batchSize, int numMetrics, Loss1D** metrics);
-	void applyGradients(float learningRate);
-	void predict(void* input, bool sparse);
-	void forwardPropagate(void* input, bool sparse);
-	void backPropagate(Loss1D* lossFunction, float** yTrue);
+	void formatData(Dataset*& trainingData, Dataset*& valData, int& trainingNum, int& valNum, float valSplit, bool useSplitVal, int batchSize);
+	void threadFit(int trainingNum, Dataset* trainingData, int valNum, Dataset* valData, Loss1D* lossFunction, OperationQueue* forwardProp, OperationQueue* backProp, OperationQueue* applyGradients, OperationQueue* predict, int numMetrics, Loss1D** metrics, string header, atomic<float>* averages, float learningRate, int batchSize, int threadID, barrier<>* sync);
+	void updateAverages(Loss1D* lossFunction, float** y, atomic<float>* averages, int numMetrics, Loss1D** metrics);
+	void evaluateValidation(OperationQueue* predict, Loss1D* lossFunction, int valNum, Dataset* valData, int batchSize, int numMetrics, Loss1D** metrics, atomic<float>* averages, int threadID, barrier<>* sync);
 };
 

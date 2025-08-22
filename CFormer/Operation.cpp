@@ -22,40 +22,46 @@ void extendArray(T*& array, int oldLength, int newLength) {
 
 template<>
 bool HostToDeviceCopy<Matrix>::operate(OperationQueue* queue, int threadID) {
-	if (this->threadID->load() == -1){
-		bool foundThread = false;
-		bool refFalse;
+	int refNegTwo = -2;
+	if (this->prereqDepth == this->parentOperation->prereqDepth - 1 && this->parentOperation->threadID.compare_exchange_strong(refNegTwo, -1)) {
 		bool refTrue;
-		int refNegOne;
+		bool foundThread = false;
 		for (int i = 0; i < queue->numThreads; i++) {
 			refTrue = true;
-			refNegOne = -1;
 			if (queue->deviceLocks[i].compare_exchange_strong(refTrue, false)) {
-				if (!this->threadID->compare_exchange_strong(refNegOne, i)) {
-					queue->deviceLocks[i].compare_exchange_strong(refFalse, true);
-				}
-				else {
-					queue->devicesUsed.fetch_add(1);
-				}
+				queue->devicesUsed.fetch_add(1);
+				this->parentOperation->threadID.store(i);
 				foundThread = true;
+				printf("Reserving Device %d  %d Devices currently used\nPrereq Depths: %d %d\n", i, queue->devicesUsed.load(), this->prereqDepth, this->parentOperation->prereqDepth);
 				break;
 			}
 		}
 		if (!foundThread) {
+			int refNegOne = -1;
+			this->parentOperation->threadID.store(-2);
 			return false;
 		}
+	}
+	int id;
+	do {
+		id = this->parentOperation->threadID.load();
+		printf("\rState: %d", id);
+	} while (id == -1);
+	printf("\n");
+	if (id == -2) {
+		return false;
 	}
 	if (batchSize > 1) {
 		cudaError_t err;
 		for (int i = 0; i < batchSize; i++) {
-			err = cudaMemcpy(queue->hostDevices[this->threadID->load()][this->deviceNum][i], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice);
+			err = cudaMemcpyAsync(queue->hostDevices[id][this->deviceNum][i], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice, queue->streams[id]);
 			if (err != cudaSuccess) {
 				throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 			}
 		}
 	}
 	else {
-		cudaError_t err = cudaMemcpyAsync(queue->hostDevices[this->threadID->load()][this->deviceNum][0], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice, queue->streams[this->threadID->load()]);
+		cudaError_t err = cudaMemcpyAsync(queue->hostDevices[id][this->deviceNum][0], A->host, A->length * sizeof(float), cudaMemcpyHostToDevice, queue->streams[id]);
 		if (err != cudaSuccess) {
 			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
@@ -66,7 +72,7 @@ bool HostToDeviceCopy<Matrix>::operate(OperationQueue* queue, int threadID) {
 
 template<>
 bool HostToDeviceCopy<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
-	if (this->threadID->load() == -1) {
+	if (this->parentOperation->threadID.load() == -1) {
 		bool foundThread = false;
 		bool refTrue;
 		int refNegOne;
@@ -74,18 +80,25 @@ bool HostToDeviceCopy<MatrixBatch>::operate(OperationQueue* queue, int threadID)
 			refTrue = true;
 			refNegOne = -1;
 			if (queue->deviceLocks[i].compare_exchange_strong(refTrue, false)) {
-				this->threadID->compare_exchange_strong(refNegOne, i);
+				this->parentOperation->threadID.compare_exchange_strong(refNegOne, i);
 				foundThread = true;
 				break;
 			}
 		}
-		if (!foundThread && this->threadID->load() == -1) {
+		if (!foundThread) {
+			refNegOne = -1;
 			return false;
 		}
 	}
+	int id = this->parentOperation->threadID.load();
+	while (id == -1){
+		id = this->parentOperation->threadID.load();
+		printf("\rState: %d", id);
+	}
+	printf("\n");
 	cudaError_t err;
 	for (int i = 0; i < A->batchSize; i++) {
-		err = cudaMemcpy(queue->hostDevices[this->threadID->load()][this->deviceNum][i], A->host[i], A->length * sizeof(float), cudaMemcpyHostToDevice);
+		err = cudaMemcpyAsync(queue->hostDevices[id][this->deviceNum][i], A->host[i], A->length * sizeof(float), cudaMemcpyHostToDevice, queue->streams[id]);
 		if (err != cudaSuccess) {
 			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
@@ -133,21 +146,24 @@ void kernelBiasSet(float* column, int offset, int height) {
 
 template<>
 bool DeviceToHostCopy<Matrix>::operate(OperationQueue* queue, int threadID) {
-	int id = this->threadID->load();
+	int id = this->parentOperation->threadID.load();
 	if (this->A->isLayerOutput) {
 		int N = this->A->height;
 		int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 		kernelBiasSet << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][this->deviceNum][0], this->A->length, N);
 	}
-	cudaError_t err = cudaMemcpyAsync(A->host, queue->hostDevices[id][this->deviceNum][0], A->length * sizeof(float), cudaMemcpyDeviceToHost, queue->streams[id]);
+	cudaError_t err = cudaMemcpyAsync(A->host, queue->hostDevices[id][this->deviceNum][0], (A->isLayerOutput ? (A->length + A->height) : A->length) * sizeof(float), cudaMemcpyDeviceToHost, queue->streams[id]);
 	if (err != cudaSuccess) {
 		throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 	}
 	cudaStreamSynchronize(queue->streams[id]);
-	this->outputsCopied->fetch_sub(1);
-	if (this->outputsCopied->compare_exchange_strong(this->refZERO, this->numOutputs)) {
+	this->parentOperation->outputsCopied.fetch_sub(1);
+	printf("Completed Copy on device %d\n", id);
+	if (this->parentOperation->outputsCopied.compare_exchange_strong(this->refZERO, this->numOperationOutputs)) {
 		queue->deviceLocks[id].store(true);
 		queue->devicesUsed.fetch_sub(1);
+		this->parentOperation->threadID.store(-2);
+				printf("Unreserving Device %d  %d Devices currently reserved\n", id, queue->devicesUsed.load());
 	}
 	return true;
 }
@@ -156,13 +172,13 @@ template<>
 bool DeviceToHostCopy<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
 	cudaError_t err;
 	for (int i = 0; i < A->batchSize; i++) {
-		err = cudaMemcpy(A->host[i], queue->hostDevices[this->threadID->load()][this->deviceNum][i], A->length * sizeof(float), cudaMemcpyDeviceToHost);
+		err = cudaMemcpy(A->host[i], queue->hostDevices[this->parentOperation->threadID.load()][this->deviceNum][i], A->length * sizeof(float), cudaMemcpyDeviceToHost);
 		if (err != cudaSuccess) {
 			throw runtime_error(string("CUDA memory copy failed: ") + cudaGetErrorString(err));
 		}
 	}
-	queue->deviceLocks[this->threadID->load()].store(true);
-	this->threadID->store(-1);
+	queue->deviceLocks[this->parentOperation->threadID.load()].store(true);
+	this->parentOperation->threadID.store(-2);
 	return true;
 }
 
@@ -200,14 +216,11 @@ void DOperation::applyToStream(OperationQueue* queue) {
 	return;
 }
 
-void DOperation::findPrereqs(vector<Operation*> operations, int index) {
-	return;
-}
-
 template<>
 bool Print<Matrix>::operate(OperationQueue* queue, int threadID) {
+	int width = this->A->isLayerOutput ? (this->A->width + 1) : this->A->width;
 	for (int i = 0; i < this->A->height; i++) {
-		for (int j = 0; j < this->A->isLayerOutput? (this->A->width + 1):this->A->width; j++) {
+		for (int j = 0; j < width; j++) {
 			printf("%f  ", this->A->host[this->A->e(i, j)]);
 		}
 		printf("\n");

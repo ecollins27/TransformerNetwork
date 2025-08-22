@@ -120,11 +120,13 @@ void getDummyData(int numData, float** X, float** y) {
 	}
 }
 
-int main() {
+int main1() {
 	FillFunction fill = ConstantFillFunction(0.1);
-	Matrix A(fill, 10, 10);
-	Matrix B(fill, 10, 10);
-	Matrix C(fill, 10, 10);
+	int size = 3;
+	Matrix A(fill, size, size);
+	Matrix B(fill, size, size);
+	Matrix C(fill, size, size + 1);
+	C.setLayerOutput(true);
 	OperationQueue queue(3);
 	queue.enqueue(new ConstantFill(B, 1));
 	queue.enqueue(new Print(B));
@@ -139,10 +141,10 @@ int main() {
 	queue.enqueue(new Print(A));
 	queue.finalize();
 
-	queue.run();
+	//queue.run();
 }
 
-int main2() {
+int main() {
 	cublasCreate(&Utils::HANDLE);
 
 	int numData = 60000;

@@ -144,7 +144,7 @@ void Model1D::fit(Loss1D* lossFunction, Dataset* data, int numMetrics, Loss1D** 
 	OperationQueue applyGradients(numThreads);
 	inputLayer->initForwardPropQueue(forwardProp);
 	inputLayer->initPredictQueue(predict);
-	inputLayer->initBackPropQueue(backProp);
+	outputLayer->initBackPropQueue(backProp);
 	inputLayer->initApplicationQueue(applyGradients, learningRate, t);
 	forwardProp.finalize();
 	predict.finalize();

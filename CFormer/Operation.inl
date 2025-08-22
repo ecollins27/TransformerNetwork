@@ -12,6 +12,7 @@ void HUnary<Type>::findPrereqs(vector<Operation*> operations, int index) {
 		for (int j = 0; j < operations[i]->numOutputs; j++) {
 			if (operations[i]->outputs[j] == A) {
 				prereq = operations[i];
+				this->prereqDepth = operations[i]->prereqDepth + 1;
 			}
 		}
 	}
@@ -37,6 +38,7 @@ void HBinary<TypeA, TypeB>::findPrereqs(vector<Operation*> operations, int index
 		for (int j = 0; j < operations[i]->numOutputs; j++) {
 			if (operations[i]->outputs[j] == A) {
 				prereqA = operations[i];
+				this->prereqDepth = operations[i]->prereqDepth + 1;
 			}
 		}
 	}
@@ -53,7 +55,7 @@ HostToDeviceCopy<Type>::HostToDeviceCopy(DOperation* operation, Type* A, int dev
 	this->numOutputs = 1;
 	this->outputs = new void* [1] {NULL};
 	this->deviceNum = deviceNum;
-	this->threadID = &operation->threadID;
+	this->parentOperation = operation;
 	prereq = NULL;
 	this->batchSize = batchSize;
 }
@@ -64,6 +66,7 @@ void HostToDeviceCopy<Type>::findPrereqs(vector<Operation*> operations, int inde
 		for (int j = 0; j < operations[i]->numOutputs; j++) {
 			if (operations[i]->outputs[j] == A) {
 				prereq = operations[i];
+				this->prereqDepth = operations[i]->prereqDepth + 1;
 			}
 		}
 	}
@@ -71,7 +74,19 @@ void HostToDeviceCopy<Type>::findPrereqs(vector<Operation*> operations, int inde
 
 template<typename Type>
 int HostToDeviceCopy<Type>::getPrereqsUnmet(OperationQueue* queue) {
-	return (prereq == NULL ? 0 : prereq->completed.load()) + ((this->threadID->load() == -1 && queue->devicesUsed >= queue->numThreads) ? 1 : 0);
+	int prereqSum = (prereq == NULL ? 0 : prereq->completed.load());
+	int id = this->parentOperation->threadID.load();
+	//if (id == -2 && this->A->isWeight) {
+	//	return prereqSum + 1;
+	//}
+	if (this->prereqDepth != this->parentOperation->prereqDepth - 1) {
+		return prereqSum + 1;
+	} else if (id == -2 && queue->devicesUsed.load() >= queue->numThreads) {
+		return prereqSum + 1;
+	}
+	else {
+		return prereqSum;
+	}
 }
 
 template<typename Type>
@@ -80,14 +95,14 @@ DeviceToHostCopy<Type>::DeviceToHostCopy(DOperation* operation, Type* A, int dev
 	this->numOutputs = 1;
 	this->outputs = new void* [1] {A};
 	this->deviceNum = deviceNum;
-	this->threadID = &operation->threadID;
-	this->numOutputs = operation->numOutputs;
-	this->outputsCopied = &operation->outputsCopied;
+	this->numOperationOutputs = operation->numOutputs;
+	this->parentOperation = operation;
 	prereq = NULL;
 }
 
 template<typename Type>
 void DeviceToHostCopy<Type>::findPrereqs(vector<Operation*> operations, int index) {
+	this->prereqDepth = this->prereq == NULL ? 0 : (this->prereq->prereqDepth + 1);
 	return;
 }
 
@@ -247,4 +262,33 @@ void Multiply<TypeA, TypeB, TypeC>::addDeviceCopies(vector<Operation*>& operatio
 	}
 	this->prereqA = ACopy;
 	this->prereqB = BCopy;
+}
+
+template<typename Type>
+void DUnary<Type>::findPrereqs(vector<Operation*> operations, int index) {
+	this->prereqDepth = this->prereq == NULL ? 0 : (this->prereq->prereqDepth + 1);
+}
+
+template<typename TypeA, typename TypeB>
+void DBinary<TypeA, TypeB>::findPrereqs(vector<Operation*> operations, int index) {
+	this->prereqDepth = this->prereqA == NULL ? 0 : (this->prereqA->prereqDepth + 1);
+}
+
+template<typename TypeA, typename TypeB, typename TypeC>
+void DTrinary<TypeA, TypeB, TypeC>::findPrereqs(vector<Operation*> operations, int index) {
+	this->prereqDepth = max(this->prereqA == NULL ? 0 : (this->prereqA->prereqDepth + 1), this->prereqB == NULL ? 0 : (this->prereqB->prereqDepth + 1));
+}
+
+template<typename TypeIn, typename TypeOut>
+void Dnary<TypeIn, TypeOut>::findPrereqs(vector<Operation*> operations, int index) {
+	this->prereqDepth = 0;
+	for (int i = 0; i < this->N_IN; i++) {
+		this->prereqDepth = max(this->prereqDepth, this->prereqs[i] == NULL ? 0 : (this->prereqs[i]->prereqDepth + 1));
+	}
+}
+
+template<typename TypeA, typename TypeB, typename TypeC>
+void Multiply<TypeA, TypeB, TypeC>::findPrereqs(vector<Operation*> operations, int index) {
+	this->prereqDepth = max(this->prereqA == NULL ? 0 : (this->prereqA->prereqDepth + 1), this->prereqB == NULL ? 0 : (this->prereqB->prereqDepth + 1));
+	this->prereqDepth = max(this->prereqDepth, this->prereqC == NULL ? 0 : (this->prereqC->prereqDepth + 1));
 }

@@ -27,7 +27,7 @@ int OperationQueue::getMinIndex(vector<Operation*> v) {
 	bool refFalse;
 	int prereqs;
 	bool allAllocated = true;
-	for (int i = 0; i < v.size(); i++) {
+	for (int i = 0; i < min(maxIndex.load() + 8, (int)operations.size()); i++) {
 		refFalse = false;
 		prereqs = v[i]->getPrereqsUnmet(this);
 		if (v[i]->completed.load() == 1 && prereqs == 0 && v[i]->operationAllocated.compare_exchange_strong(refFalse, true)) {
@@ -50,6 +50,14 @@ bool OperationQueue::operationsAllocated(vector<Operation*> operations) {
 	return true;
 }
 
+int numUnallocated(vector<Operation*> operations) {
+	int n = 0;
+	for (int i = 0; i < operations.size(); i++) {
+		n += operations[i]->operationAllocated.load() ? 0 : 1;
+	}
+	return n;
+}
+
 void OperationQueue::threadRun(int threadID) {
 	Operation* operation = NULL;
 	int index = -1;
@@ -59,12 +67,20 @@ void OperationQueue::threadRun(int threadID) {
 		index = -1;
 		while (index == -1) {
 			index = getMinIndex(operations);
+			//if (threadID == 0) {
+			//	printf("\rNum Threads Taken: %d", devicesUsed.load());
+			//}
 		}
+		//if (threadID == 0) {
+		//	printf("\n");
+		//}
 		if (index == -2) {
 			continue;
 		}
 		operation = operations[index];
+		printf("Thread %d performing operation %s %d\n", threadID, typeid(*operation).name(), index);
 		success = operation->operate(this, threadID);
+		maxIndex.store(max(maxIndex.load(), index));
 		if (success) {
 			operation->completed.store(0);
 		}
@@ -84,6 +100,7 @@ void OperationQueue::run() {
 }
 
 void OperationQueue::reset() {
+	maxIndex.store(0);
 	for (int i = 0; i < operations.size(); i++) {
 		//printf("%d: %p  %s\n", i, operations[i], typeid(*operations[i]).name());
 		operations[i]->completed.store(1);
@@ -96,7 +113,7 @@ void OperationQueue::enqueue(Operation* operation) {
 		((DOperation*) operation)->addDeviceCopies(operations);
 		operations.emplace_back(operation);
 		((DOperation*) operation)->addHostCopies(operations);
-		((DOperation*)operation)->threadID.store(-1);
+		((DOperation*)operation)->threadID.store(-2);
 	}
 	else {
 		operations.emplace_back(operation);
@@ -108,6 +125,10 @@ void OperationQueue::finalize() {
 		operations[i]->findPrereqs(operations, i);
 		operations[i]->applyToStream(this);
 	}
+	for (int i = 0; i < operations.size(); i++) {
+		printf("%s: %d\n", typeid(*(operations[i])).name(), operations[i]->prereqDepth);
+	}
+	printf("\n");
 	allocateDeviceMemory();
 	this->reset();
 }

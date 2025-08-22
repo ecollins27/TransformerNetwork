@@ -15,6 +15,7 @@ public:
 	int length, maxLength;
 	int batchSize, height, width;
 	bool isLayerOutput = false;
+	bool isWeight;
 
 	MatrixBatch() {};
 	MatrixBatch(int batchSize, int height, int width);

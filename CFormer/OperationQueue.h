@@ -19,6 +19,7 @@ public:
 	vector<Operation*> operations;
 	atomic<bool>* deviceLocks;
 	atomic<int> devicesUsed;
+	atomic<int> maxIndex;
 	mutex lock;
 
 	int numDevices;

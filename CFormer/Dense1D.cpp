@@ -43,6 +43,7 @@ void Dense1D::setPrevLayer(Layer* prevLayer) {
 	}
 	NormalFillFunction fill = NormalFillFunction(0, stdDeviation);
 	weights = Matrix(fill, size, prevSize);
+	weights.isWeight = true;
 }
 
 void Dense1D::setBatchSize(int batchSize) {
@@ -91,7 +92,7 @@ void Dense1D::initApplicationQueue(OperationQueue& queue, float learningRate, in
 }
 
 void Dense1D::setOptimizer(Optimizer<>* optimizer) {
-	this->optimizer = optimizer->clone<Matrix>();
+	this->optimizer = (Optimizer<Matrix>*) optimizer->clone(true);
 	this->optimizer->setDimensions(1, size, prevSize);
 	weightGradient = this->optimizer->weightGradient;
 	if (nextLayer != NULL) {

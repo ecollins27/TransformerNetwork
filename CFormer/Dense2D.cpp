@@ -102,7 +102,7 @@ void Dense2D::initApplicationQueue(OperationQueue& queue, float learningRate, in
 }
 
 void Dense2D::setOptimizer(Optimizer<>* optimizer) {
-	this->optimizer = optimizer->clone<Matrix>();
+	this->optimizer = (Optimizer<Matrix>*) optimizer->clone(true);
 	this->optimizer->setDimensions(1, size, prevSize);
 	weightGradient = this->optimizer->weightGradient;
 	if (nextLayer != NULL) {

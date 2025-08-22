@@ -37,6 +37,7 @@ bool SigmoidOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int N = this->A->length;
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelSigmoid <<< numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
+	return true;
 }
 
 __global__
@@ -55,6 +56,7 @@ bool SigmoidOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID)
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelSigmoidBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], N);
+	return true;
 }
 
 __global__
@@ -71,6 +73,7 @@ bool SigmoidDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelSigmoidDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
+	return true;
 }
 
 __global__
@@ -89,6 +92,7 @@ bool SigmoidDifOperation<MatrixBatch>::operate(OperationQueue* queue, int thread
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->in[0]->batchSize);
 	kernelSigmoidDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -105,6 +109,7 @@ bool ReluOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int N = this->A->length;
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelRelu << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
+	return true;
 }
 
 __global__
@@ -123,6 +128,7 @@ bool ReluOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelReluBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], N);
+	return true;
 }
 
 __global__
@@ -139,6 +145,7 @@ bool ReluDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelReluDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
+	return true;
 }
 
 __global__
@@ -157,6 +164,7 @@ bool ReluDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID)
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->in[0]->batchSize);
 	kernelReluDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -174,6 +182,7 @@ bool EluOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int N = this->A->length;
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelElu << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
+	return true;
 }
 
 __global__
@@ -193,6 +202,7 @@ bool EluOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelEluBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->devices[id][0], queue->devices[id][1], N);
+	return true;
 }
 
 __global__
@@ -210,6 +220,7 @@ bool EluDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelEluDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
+	return true;
 }
 
 __global__
@@ -229,6 +240,7 @@ bool EluDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) 
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->in[0]->batchSize);
 	kernelEluDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -246,6 +258,7 @@ bool SeluOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int N = this->A->length;
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelSelu << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
+	return true;
 }
 
 __global__
@@ -265,6 +278,7 @@ bool SeluOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelSeluBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], N);
+	return true;
 }
 
 __global__
@@ -282,6 +296,7 @@ bool SeluDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelSeluDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
+	return true;
 }
 
 __global__
@@ -301,6 +316,7 @@ bool SeluDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID)
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->in[0]->batchSize);
 	kernelSeluDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -318,6 +334,7 @@ bool LogluOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int N = this->A->length;
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelLoglu << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
+	return true;
 }
 
 __global__
@@ -337,6 +354,7 @@ bool LogluOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelLogluBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->devices[id][0], queue->devices[id][1], N);
+	return true;
 }
 
 __global__
@@ -354,6 +372,7 @@ bool LogluDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelLogluDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
+	return true;
 }
 
 __global__
@@ -373,6 +392,7 @@ bool LogluDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->in[0]->batchSize);
 	kernelLogluDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (alpha, queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -392,6 +412,7 @@ bool TanhOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int N = this->A->length;
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelTanh << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
+	return true;
 }
 
 __global__
@@ -413,6 +434,7 @@ bool TanhOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, A->batchSize);
 	kernelTanhBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], N);
+	return true;
 }
 
 __global__
@@ -430,6 +452,7 @@ bool TanhDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelTanhDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
+	return true;
 }
 
 __global__
@@ -449,6 +472,7 @@ bool TanhDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID)
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->in[0]->batchSize);
 	kernelSigmoidDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -466,6 +490,7 @@ bool SwishOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int N = this->A->length;
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelSwish << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], N);
+	return true;
 }
 
 __global__
@@ -485,6 +510,7 @@ bool SwishOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID) {
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->A->batchSize);
 	kernelSwishBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >> > (alpha, queue->devices[id][0], queue->devices[id][1], N);
+	return true;
 }
 
 __global__
@@ -503,6 +529,7 @@ bool SwishDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelSwishDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (alpha, queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], N);
+	return true;
 }
 
 __global__
@@ -523,6 +550,7 @@ bool SwishDifOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->in[0]->batchSize);
 	kernelSwishDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (this->alpha, queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], N);
+	return true;
 }
 
 __global__
@@ -576,6 +604,7 @@ bool SoftmaxOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int N = this->A->length;
 	kernelSoftmax << < this->A->height, Utils::THREADS_PER_BLOCK, Utils::THREADS_PER_BLOCK * sizeof(float), queue->streams[id] >> > (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], this->A->height, this->A->width);
+	return true;
 }
 
 __global__
@@ -631,6 +660,7 @@ bool SoftmaxOperation<MatrixBatch>::operate(OperationQueue* queue, int threadID)
 	int N = this->A->length;
 	dim3 blocks(this->A->height, this->A->batchSize);
 	kernelSoftmaxBatched <<< blocks, Utils::THREADS_PER_BLOCK, Utils::THREADS_PER_BLOCK * sizeof(float), queue->streams[id] >> > (queue->devices[id][0], queue->devices[id][1], this->A->height, this->A->width);
+	return true;
 }
 
 __global__
@@ -653,6 +683,7 @@ bool SoftmaxDifOperation<Matrix>::operate(OperationQueue* queue, int threadID) {
 	int id = this->threadID.load();
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	kernelSoftmaxDifferentiate << < numBlocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->hostDevices[id][0][0], queue->hostDevices[id][1][0], queue->hostDevices[id][3][0], queue->hostDevices[id][2][0], this->in[0]->height, this->in[0]->width);
+	return true;
 }
 
 __global__
@@ -677,4 +708,5 @@ bool SoftmaxDifOperation<MatrixBatch>::operate(OperationQueue* queue, int thread
 	int numBlocks = (N + Utils::THREADS_PER_BLOCK - 1) / Utils::THREADS_PER_BLOCK;
 	dim3 blocks(numBlocks, this->in[0]->batchSize);
 	kernelSoftmaxDifferentiateBatched << < blocks, Utils::THREADS_PER_BLOCK, 0, queue->streams[id] >>> (queue->devices[id][0], queue->devices[id][1], queue->devices[id][3], queue->devices[id][2], this->in[0]->height, this->in[0]->width);
+	return true;
 }

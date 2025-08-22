@@ -116,10 +116,10 @@ void Gated1D::initApplicationQueue(OperationQueue& queue, float learningRate, in
 }
 
 void Gated1D::setOptimizer(Optimizer<>* optimizer) {
-	this->optimizer1 = optimizer->clone<Matrix>();
+	this->optimizer1 = (Optimizer<Matrix>*) optimizer->clone(true);
 	this->optimizer1->setDimensions(1, size, prevSize);
 	weightGradient1 = this->optimizer1->weightGradient;
-	this->optimizer2 = optimizer->clone<Matrix>();
+	this->optimizer2 = (Optimizer<Matrix>*) optimizer->clone(true);
 	this->optimizer2->setDimensions(1, size, prevSize);
 	weightGradient2 = this->optimizer2->weightGradient;
 	if (nextLayer != NULL) {

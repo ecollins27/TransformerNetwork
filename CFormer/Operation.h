@@ -10,6 +10,7 @@ class Operation {
 public:
 	int numOutputs;
 	void** outputs;
+	int prereqDepth = 0;
 	atomic<int> completed;
 	atomic<bool> operationAllocated;
 
@@ -26,7 +27,6 @@ public:
 	atomic<int> outputsCopied;
 
 	virtual void applyToStream(OperationQueue* queue);
-	virtual void findPrereqs(vector<Operation*> operations, int index);
 	virtual void addDeviceCopies(vector<Operation*>& operations) = 0;
 	virtual void addHostCopies(vector<Operation*>& operations) = 0;
 };
@@ -68,8 +68,8 @@ class HostToDeviceCopy : public Operation {
 public:
 	Type* A;
 	int deviceNum;
-	atomic<int>* threadID;
 	Operation* prereq;
+	DOperation* parentOperation;
 	int batchSize;
 
 	HostToDeviceCopy(DOperation* operation, Type* A, int deviceNum, int batchSize);
@@ -85,10 +85,9 @@ class DeviceToHostCopy : public Operation {
 public:
 	Type* A;
 	int deviceNum;
-	atomic<int>* threadID;
-	atomic<int>* outputsCopied;
-	int numOutputs;
+	int numOperationOutputs;
 	Operation* prereq;
+	DOperation* parentOperation;
 	int refZERO = 0;
 
 	DeviceToHostCopy(DOperation* operation, Type* A, int deviceNum);
@@ -107,6 +106,7 @@ public:
 
 	DUnary(TypeA& A);
 	virtual int getPrereqsUnmet(OperationQueue* queue);
+	virtual void findPrereqs(vector<Operation*> operations, int index);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
 };
@@ -121,6 +121,7 @@ public:
 
 	DBinary(TypeA& A, TypeB& B);
 	virtual int getPrereqsUnmet(OperationQueue* queue);
+	virtual void findPrereqs(vector<Operation*> operations, int index);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
 };
@@ -137,6 +138,7 @@ public:
 
 	DTrinary(TypeA& A, TypeB& B, TypeC& C);
 	virtual int getPrereqsUnmet(OperationQueue* queue);
+	virtual void findPrereqs(vector<Operation*> operations, int index);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
 };
@@ -152,6 +154,7 @@ public:
 
 	Dnary(int N_IN, int N_OUT);
 	virtual int getPrereqsUnmet(OperationQueue* queue);
+	virtual void findPrereqs(vector<Operation*> operations, int index);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 	virtual void addHostCopies(vector<Operation*>& operations);
 };
@@ -167,6 +170,7 @@ public:
 	const float BETA1 = 1.0f;
 
 	Multiply(TypeA& A, TypeB& B, TypeC& C, bool overwrite) : DTrinary<TypeA, TypeB, TypeC>(A, B, C) { this->overwrite = overwrite; this->prereqC = NULL; };
+	virtual void findPrereqs(vector<Operation*> operations, int index);
 	int getPrereqsUnmet(OperationQueue* queue);
 	virtual void addDeviceCopies(vector<Operation*>& operations);
 };

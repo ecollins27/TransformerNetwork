@@ -17,8 +17,7 @@ public:
 	float regConstant;
 
 	virtual void initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t) = 0;
-	template<typename Type2>
-	Optimizer<Type2>* clone() { return NULL; };
+	virtual void* clone(bool isMatrix) = 0;
 	virtual void setDimensions(int batchSize, int height, int width) = 0;
 };
 
@@ -28,9 +27,11 @@ class GradientDescent : public Optimizer<Type> {
 public:
 	GradientDescent(float weightDecay);
 	void initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t);
-	template<typename Type2>
-	Optimizer<Type2>* clone() {
-		return new GradientDescent<Type2>(this->regConstant);
+	void* clone(bool isMatrix) {
+		if (isMatrix) {
+			return (void*) new GradientDescent<Matrix>(this->regConstant);
+		}
+		return (void*) new GradientDescent<MatrixBatch>(this->regConstant);
 	}
 	void setDimensions(int batchSize, int height, int width);
 };
@@ -44,9 +45,11 @@ public:
 
 	Momentum(float beta, float weightDecay);
 	void initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t);
-	template<typename Type2>
-	Optimizer<Type2>* clone() {
-		return new Momentum<Type2>(this->beta, this->regConstant);
+	void* clone(bool isMatrix) {
+		if (isMatrix) {
+			return (void*) new Momentum<Matrix>(this->beta, this->regConstant);
+		}
+		return (void*) new Momentum<MatrixBatch>(this->beta, this->regConstant);
 	}
 	void setDimensions(int batchSize, int height, int width);
 };
@@ -61,9 +64,11 @@ public:
 
 	Adam(float beta1, float beta2, float weightDecay);
 	void initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t);
-	template<typename Type2>
-	Optimizer<Type2>* clone() {
-		return new Adam<Type2>(this->beta1, this->beta2, this->regConstant);
+	void* clone(bool isMatrix) {
+		if (isMatrix) {
+			return (void*) new Adam<Matrix>(this->beta1, this->beta2, this->regConstant);
+		}
+		return (void*) new Adam<MatrixBatch>(this->beta1, this->beta2, this->regConstant);
 	}
 	void setDimensions(int batchSize, int height, int width);
 };
@@ -80,9 +85,11 @@ public:
 
 	AdEMAMix(float beta1, float beta2, float beta3, float alpha, float weightDecay);
 	void initApplicationQueue(OperationQueue& queue, Type& weights, float learningRate, int batchSize, int& t);
-	template<typename Type2>
-	Optimizer<Type2>* clone() {
-		return new AdEMAMix<Type2>(this->beta1, this->beta2, this->beta3, this->regConstant);
+	void* clone(bool isMatrix) {
+		if (isMatrix) {
+			return (void*) new AdEMAMix<Matrix>(this->beta1, this->beta2, this->beta3, this->alpha, this->regConstant);
+		}
+		return (void*) new AdEMAMix<MatrixBatch>(this->beta1, this->beta2, this->beta3, this->alpha, this->regConstant);
 	}
 	void setDimensions(int batchSize, int height, int width);
 };

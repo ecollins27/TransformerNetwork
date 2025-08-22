@@ -119,7 +119,7 @@ void BatchNormalization1D::initApplicationQueue(OperationQueue& queue, float lea
 }
 
 void BatchNormalization1D::setOptimizer(Optimizer<>* optimizer) {
-	this->optimizer = optimizer->clone<Matrix>();
+	this->optimizer = (Optimizer<Matrix>*) optimizer->clone(true);
 	this->optimizer->setDimensions(1, 2, size);
 	parameterGradient = this->optimizer->weightGradient;
 	if (nextLayer != NULL) {

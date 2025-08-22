@@ -14,6 +14,7 @@ public:
 	int length, maxLength;
 	int height, width;
 	bool isLayerOutput = false;
+	bool isWeight = false;
 
 	Matrix() {};
 	Matrix(int height, int width);

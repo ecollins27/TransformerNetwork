@@ -201,13 +201,13 @@ void TransformerAttention::initApplicationQueue(OperationQueue& queue, float lea
 }
 
 void TransformerAttention::setOptimizer(Optimizer<>* optimizer) {
-	outputOptimizer = optimizer->clone<Matrix>();
+	outputOptimizer = (Optimizer<Matrix>*) optimizer->clone(true);
 	outputOptimizer->setDimensions(1, numHeads * valueSize, size);
-	queryOptimizers = optimizer->clone<MatrixBatch>();
+	queryOptimizers = (Optimizer<MatrixBatch>*) optimizer->clone(false);
 	queryOptimizers->setDimensions(numHeads, prevSize, keySize);
-	keyOptimizers = optimizer->clone<MatrixBatch>();
+	keyOptimizers = (Optimizer<MatrixBatch>*) optimizer->clone(false);
 	keyOptimizers->setDimensions(numHeads, prevSize, keySize);
-	valueOptimizers = optimizer->clone<MatrixBatch>();
+	valueOptimizers = (Optimizer<MatrixBatch>*) optimizer->clone(false);
 	valueOptimizers->setDimensions(numHeads, prevSize, valueSize);
 	if (nextLayer != NULL) {
 		nextLayer->setOptimizer(optimizer);
